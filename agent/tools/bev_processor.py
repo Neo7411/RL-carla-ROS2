@@ -5,18 +5,18 @@ class BEVProcessor:
 
     def __init__(
         self,
-        x_range: tuple = (-50.0, 50.0),
-        y_range: tuple = (-50.0, 50.0),
+        x_range: tuple = (-128.0, 128.0),
+        y_range: tuple = (-128.0, 128.0),
         z_range: tuple = (-2.0, 4.0),
-        bev_height: int = 200,
-        bev_width: int = 200,
+        bev_height: int = 256,
+        bev_width: int = 256,
     ):
         self.x_min, self.x_max = x_range
         self.y_min, self.y_max = y_range
         self.z_min, self.z_max = z_range
         self.h = bev_height
         self.w = bev_width
-        self.num_channels = 5
+        self.num_channels = 6  # +1 for route mask
 
     # ── Public Interface ─────────────────────────────────────
 
@@ -25,22 +25,52 @@ class BEVProcessor:
         """Shape that TF-Agents needs for observation_spec."""
         return (self.h, self.w, self.num_channels)
 
-    def process(self, points: np.ndarray) -> np.ndarray:
+    def process(self, points: np.ndarray,
+                route_local: np.ndarray | None = None) -> np.ndarray:
         """
-        Full pipeline: raw points → BEV tensor.
+        Full pipeline: raw points (+ optional route) → BEV tensor.
 
         Args:
-            points: [N, 4] float32 array (x, y, z, intensity)
+            points: [N, 4] float32 array (x, y, z, intensity) in LiDAR frame.
+            route_local: optional [M, 2] route polyline in LiDAR-local frame
+                (ego-forward = +x). Rasterized into channel 5.
 
         Returns:
-            [H, W, 5] float32 BEV tensor (channels-last for TensorFlow)
+            [H, W, 6] float32 BEV tensor.
         """
-        points = self._crop(points)
+        cropped = self._crop(points)
 
-        if len(points) == 0:
-            return np.zeros(self.observation_shape, dtype=np.float32)
+        if len(cropped) == 0:
+            bev = np.zeros(self.observation_shape, dtype=np.float32)
+        else:
+            bev = self._project(cropped)
 
-        return self._project(points)
+        if route_local is not None and len(route_local) >= 2:
+            self._rasterize_route(bev, route_local)
+        return bev
+
+    def _rasterize_route(self, bev: np.ndarray, route_local: np.ndarray) -> None:
+        """Draw the route polyline into channel 5 using Bresenham-style
+        interpolation. Route is in local meters; we reuse _compute_indices."""
+        # Keep points within BEV bounds; clip is fine here since we want the
+        # path to reach the edge even when the goal is outside view.
+        xs = route_local[:, 0]
+        ys = route_local[:, 1]
+        xi = ((xs - self.x_min) / (self.x_max - self.x_min) * self.w).astype(np.int32)
+        yi = ((ys - self.y_min) / (self.y_max - self.y_min) * self.h).astype(np.int32)
+        xi = np.clip(xi, 0, self.w - 1)
+        yi = np.clip(yi, 0, self.h - 1)
+
+        mask = bev[:, :, 5]
+        for k in range(len(xi) - 1):
+            x0, y0, x1, y1 = int(xi[k]), int(yi[k]), int(xi[k + 1]), int(yi[k + 1])
+            n = max(abs(x1 - x0), abs(y1 - y0)) + 1
+            if n == 1:
+                mask[y0, x0] = 1.0
+                continue
+            xs_l = np.linspace(x0, x1, n).astype(np.int32)
+            ys_l = np.linspace(y0, y1, n).astype(np.int32)
+            mask[ys_l, xs_l] = 1.0
 
     # ── Private Methods ──────────────────────────────────────
 

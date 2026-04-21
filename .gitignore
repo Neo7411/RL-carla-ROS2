@@ -1,5 +1,15 @@
-/__pycache__
-/Papers
-/ppo_carla_tensorboard
-/checkpoints
+# Python bytecode
+__pycache__/
+
+
+# Local research and documentation
+/Papers/
+
+# Logging and Tensorboard
+/ppo_carla_tensorboard/
+
+# Model checkpoints
+/checkpoints/
+
+# Archives
 *.zip
