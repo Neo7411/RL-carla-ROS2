@@ -1,15 +1,10 @@
-# Python bytecode
-__pycache__/
+# Ignore all __pycache__ directories anywhere in the project
+**/__pycache__/
 
+# Ignore everything inside these specific folders
+/Papers/**/*
+/ppo_carla_tensorboard/**/**
+/checkpoints/**/*
 
-# Local research and documentation
-/Papers/
-
-# Logging and Tensorboard
-/ppo_carla_tensorboard/
-
-# Model checkpoints
-/checkpoints/
-
-# Archives
-*.zip
+# Ignore all zip files anywhere
+**/*.zip

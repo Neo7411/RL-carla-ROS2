@@ -12,7 +12,7 @@ from tools.custom_cnn import BEVGoalExtractor
 
 TOTAL_TIMESTEPS = 10_000_000
 
-# Linear schedules (SB3 passes `progress_remaining` in [1.0, 0.0])
+
 def linear_schedule(start: float, end: float):
     def fn(progress_remaining: float) -> float:
         return end + (start - end) * progress_remaining
@@ -51,25 +51,29 @@ def train():
             features_extractor_class=BEVGoalExtractor,
             features_extractor_kwargs=dict(cnn_dim=512, mlp_dim=64),
             net_arch=dict(pi=[256, 256], vf=[256, 256]),
-            log_std_init=-0.5,   # less noisy exploration (default 0.0)
+            # log_std_init=0.0 → std≈1.0, so early actions span the full
+            # control range — lots of throttle/brake/steer exploration from
+            # step 1. The entropy scheduler will shrink this as training
+            # progresses.
+            log_std_init=0.0,
         )
 
         if os.path.exists(MODEL_PATH):
             print(f"--- Resuming from {MODEL_PATH} ---")
             model = PPO.load(MODEL_PATH, env=env, tensorboard_log=LOG_DIR)
         else:
-            print("--- Fresh training (goal-conditioned) ---")
+            print("--- Fresh training (BEV obstacle-avoidance) ---")
             model = PPO(
                 "MultiInputPolicy",
                 env,
                 policy_kwargs=policy_kwargs,
                 learning_rate=linear_schedule(3e-4, 1e-5),
-                n_steps=512,         # shorter rollouts → 4× more updates/hr
+                n_steps=512,
                 batch_size=64,
                 n_epochs=10,
                 gamma=0.99,
                 gae_lambda=0.95,
-                ent_coef=0.01,       # scheduled down by EntropyCoefScheduler
+                ent_coef=0.01,
                 clip_range=0.2,
                 verbose=1,
                 tensorboard_log=LOG_DIR,
@@ -78,7 +82,7 @@ def train():
         ckpt_cb = CheckpointCallback(
             save_freq=50_000,
             save_path=CKPT_DIR,
-            name_prefix="carla_ppo_goal",
+            name_prefix="carla_ppo",
         )
         ent_cb = EntropyCoefScheduler(start=0.01, end=0.001,
                                       total_steps=TOTAL_TIMESTEPS)

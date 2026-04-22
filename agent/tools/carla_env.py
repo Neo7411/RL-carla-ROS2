@@ -1,22 +1,31 @@
 """
-Goal-conditioned CARLA RL environment (ROS2-only).
+Goal-reaching CARLA RL environment (ROS2-only).
+
+The agent sees LiDAR BEV + a small goal-relative vector and must drive from
+the fixed spawn to the fixed goal XY without crashing and without leaving
+its lane.
 
 Observation (Dict):
-    bev:    (H, W, 6) float32    LiDAR BEV + route mask channel
-    vector: (6,) float32         normalized [speed, heading_err, cross_track,
-                                 dist_to_goal, goal_dx_ego, goal_dy_ego]
+    bev:    (H, W, 5) float32      LiDAR BEV
+    vector: (4,) float32            normalized [speed, dist_to_goal,
+                                               goal_dx_ego, goal_dy_ego]
 
-Action: Box(2,) in [-1, 1]       [steer, throttle_or_brake]
+Action: Box(2,) in [-1, 1]        [steer, throttle_or_brake]
+    action[1]=0 → ~50% throttle (bias so the untrained policy rolls).
 
-Reset picks a random lanelet pose, plans a random reachable route via
-MapRouter, and respawns the ego via the carla_ros_bridge topic
-`/carla/ego_vehicle/control/set_transform`.
+Reward (per step):
+    r_progress  = k_prog * (prev_dist - curr_dist)   # positive while closing
+    r_distance  = -0.01 * curr_dist                   # mild "far is bad" prior
+    r_speed     = 3.0 * (v / SPEED_TARGET)^2          # push toward 120 km/h
+    r_time      = -1.0                                # anti-dawdle
+    r_idle      = -2.0 if v < 0.5 else 0              # anti-stop
+    r_lane      = -5.0 per lane-invasion event
+    r_goal      = +300.0 on arrival (one-shot, terminal)
+    r_collision = -150 - 1.5*v (terminal)
 """
 from __future__ import annotations
 
 import math
-import os
-import random
 import threading
 import time
 
@@ -30,39 +39,46 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Pose, Quaternion
 
 from tools.bev_processor import BEVProcessor
-from tools.map_router import MapRouter
 
 try:
-    from carla_msgs.msg import CarlaEgoVehicleControl, CarlaCollisionEvent
+    from carla_msgs.msg import (CarlaEgoVehicleControl, CarlaCollisionEvent,
+                                CarlaLaneInvasionEvent)
     CARLA_MSGS_AVAILABLE = True
 except ImportError:
     CARLA_MSGS_AVAILABLE = False
 
 
-# Normalization constants for the vector observation
-SPEED_MAX = 17.0       # m/s
-DIST_MAX = 300.0       # m — normalize distance-to-goal
-EGO_REL_MAX = 50.0     # m — clip goal-relative-xy for stability
+# Target top speed: 120 km/h ≈ 33.33 m/s.
+SPEED_TARGET = 33.33
+
+# Fixed spawn and goal.
+SPAWN_XY = (290.2, 168.9)
+SPAWN_YAW = 0.0
+GOAL_XY = (386.6, 224.8)
+GOAL_RADIUS = 5.0          # metres, arrival threshold
+
+# Observation normalization.
+DIST_NORM = 300.0          # m — max expected distance to goal
+REL_NORM = 300.0           # m — clip goal-relative xy into [-1, 1]
+
+# Reward tuning.
+PROGRESS_GAIN = 2.0        # reward per metre closed toward the goal
+DIST_GAIN = 0.01           # small constant "far is bad" prior
+LANE_INVASION_PENALTY = 5.0
+GOAL_BONUS = 300.0
 
 
 class CarlaRLEnvironment(gym.Env):
-    def __init__(self, ros_node: Node, bev_processor: BEVProcessor | None = None,
-                 map_path: str | None = None):
+    def __init__(self, ros_node: Node, bev_processor: BEVProcessor | None = None):
         super().__init__()
         self._node = ros_node
         self._bev = bev_processor or BEVProcessor()
-
-        if map_path is None:
-            here = os.path.dirname(os.path.abspath(__file__))
-            map_path = os.path.join(here, '..', 'maps', 'Town04.osm')
-        self._router = MapRouter(map_path)
-        self._rng = random.Random()
 
         self.observation_space = spaces.Dict({
             'bev': spaces.Box(low=0.0, high=10.0,
                               shape=self._bev.observation_shape,
                               dtype=np.float32),
-            'vector': spaces.Box(low=-1.0, high=1.0, shape=(6,),
+            'vector': spaces.Box(low=-1.0, high=1.0, shape=(4,),
                                  dtype=np.float32),
         })
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,),
@@ -71,16 +87,17 @@ class CarlaRLEnvironment(gym.Env):
         # Shared state (guarded by _lock)
         self._latest_points: np.ndarray | None = None
         self._latest_velocity = 0.0
-        self._ego_xy = np.zeros(2, dtype=np.float32)
+        self._ego_xy = np.array(SPAWN_XY, dtype=np.float32)
         self._ego_yaw = 0.0
         self._collision = False
+        self._lane_invasions = 0        # counter, consumed each step
         self._lock = threading.Lock()
         self._new_frame = threading.Event()
 
         self._step_count = 0
         self._max_steps = 1500
-        self._prev_steer = 0.0
-        self._prev_fraction = 0.0
+        self._prev_dist = float(np.linalg.norm(
+            np.array(GOAL_XY) - np.array(SPAWN_XY)))
 
         self._node.create_subscription(
             PointCloud2, '/carla/ego_vehicle/lidar', self._on_lidar, 10)
@@ -91,6 +108,9 @@ class CarlaRLEnvironment(gym.Env):
             self._node.create_subscription(
                 CarlaCollisionEvent, '/carla/ego_vehicle/collision',
                 self._on_collision, 10)
+            self._node.create_subscription(
+                CarlaLaneInvasionEvent, '/carla/ego_vehicle/lane_invasion',
+                self._on_lane_invasion, 10)
             self._control_pub = self._node.create_publisher(
                 CarlaEgoVehicleControl,
                 '/carla/ego_vehicle/vehicle_control_cmd', 10)
@@ -123,82 +143,47 @@ class CarlaRLEnvironment(gym.Env):
         with self._lock:
             self._collision = True
 
+    def _on_lane_invasion(self, msg):
+        # Each message = one lane-marking crossing. Tally and consume in step.
+        with self._lock:
+            self._lane_invasions += 1
+
     # ── Gym API ─────────────────────────────────────────────────────────
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        if seed is not None:
-            self._rng.seed(seed)
-
         self._step_count = 0
         self._collision = False
-        self._prev_steer = 0.0
-        self._prev_fraction = 0.0
+        self._lane_invasions = 0
 
-        # Fixed spawn (matches the original working spawn point).
-        # Random goal is still planned from here.
-        start_xy = np.array([290.2, 168.9], dtype=np.float32)
-        # Hardcoded yaw: the road at this spawn runs east-west in CARLA world
-        # frame (yaw=0 points the car parallel to the road edges). The
-        # Lanelet2 `heading_at` value for this location is off because the
-        # nearest lanelet segment belongs to a bend that doesn't match the
-        # actual road heading at the spawn point. Roll/pitch stay 0.
-        start_yaw = 0.0
-        self._router.plan_random_route(
-            start_xy, min_len=20.0, max_len=1000.0,
-            max_tries=60, rng=self._rng)
-
-        # Announce the goal for this episode
-        if self._router.waypoints is not None:
-            goal = self._router.waypoints[-1]
-            print(f"[env] new episode — goal=({goal[0]:+.1f}, {goal[1]:+.1f})  "
-                  f"route_len={self._router.total_length:.1f} m  "
-                  f"waypoints={len(self._router.waypoints)}")
-
-        # Respawn ego at the route start
         if CARLA_MSGS_AVAILABLE:
             pose = Pose()
-            pose.position.x = float(start_xy[0])
-            pose.position.y = float(start_xy[1])
+            pose.position.x = float(SPAWN_XY[0])
+            pose.position.y = float(SPAWN_XY[1])
             pose.position.z = 2.0
-            # Roll = pitch = 0 (level spawn); yaw aligned with lanelet heading
-            # so the car starts parallel to the road edges.
-            qz = math.sin(start_yaw * 0.5)
-            qw = math.cos(start_yaw * 0.5)
+            qz = math.sin(SPAWN_YAW * 0.5)
+            qw = math.cos(SPAWN_YAW * 0.5)
             pose.orientation = Quaternion(x=0.0, y=0.0, z=qz, w=qw)
             self._respawn_pub.publish(pose)
-            # Brief full brake to settle physics, then explicitly release.
+
             stop = CarlaEgoVehicleControl()
             stop.brake = 1.0
-            stop.hand_brake = False
             self._control_pub.publish(stop)
             time.sleep(1)
             release = CarlaEgoVehicleControl()
-            release.throttle = 0.0
-            release.brake = 0.0
-            release.hand_brake = False
-            release.manual_gear_shift = False
             self._control_pub.publish(release)
 
         time.sleep(1)
         self._new_frame.clear()
         self._new_frame.wait(timeout=5.0)
 
-        # Clear any spurious collision events triggered by the teleport itself.
-        # The bridge can fire CarlaCollisionEvent when the ego is snapped to
-        # a new transform (ground contact, brief overlap with nearby geometry).
-        # Clearing here — AFTER the respawn settles — prevents an immediate
-        # termination on step 1 which would cause an empty episode + double reset.
+        # Clear collision/lane-invasion events fired by the teleport itself.
         with self._lock:
             self._collision = False
-
-        # Initialize route-progress baseline AFTER the router has the ego's
-        # actual pose — prevents a fake "progress" spike on the first step.
-        with self._lock:
+            self._lane_invasions = 0
             ego_xy = self._ego_xy.copy()
-            ego_yaw = self._ego_yaw
-        if self._router.waypoints is not None:
-            self._prev_fraction = self._router.progress(ego_xy, ego_yaw).fraction_done
+
+        self._prev_dist = float(np.linalg.norm(np.array(GOAL_XY) - ego_xy))
 
         return self._build_observation(), {}
 
@@ -213,41 +198,37 @@ class CarlaRLEnvironment(gym.Env):
         with self._lock:
             v = self._latest_velocity
             c = self._collision
+            lane_events = self._lane_invasions
+            self._lane_invasions = 0       # consume
             ego_xy = self._ego_xy.copy()
-            ego_yaw = self._ego_yaw
 
-        prog = self._router.progress(ego_xy, ego_yaw)
+        dist = float(np.linalg.norm(np.array(GOAL_XY) - ego_xy))
+        goal_reached = dist < GOAL_RADIUS
 
-        # Collision grace period: ignore collisions in the first few steps
-        # after reset. The bridge can fire spurious events right after the
-        # teleport (ground contact, nearby geometry) — treating them as real
-        # would produce empty episodes + back-to-back resets.
+        # Collision grace period — ignore spurious events right after teleport.
         COLLISION_GRACE_STEPS = 5
         if c and self._step_count <= COLLISION_GRACE_STEPS:
             with self._lock:
                 self._collision = False
             c = False
 
-        reward = self._compute_reward(v, c, action, prog)
+        reward = self._compute_reward(v, c, dist, lane_events, goal_reached)
+        self._prev_dist = dist
 
-        # Terminate only on collision or goal-reached. Off-route is a soft
-        # signal handled in the reward; letting the car cross lanes freely
-        # is intentional — future traffic-avoidance behavior may require it.
-        terminated = bool(c or prog.goal_reached)
+        terminated = bool(c or goal_reached)
         truncated = self._step_count >= self._max_steps
 
         info = {
-            'success': bool(prog.goal_reached),
             'collision': bool(c),
-            'route_fraction': prog.fraction_done,
-            'dist_to_goal': prog.dist_to_goal,
+            'goal_reached': bool(goal_reached),
+            'dist_to_goal': dist,
             'speed': float(v),
+            'speed_kmh': float(v * 3.6),
+            'lane_invasions': int(lane_events),
         }
-        self._prev_steer = float(action[0])
-        self._prev_fraction = prog.fraction_done
         return obs, reward, terminated, truncated, info
 
-    # ── Observation & control helpers ──────────────────────────────────
+    # ── Observation & control ──────────────────────────────────────────
 
     def _build_observation(self) -> dict:
         with self._lock:
@@ -256,40 +237,28 @@ class CarlaRLEnvironment(gym.Env):
             ego_yaw = self._ego_yaw
             speed = self._latest_velocity
 
-        prog = self._router.progress(ego_xy, ego_yaw) if \
-            self._router.waypoints is not None else None
-
-        # Project route into LiDAR-local frame (ego-forward = +x)
-        route_local = None
-        if prog is not None:
-            wps = self._router.waypoints
-            route_local = _world_to_local(wps, ego_xy, ego_yaw)
-
         if points is not None:
-            bev = self._bev.process(points, route_local=route_local)
+            bev = self._bev.process(points).astype(np.float32)
         else:
             bev = np.zeros(self._bev.observation_shape, dtype=np.float32)
-            if route_local is not None:
-                self._bev._rasterize_route(bev, route_local)
 
-        vec = self._vector_obs(speed, ego_xy, ego_yaw, prog)
-        return {'bev': bev.astype(np.float32), 'vector': vec}
+        # Goal relative to the ego, projected into ego-forward frame so the
+        # policy sees "goal is ahead-left / behind-right" in its own coords.
+        goal = np.array(GOAL_XY, dtype=np.float32)
+        dxy_world = goal - ego_xy
+        c, s = math.cos(-ego_yaw), math.sin(-ego_yaw)
+        gx_ego = c * dxy_world[0] - s * dxy_world[1]
+        gy_ego = s * dxy_world[0] + c * dxy_world[1]
+        dist = float(np.linalg.norm(dxy_world))
 
-    def _vector_obs(self, speed: float, ego_xy: np.ndarray, ego_yaw: float,
-                    prog) -> np.ndarray:
-        if prog is None:
-            return np.zeros(6, dtype=np.float32)
-        goal = self._router.waypoints[-1]
-        rel = _world_to_local(goal[None, :], ego_xy, ego_yaw)[0]
         vec = np.array([
-            np.clip(speed / SPEED_MAX, -1.0, 1.0),
-            np.clip(prog.heading_err / math.pi, -1.0, 1.0),
-            np.clip(prog.cross_track / 5.0, -1.0, 1.0),
-            np.clip(prog.dist_to_goal / DIST_MAX, 0.0, 1.0),
-            np.clip(rel[0] / EGO_REL_MAX, -1.0, 1.0),
-            np.clip(rel[1] / EGO_REL_MAX, -1.0, 1.0),
+            np.clip(speed / SPEED_TARGET, 0.0, 1.5),
+            np.clip(dist / DIST_NORM, 0.0, 1.5),
+            np.clip(gx_ego / REL_NORM, -1.0, 1.0),
+            np.clip(gy_ego / REL_NORM, -1.0, 1.0),
         ], dtype=np.float32)
-        return vec
+
+        return {'bev': bev, 'vector': vec}
 
     def _publish_control(self, action):
         if not CARLA_MSGS_AVAILABLE:
@@ -297,21 +266,19 @@ class CarlaRLEnvironment(gym.Env):
         ctrl = CarlaEgoVehicleControl()
         ctrl.steer = float(np.clip(action[0], -1.0, 1.0))
 
-        # Throttle bias: action[1] = 0 maps to ~40% throttle so the car rolls
-        # out of the box. Policy has to actively pull action[1] toward −1 to
-        # brake. Brake-only activates in [-1.0, -0.7]; the rest is throttle.
-        # Throttle is capped at 0.6 so top speed stays moderate.
+        # Throttle bias: action[1]=0 → 50% throttle so the untrained policy
+        # rolls. a ≥ 0: throttle 0.5..1.0. a in [-0.5, 0]: throttle 0.5..0.
+        # a in [-1, -0.5]: brake 0..1 (sharp brake zone).
         a = float(np.clip(action[1], -1.0, 1.0))
-        if a >= -0.7:
-            if a >= 0.0:
-                ctrl.throttle = float(0.4 + 0.2 * a)           # [0.4, 0.6]
-            else:
-                ctrl.throttle = float(max(0.0, 0.4 + (0.4 / 0.7) * a))  # [0.0, 0.4]
+        if a >= 0.0:
+            ctrl.throttle = float(0.5 + 0.5 * a)
+            ctrl.brake = 0.0
+        elif a >= -0.5:
+            ctrl.throttle = float(0.5 + a)
             ctrl.brake = 0.0
         else:
-            # [-1.0, -0.7] → [1.0, 0.0] brake (sharp brake zone)
             ctrl.throttle = 0.0
-            ctrl.brake = float(np.clip((-0.7 - a) / 0.3, 0.0, 1.0))
+            ctrl.brake = float(np.clip((-0.5 - a) / 0.5, 0.0, 1.0))
 
         ctrl.hand_brake = False
         ctrl.reverse = False
@@ -321,49 +288,39 @@ class CarlaRLEnvironment(gym.Env):
 
     # ── Reward ──────────────────────────────────────────────────────────
 
-    def _compute_reward(self, velocity, collision, action, prog) -> float:
-        # Terminal: collision — softened (−30 baseline) while the policy is
-        # still learning to drive. Fear of crashes was suppressing exploration.
-        # Ramp this back up (−100 or lower) once the agent reliably drives.
+    def _compute_reward(self, velocity: float, collision: bool,
+                        dist: float, lane_events: int,
+                        goal_reached: bool) -> float:
         if collision:
-            return -30.0 - 2.0 * velocity
-        if prog.goal_reached:
-            # Large arrival bonus + strong time/speed bonus so policy hurries.
-            return 400.0 + 20.0 * velocity
+            return -150.0 - 1.5 * max(velocity, 0.0)
+        if goal_reached:
+            return GOAL_BONUS
 
-        # Dense goal-seeking: meters gained toward the goal along the route.
-        d_frac = prog.fraction_done - self._prev_fraction
-        progress_m = d_frac * self._router.total_length
-        r_progress = 10.0 * progress_m
-
-        # Speed — mild quadratic: policy prefers moving but isn't pushed toward
-        # reckless top speed. No idle penalty: paying negative reward while
-        # stopped paradoxically pushes the policy to end episodes fast.
         v = max(velocity, 0.0)
-        r_speed = 0.1 * v + 0.02 * v * v   # at 15 m/s → 1.5 + 4.5 = 6.0
 
-        # Weak heading-toward-route shaping. No lane-keeping, no cross-track.
-        r_heading = -0.1 * abs(prog.heading_err)
+        # Progress: positive while closing, negative while receding.
+        r_progress = PROGRESS_GAIN * (self._prev_dist - dist)
 
-        return float(r_progress + r_speed + r_heading)
+        # Constant far-is-bad prior — keeps gradient alive when progress
+        # is momentarily flat (e.g. while turning).
+        r_distance = -DIST_GAIN * dist
+
+        # Speed — quadratic, capped just above the target.
+        r_speed = min(3.5, 3.0 * (v / SPEED_TARGET) ** 2)
+
+        r_time = -1.0
+        r_idle = -2.0 if v < 0.5 else 0.0
+
+        # Lane invasion: flat penalty per crossing this step.
+        r_lane = -LANE_INVASION_PENALTY * lane_events
+
+        return float(r_progress + r_distance + r_speed
+                     + r_time + r_idle + r_lane)
 
 
 # ── helpers ─────────────────────────────────────────────────────────────
 
 def _yaw_from_quat(x: float, y: float, z: float, w: float) -> float:
-    # ZYX yaw (heading in the world XY plane)
     siny_cosp = 2.0 * (w * z + x * y)
     cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
     return math.atan2(siny_cosp, cosy_cosp)
-
-
-def _world_to_local(pts_xy: np.ndarray, ego_xy: np.ndarray,
-                    ego_yaw: float) -> np.ndarray:
-    """Rotate/translate world XY into ego-forward (+x) frame."""
-    c = math.cos(-ego_yaw)
-    s = math.sin(-ego_yaw)
-    d = pts_xy - ego_xy
-    out = np.empty_like(d)
-    out[:, 0] = c * d[:, 0] - s * d[:, 1]
-    out[:, 1] = s * d[:, 0] + c * d[:, 1]
-    return out

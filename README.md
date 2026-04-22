@@ -18,9 +18,10 @@ This README is the long-form project documentation. Every file has its own secti
 8. [`train.py` — PPO training loop](#8-trainpy--ppo-training-loop)
 9. [Observation / action / reward specification](#9-observation--action--reward-specification)
 10. [Goal detection: how the agent knows it has arrived](#10-goal-detection-how-the-agent-knows-it-has-arrived)
-11. [Known quirks, bugs we fixed, and design decisions](#11-known-quirks-bugs-we-fixed-and-design-decisions)
-12. [Running, monitoring, and debugging](#12-running-monitoring-and-debugging)
-13. [Roadmap — what comes next](#13-roadmap--what-comes-next)
+11. [How the agent perceives the map and decides where to go](#11-how-the-agent-perceives-the-map-and-decides-where-to-go)
+12. [Known quirks, bugs we fixed, and design decisions](#12-known-quirks-bugs-we-fixed-and-design-decisions)
+13. [Running, monitoring, and debugging](#13-running-monitoring-and-debugging)
+14. [Roadmap — what comes next](#14-roadmap--what-comes-next)
 
 ---
 
@@ -467,7 +468,161 @@ Use this to correlate TensorBoard spikes with specific episodes.
 
 ---
 
-## 11. Known quirks, bugs we fixed, and design decisions
+## 11. How the agent perceives the map and decides where to go
+
+This section answers the question: *"Is the map loaded into the agent? How does the policy know where the goal is and which way to drive?"*
+
+The short answer is that the **map is not given to the policy**. It stays in the environment, gets processed by a classical planner, and the output of that planner is distilled into two observation channels the neural network can actually consume. This is the standard autonomous-driving decomposition: **high-level map planner + low-level RL controller**.
+
+### 11.1 Three layers of knowledge
+
+| Layer | Who owns it | What it contains | Who sees it |
+|---|---|---|---|
+| **Map** | `MapRouter` (env) | Full Lanelet2 road network, all lanelets, connectivity | Only the planner |
+| **Route** | `MapRouter.waypoints` | A densified 2D polyline from the spawn to the sampled goal | Env — used to build obs |
+| **Observation** | `carla_env._build_observation()` | BEV tensor + 6-D vector, in ego-local frame | **The policy** |
+
+The policy never reads the OSM file, never sees the lanelet graph, never calls the routing algorithm. It only sees the **result**: "given where you are right now, here is a line drawn on the ground you should follow, and here are six scalars describing your relationship to the goal."
+
+### 11.2 Where the map is loaded
+
+[agent/tools/carla_env.py:55-58](agent/tools/carla_env.py#L55-L58):
+```python
+if map_path is None:
+    here = os.path.dirname(os.path.abspath(__file__))
+    map_path = os.path.join(here, '..', 'maps', 'Town04.osm')
+self._router = MapRouter(map_path)
+```
+
+This runs **once**, in the environment's constructor. Inside [map_router.py](agent/tools/map_router.py):
+
+1. `lanelet2.io.load(path, UtmProjector(Origin(0, 0)))` parses the OSM file into a `LaneletMap`.
+2. `traffic_rules.create(Locations.Germany, Participants.Vehicle)` creates a drivable-lane filter.
+3. `routing.RoutingGraph(lanelet_map, rules)` builds a directed graph where nodes are lanelets and edges are legal transitions.
+
+From this point onward, the map lives in memory as a `RoutingGraph` object. It never moves into the policy.
+
+### 11.3 How a route is produced each episode
+
+On every `reset()` — [carla_env.py:147-149](agent/tools/carla_env.py#L147-L149):
+```python
+self._router.plan_random_route(
+    start_xy, min_len=20.0, max_len=1000.0,
+    max_tries=60, rng=self._rng)
+```
+
+Inside `plan_random_route`:
+1. Snap `start_xy` to the nearest drivable lanelet.
+2. Pick a random other lanelet within a length bound.
+3. Call `routing_graph.getRoute(start, goal)` → returns a sequence of connected lanelets.
+4. Extract each lanelet's centerline and concatenate → a polyline of 2D points.
+5. Densify to one waypoint every 2 m → `self._router.waypoints`, shape `(N, 2)`.
+
+If routing fails (common on edge cases), fall back to a synthetic 60 m straight line forward. This guarantees every episode has a valid route.
+
+`self._router.waypoints` is the **route** — a list of `(x, y)` world-frame points from spawn to goal. This is the bridge between map knowledge and observation.
+
+### 11.4 How the route reaches the policy — channel 1 (spatial)
+
+Every step, [carla_env.py:262-269](agent/tools/carla_env.py#L262-L269):
+```python
+wps = self._router.waypoints                          # world-frame (N, 2)
+route_local = _world_to_local(wps, ego_xy, ego_yaw)   # ego-frame  (N, 2)
+bev = self._bev.process(points, route_local=route_local)
+```
+
+`_world_to_local` subtracts the ego position and rotates by `-ego_yaw` so the route is expressed in the ego's frame (x-forward, y-left). Then [bev_processor.py](agent/tools/bev_processor.py):
+
+1. Converts each local `(x, y)` waypoint to a BEV pixel via the same projection used for LiDAR points.
+2. Draws line segments between consecutive pixels into **channel 5** of the `(256, 256, 6)` BEV tensor using a Bresenham-style interpolator.
+3. Returns a 6-channel image where channels 0–4 are LiDAR-derived (occupancy, density, height, etc.) and channel 5 is the route mask.
+
+Because the route is in ego-local frame and uses the same pixel grid as the LiDAR, **the CNN sees the obstacles and the desired path on the same canvas**. A convolutional filter can directly reason about "is there something between me and the route" or "does the route bend right here." This is the key perceptual trick.
+
+### 11.5 How the route reaches the policy — channel 2 (scalar)
+
+Spatial information is powerful but high-dimensional. Some signals are better delivered as compact scalars. [carla_env.py:278-292](agent/tools/carla_env.py#L278-L292):
+
+```python
+goal = self._router.waypoints[-1]
+rel = _world_to_local(goal[None, :], ego_xy, ego_yaw)[0]
+vec = np.array([
+    np.clip(speed / SPEED_MAX, -1.0, 1.0),                 # how fast am I
+    np.clip(prog.heading_err / math.pi, -1.0, 1.0),        # angle to route tangent
+    np.clip(prog.cross_track / 5.0, -1.0, 1.0),            # lateral offset from route
+    np.clip(prog.dist_to_goal / DIST_MAX, 0.0, 1.0),       # straight-line metres to goal
+    np.clip(rel[0] / EGO_REL_MAX, -1.0, 1.0),              # goal x in ego frame
+    np.clip(rel[1] / EGO_REL_MAX, -1.0, 1.0),              # goal y in ego frame
+], dtype=np.float32)
+```
+
+These six numbers give the policy **direct numerical access** to the goal's position and its own error relative to the plan. The MLP branch of `BEVGoalExtractor` consumes them. Unlike the spatial channel, this representation is robust even when the route falls outside the BEV viewport (e.g., goal is 200 m away, while the BEV only shows ±128 m).
+
+### 11.6 What `MapRouter.progress()` computes
+
+Called every step on the current `(ego_xy, ego_yaw)`. Produces a `Progress` dataclass with:
+
+- `nearest_idx` — index of the waypoint closest to the ego.
+- `cross_track` — signed lateral distance from the route polyline (metres).
+- `heading_err` — angle between the ego yaw and the route tangent at `nearest_idx` (radians, wrapped to `[-π, π]`).
+- `dist_to_goal` — straight-line Euclidean distance to `waypoints[-1]`.
+- `fraction_done` — fraction of arc-length traversed along the route.
+- `goal_reached` — `True` if `dist_to_goal < 5.0 m`.
+
+The environment uses `fraction_done` to compute a **dense per-step progress reward** (`10 × Δm` along the route) and `goal_reached` as a **terminal success signal**.
+
+### 11.7 Putting it together — what the policy sees vs. what it controls
+
+```
+   MAP (Town04.osm)
+          │
+          │  Lanelet2 load + routing graph
+          ▼
+   ROUTE (N, 2) world-frame waypoints ────────────────────┐
+          │                                               │
+          │  world→ego transform                          │
+          ▼                                               │
+   ROUTE_LOCAL (N, 2) ego-frame ─────────┐                │
+          │                              │                │
+          │  rasterize into channel 5    │  progress()    │
+          ▼                              ▼                ▼
+   BEV tensor (256, 256, 6)        (heading_err,       dist_to_goal,
+     ch 0-4: LiDAR                  cross_track)       goal_dx_ego,
+     ch 5  : route mask                                goal_dy_ego
+          │                                      │
+          ▼                                      ▼
+        CNN ────────► 512-D feat   MLP ────► 64-D feat
+                  concat → 576-D
+                        │
+                        ▼
+                   pi / vf heads
+                        │
+                        ▼
+               action = [steer, throttle]
+```
+
+The policy never knows the word "lanelet", never queries the map, never sees world coordinates. Its entire mental model of "where am I supposed to go" is:
+
+- a thin line drawn on a 256×256 image, redrawn every step from the ego's current position, and
+- six numbers summarising how off-course and how far from the goal it is.
+
+### 11.8 Why this design generalises
+
+- **New town, same policy.** Swap `Town04.osm` for another Lanelet2 map and the planner produces routes with identical structure. The policy keeps working — it only learned to follow a line and minimise a goal vector, neither of which is Town04-specific.
+- **Rotation invariance.** Because everything is in ego-local frame, the agent does not have to learn "north is up" or "roads on this map go east-west". Any world-frame rotation of the scene produces the same observation.
+- **Obstacle avoidance composes naturally.** When NPC traffic is added (on the roadmap), moving vehicles show up in LiDAR channels 0–4. The agent already reasons about "is there something between me and the route," so the same CNN features can handle dynamic obstacles — the route is a soft target, not a hard constraint.
+
+### 11.9 What the agent cannot see
+
+Being explicit about limitations:
+- **No lane information.** The policy does not know which lane it is in or where lane boundaries are. This is deliberate — the [training objective](#9-observation--action--reward-specification) forbids lane-keeping priors, because the long-term goal is traffic-aware avoidance that sometimes requires crossing lanes.
+- **No traffic lights / signs.** Nothing in the observation encodes signals. Adding this would require new obs channels.
+- **No global localisation.** The policy only has ego-local information. It has no idea what world coordinates it is at. The goal direction tells it where to go relative to itself, which is sufficient.
+- **No lookahead beyond BEV.** If the route exits the ±128 m BEV viewport, the policy falls back to the scalar goal vector. Very long routes therefore feel like "drive forward until the goal is visible."
+
+---
+
+## 12. Known quirks, bugs we fixed, and design decisions
 
 These are the "why does this line exist" moments. Each one is a real bug we ran into.
 
@@ -519,7 +674,7 @@ We currently get ~15 FPS end-to-end. The GPU is at ~15 % utilisation. Bigger net
 
 ---
 
-## 12. Running, monitoring, and debugging
+## 13. Running, monitoring, and debugging
 
 ### Prerequisites
 
@@ -570,7 +725,7 @@ tensorboard --logdir agent/ppo_carla_tensorboard/
 
 ---
 
-## 13. Roadmap — what comes next
+## 14. Roadmap — what comes next
 
 The baseline is in place. Worthwhile next steps, roughly in priority order:
 
