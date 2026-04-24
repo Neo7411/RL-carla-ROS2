@@ -13,13 +13,13 @@ Observation (Dict):
 Action: Box(2,) in [-1, 1]        [steer, throttle_or_brake]
     action[1]=0 → ~50% throttle (bias so the untrained policy rolls).
 
-Reward (per step):
-    r_progress  = k_prog * (prev_dist - curr_dist)   # positive while closing
+Reward (per step) — lane discipline is the dominant signal:
+    r_progress  = 2.0 * (prev_dist - curr_dist)      # positive while closing
     r_distance  = -0.01 * curr_dist                   # mild "far is bad" prior
-    r_speed     = 3.0 * (v / SPEED_TARGET)^2          # push toward 120 km/h
+    r_speed     = 2.0 * (v / SPEED_TARGET)^2          # push toward 120 km/h
     r_time      = -1.0                                # anti-dawdle
     r_idle      = -2.0 if v < 0.5 else 0              # anti-stop
-    r_lane      = -5.0 per lane-invasion event
+    r_lane      = -15.0 per lane-invasion event      # lane-keeping dominates
     r_goal      = +300.0 on arrival (one-shot, terminal)
     r_collision = -150 - 1.5*v (terminal)
 """
@@ -61,11 +61,14 @@ GOAL_RADIUS = 5.0          # metres, arrival threshold
 DIST_NORM = 300.0          # m — max expected distance to goal
 REL_NORM = 300.0           # m — clip goal-relative xy into [-1, 1]
 
-# Reward tuning.
+# Reward tuning. Lane-keeping is the dominant shaping signal — a single
+# crossing costs more than several seconds of top-speed cruising, so the
+# policy can't trade lane discipline for speed.
 PROGRESS_GAIN = 2.0        # reward per metre closed toward the goal
 DIST_GAIN = 0.01           # small constant "far is bad" prior
-LANE_INVASION_PENALTY = 5.0
+LANE_INVASION_PENALTY = 15.0   # per event; ~5× the step reward at 120 km/h
 GOAL_BONUS = 300.0
+SPEED_WEIGHT = 2.0         # peak speed reward at SPEED_TARGET (down from 3.0)
 
 
 class CarlaRLEnvironment(gym.Env):
@@ -90,7 +93,7 @@ class CarlaRLEnvironment(gym.Env):
         self._ego_xy = np.array(SPAWN_XY, dtype=np.float32)
         self._ego_yaw = 0.0
         self._collision = False
-        self._lane_invasions = 0        # counter, consumed each step
+        self._lane_invasions = 0      
         self._lock = threading.Lock()
         self._new_frame = threading.Event()
 
@@ -305,8 +308,11 @@ class CarlaRLEnvironment(gym.Env):
         # is momentarily flat (e.g. while turning).
         r_distance = -DIST_GAIN * dist
 
-        # Speed — quadratic, capped just above the target.
-        r_speed = min(3.5, 3.0 * (v / SPEED_TARGET) ** 2)
+        # Speed — quadratic, capped just above the target. Weight kept modest
+        # so a single lane invasion (-15) wipes out ~7 steps of top-speed
+        # cruising; the policy has no incentive to speed across lane markings.
+        r_speed = min(SPEED_WEIGHT + 0.5,
+                      SPEED_WEIGHT * (v / SPEED_TARGET) ** 2)
 
         r_time = -1.0
         r_idle = -2.0 if v < 0.5 else 0.0
@@ -314,8 +320,7 @@ class CarlaRLEnvironment(gym.Env):
         # Lane invasion: flat penalty per crossing this step.
         r_lane = -LANE_INVASION_PENALTY * lane_events
 
-        return float(r_progress + r_distance + r_speed
-                     + r_time + r_idle + r_lane)
+        return float(r_progress + r_distance + r_speed + r_time + r_idle + r_lane)
 
 
 # ── helpers ─────────────────────────────────────────────────────────────
