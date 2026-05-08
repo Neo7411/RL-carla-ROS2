@@ -1,11 +1,2 @@
-# Ignore all __pycache__ directories anywhere in the project
 **/__pycache__/
-**/viz_frames/**
-/debug_frames/**
-# Ignore everything inside these specific folders
-/Papers/**/*
-/ppo_carla_tensorboard/**/**
-/checkpoints/**/*
-
-# Ignore all zip files anywhere
-**/*.zip
+**.png
