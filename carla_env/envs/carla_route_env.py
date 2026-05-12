@@ -35,7 +35,6 @@ class CarlaRouteEnv(gym.Env):
                  fps=15, action_smoothing=0.0, action_space_type="continuous",
                  activate_spectator=True,
                  activate_lidar=False,
-                 start_carla=False,
                  eval=False,
                  activate_render=True):
         width, height = viewer_res
@@ -50,9 +49,6 @@ class CarlaRouteEnv(gym.Env):
         self.action_space_type = action_space_type
         if self.action_space_type == "continuous":
             self.action_space = gym.spaces.Box(np.array([-1, 0], dtype=np.float32), np.array([1, 1], dtype=np.float32), dtype=np.float32)  # steer, throttle
-        elif self.action_space_type == "discrete":
-            self.action_space = gym.spaces.Discrete(len(discrete_actions))
-
         self.observation_space = observation_space
 
         self.fps = fps
@@ -60,7 +56,7 @@ class CarlaRouteEnv(gym.Env):
         self.episode_idx = -2
 
         self.encode_state_fn = (lambda x: x) if not callable(encode_state_fn) else encode_state_fn
-        self.decode_vae_fn = None if not caxllable(decode_vae_fn) else decode_vae_fn
+        self.decode_vae_fn = None if not callable(decode_vae_fn) else decode_vae_fn
         self.reward_fn = (lambda x: 0) if not callable(reward_fn) else reward_fn
         self.max_distance = 3000  # m
         self.activate_spectator = activate_spectator
@@ -421,7 +417,7 @@ class CarlaRouteEnv(gym.Env):
                 color = (255, 0, 0)
             else:
                 color = (0, 0, 255)
-            image = cv2.circle(image, (int(x), int(y)), radius=3, color=color, thickness=-1)
+            image = cv2.circle(image, (int(np.int32(x)), int(np.int32(y))), radius=3, color=color, thickness=-1)
         return image
 
     def _get_observation(self):

@@ -2,8 +2,9 @@ from utils import lr_schedule
 
 LSIZE = 64
 LOG_DIR = "tensorboard"
-RELOAD_MODEL = False
-TOTAL_STEPS = 1_000_000
+RELOAD_MODEL = True
+RELOAD_MODEL_PATH = "./tensorboard/SAC_1778506873_SAC"  # path to .zip checkpoint to resume from
+TOTAL_STEPS = 130_000
 SEED = 100
 OBS_RES = (160, 80)
 VAE_MODEL = "vae_64_augmentation"
