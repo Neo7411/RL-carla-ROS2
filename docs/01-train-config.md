@@ -31,22 +31,16 @@ from utils import HParamCallback, TensorboardCallback, write_json
 
 A saját moduljaink. A `reward_functions` egy **szótár**: `{"reward_fn5": <függvény>}`.
 
-## `main()` — 19. sortól
+## `main()` 
 
-### 20. sor
-```python
-os.makedirs(LOG_DIR, exist_ok=True)
-```
-Létrehozza a `tensorboard/` mappát, ha még nincs. `exist_ok=True` = nem hibázik, ha már létezik.
-
-### 22. sor — VAE betöltés
+### VAE betöltés
 ```python
 vae = load_vae('./vae/model', LSIZE)
 ```
 Betölti az előre betanított VAE-t a `vae/model/best.tar` fájlból. `LSIZE = 64` a latent
 vektor mérete. Ha a fájl nem létezik, kivételt dob.
 
-### 23. sor — állapot-kódoló létrehozása
+### Állapot-kódoló létrehozása
 ```python
 observation_space, encode_state_fn, decode_vae_fn = create_encode_state_fn(vae, STATE)
 ```
@@ -60,14 +54,14 @@ Ez a sor **három dolgot ad vissza**:
 
 A `STATE` a `config.py`-ban van felsorolva — ez dönti el, mely mérőszámok kerüljenek be.
 
-### 25. sor
+
 ```python
 rl_model_path = RELOAD_MODEL_PATH + "/model_final.zip"
 ```
 Ha folytatni akarunk egy korábbi tanítást, innen tölti be. **Figyelem:** ez a sor akkor is
 lefut, ha `RELOAD_MODEL = False` — de akkor csak egy sztringet állít elő, nem baj.
 
-### 26–39. sor — a környezet létrehozása
+
 ```python
 env = CarlaRouteEnv(
     obs_res=OBS_RES,                              # (160, 80) — a dashcam felbontása
@@ -184,7 +178,7 @@ logikai listává. Az eredmény jelenleg:
 | `maneuver` | Discrete(4) | LANEFOLLOW / LEFT / RIGHT / STRAIGHT |
 | `waypoints` | (15, 2) | a következő 15 útpont **az autó koordinátarendszerében** |
 
-### `ACTION_SMOOTHING` — miért kell? (12. sor)
+### `ACTION_SMOOTHING` — miért kell?  
 ```python
 new_control = old_control * 0.75 + action * 0.25
 ```
@@ -192,7 +186,7 @@ Az RL ágens kimenete zajos, lépésenként ugrálhat. A simítás miatt a korm�
 hirtelen -1-ről +1-re ugrani, ami valósághűbb és stabilabb vezetést eredményez.
 Cserébe **lassabb a reakció** — ha 0.75 túl magas, az autó "lomha" lesz.
 
-## `ALGORITHM_PARAMS` — SAC hiperparaméterek (18–30. sor)
+## `ALGORITHM_PARAMS` — SAC hiperparaméterek 
 
 ```python
 ALGORITHM_PARAMS = dict(
@@ -302,7 +296,7 @@ Ez a TensorBoard **HPARAMS** fülét tölti fel. Így több futást össze tudsz
 
 A `metric_dict` a *nyomon követendő metrikák* listája (a 0 érték csak helykitöltő).
 
-## `TensorboardCallback` (56–68. sor)
+## `TensorboardCallback`
 
 ```python
 class TensorboardCallback(BaseCallback):

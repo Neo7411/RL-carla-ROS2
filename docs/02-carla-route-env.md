@@ -5,7 +5,7 @@ Ez a projekt szíve: itt találkozik a CARLA szimulátor és a Gymnasium RL inte
 
 ---
 
-## Modul szintű dolgok (1–21. sor)
+## Modulok importja
 
 ```python
 import time
@@ -29,7 +29,7 @@ import itertools
   `vector`, `distance_to_line`, `smooth_action`, `sensor_transforms`, `np` stb.
   (A `numpy`-t is ez hozza be `np` néven, mert a `wrappers.py` importálja!)
 
-### Előre definiált útvonalak (15–17. sor)
+### Előre definiált útvonalak
 
 ```python
 intersection_routes = itertools.cycle(
@@ -78,7 +78,7 @@ def __init__(self, host="127.0.0.1", port=2000,
 jelenti, hogy **kicserélheted a jutalmat vagy az állapotot anélkül, hogy ezt a fájlt
 módosítanád**. Ez a projekt egyik legjobb design döntése.
 
-### Akciótér (45–47. sor)
+### Akciótér
 
 ```python
 if self.action_space_type == "continuous":
@@ -94,8 +94,7 @@ Két folytonos szám:
 > **Figyeld meg: nincs FÉK!** Az autó csak gurulással lassul. Ez tudatos egyszerűsítés
 > — kevesebb dimenzió = könnyebb tanulás. Egy továbbfejlesztési lehetőség a fék hozzáadása.
 
-### Callback-ek védett beállítása (54–56. sor)
-
+### Callback-ek védett beállítása
 ```python
 self.encode_state_fn = (lambda x: x) if not callable(encode_state_fn) else encode_state_fn
 self.decode_vae_fn = None if not callable(decode_vae_fn) else decode_vae_fn

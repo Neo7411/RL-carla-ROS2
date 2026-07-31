@@ -1,7 +1,3 @@
-import os
-import subprocess
-import sys
-import glob
 import time
 import gymnasium as gym
 import pygame
@@ -58,7 +54,7 @@ class CarlaRouteEnv(gym.Env):
         self.encode_state_fn = (lambda x: x) if not callable(encode_state_fn) else encode_state_fn
         self.decode_vae_fn = None if not callable(decode_vae_fn) else decode_vae_fn
         self.reward_fn = (lambda x: 0) if not callable(reward_fn) else reward_fn
-        self.max_distance = 3000  # m
+        self.max_distance = 30000  # m
         self.activate_spectator = activate_spectator
         self.activate_lidar = activate_lidar
         self.eval = eval
