@@ -58,7 +58,7 @@ Diszkrét akciótér esetén használható (balra+gáz, egyenesen+gáz, jobbra+g
 
 ## `__init__` — a környezet felépítése (26–116. sor)
 
-### Paraméterek (26–35. sor)
+### Paraméterek 
 
 ```python
 def __init__(self, host="127.0.0.1", port=2000,
