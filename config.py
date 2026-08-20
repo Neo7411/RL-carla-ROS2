@@ -12,6 +12,7 @@ STATE = ["steer", "throttle", "speed", "waypoints", "angle_next_waypoint", "mane
 ACTION_SMOOTHING = 0.75
 NUM_CHECKPOINTS = 10
 FPS = 20
+TOWN="Town02"
 ACTIVATE_SPECTATOR = True
 ACTIVATE_RENDER = True
 

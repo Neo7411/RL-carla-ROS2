@@ -26,6 +26,8 @@ class RoadOption(Enum):
     RIGHT = 2
     STRAIGHT = 3
     VOID = -1
+    CHANGELANELEFT = 5
+    CHANGELANERIGHT = 6
 
     def __eq__(self, other):
         return self.value == other.value

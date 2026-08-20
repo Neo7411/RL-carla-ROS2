@@ -20,7 +20,7 @@ from stable_baselines3.common.logger import configure
 #Import VAE
 from vae.models import VAE
 
-from carla_env.envs.carla_route_env import CarlaRouteEnv
+from carla_env.envs.carla_route_env_backup import CarlaRouteEnv
 
 
 from carla_env.encode_decode_functions import create_encode_state_fn
@@ -29,7 +29,7 @@ from carla_env.encode_decode_functions import create_encode_state_fn
 from carla_env.reward import reward_fn
 from utils import HParamCallback, TensorboardCallback, write_json
 from config import (
-    LSIZE, LOG_DIR, RELOAD_MODEL, RELOAD_MODEL_PATH, TOTAL_STEPS, SEED,
+    LSIZE, LOG_DIR, RELOAD_MODEL, RELOAD_MODEL_PATH, TOTAL_STEPS, SEED,TOWN,
     OBS_RES, ACTION_SMOOTHING, NUM_CHECKPOINTS,
     FPS, ACTIVATE_SPECTATOR, ACTIVATE_RENDER,
     ALGORITHM_PARAMS, CONFIG,
@@ -90,8 +90,12 @@ def main():
     rl_model_path= RELOAD_MODEL_PATH+"/model_final.zip"
     env = CarlaRouteEnv(
         obs_res=OBS_RES,
+        viewer_res=(1280,720),
         host="localhost",
         port=2000,
+        town=TOWN,
+        max_route_length=800, 
+        min_route_length=400,
         reward_fn=reward_fn,
         observation_space=observation_space,
         encode_state_fn=encode_state_fn,
