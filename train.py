@@ -1,33 +1,98 @@
 import os
 import time
+
+import numpy as np 
+
+# torch imports
+import torch
+from torchvision import transforms
+
+# GYM 
+import gymnasium as gym
+
+#STB3 imports 
 from stable_baselines3 import SAC
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import configure
 
+
+# Custom coded imports 
+#Import VAE
+from vae.models import VAE
+
 from carla_env.envs.carla_route_env import CarlaRouteEnv
-from carla_env.state_commons import create_encode_state_fn, load_vae
-from carla_env.rewards import reward_functions
+
+
+from carla_env.encode_decode_functions import create_encode_state_fn
+
+
+from carla_env.reward import reward_fn
 from utils import HParamCallback, TensorboardCallback, write_json
 from config import (
     LSIZE, LOG_DIR, RELOAD_MODEL, RELOAD_MODEL_PATH, TOTAL_STEPS, SEED,
-    OBS_RES, STATE, ACTION_SMOOTHING, NUM_CHECKPOINTS,
+    OBS_RES, ACTION_SMOOTHING, NUM_CHECKPOINTS,
     FPS, ACTIVATE_SPECTATOR, ACTIVATE_RENDER,
     ALGORITHM_PARAMS, CONFIG,
 )
 
 
+# VAE loader function 
+def load_vae(vae_dir, latent_size):
+    model_dir = os.path.join(vae_dir, 'best.tar')
+    model = VAE(latent_size)
+    if os.path.exists(model_dir):
+        state = torch.load(model_dir)
+        print("Reloading model at epoch {}"
+              ", with test error {}".format(
+            state['epoch'],
+            state['precision']))
+        model.load_state_dict(state['state_dict'])
+        return model
+    raise Exception("Error - VAE model does not exist")
+
+
+# Create observation space for the car 
+def create_observation_space():    
+    #OBS Space dict  
+    observation_space = {}
+    
+    # vae encoded camera input 
+    observation_space['vae_latent'] = gym.spaces.Box(low=-4, high=4, shape=(LSIZE, ), dtype=np.float32) 
+    
+    # lists for vehicle description 
+    low, high = [],[]
+    low.append(-1), high.append(1) # steer
+    low.append(0), high.append(1) # throttle 
+    low.append(0), high.append(120) #Speed
+    low.append(-3.14), high.append(3.14) # next angle waypoint 
+    observation_space['vehicle_measures'] = gym.spaces.Box(low=np.array(low, dtype=np.float32), high=np.array(high, dtype=np.float32), dtype=np.float32)
+    
+    observation_space['maneuver'] = gym.spaces.Discrete(4) # manuever 
+    observation_space['waypoints'] = gym.spaces.Box(low=-50, high=50, shape=(15, 2),dtype=np.float32) # waypoints 
+    
+    return gym.spaces.Dict(observation_space)
+
+
+
 def main():
+    # step one clear cuda cache!!!
+    torch.cuda.empty_cache()
+    
     os.makedirs(LOG_DIR, exist_ok=True)
 
     vae = load_vae('./vae/model', LSIZE)
-    observation_space, encode_state_fn, decode_vae_fn = create_encode_state_fn(vae, STATE)
+    encode_state_fn, decode_vae_fn = create_encode_state_fn(vae)
+
+    
+    observation_space = create_observation_space()
+
 
     rl_model_path= RELOAD_MODEL_PATH+"/model_final.zip"
     env = CarlaRouteEnv(
         obs_res=OBS_RES,
         host="localhost",
         port=2000,
-        reward_fn=reward_functions[CONFIG["reward_fn"]],
+        reward_fn=reward_fn,
         observation_space=observation_space,
         encode_state_fn=encode_state_fn,
         decode_vae_fn=decode_vae_fn,

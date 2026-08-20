@@ -4,8 +4,6 @@
     "state": "['steer', 'throttle', 'speed', 'waypoints', 'angle_next_waypoint', 'maneuver']",
     "vae_model": "vae_64_augmentation",
     "action_smoothing": "0.75",
-    "reward_fn": "reward_fn5",
-    "reward_params": "{'early_stop': 'True', 'min_speed': '20.0', 'max_speed': '35.0', 'target_speed': '25.0', 'max_distance': '2.0', 'max_std_center_lane': '0.35', 'max_angle_center_lane': '90', 'penalty_reward': '-10'}",
     "obs_res": "(160, 80)",
     "seed": "100",
     "wrappers": "[]"

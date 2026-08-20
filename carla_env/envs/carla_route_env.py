@@ -68,7 +68,6 @@ class CarlaRouteEnv(gym.Env):
             # Connect to carla
             self.client = carla.Client(host, port)
             self.client.set_timeout(60.0)
-
             # Create world wrapper
             self.world = World(self.client)
 
@@ -85,6 +84,8 @@ class CarlaRouteEnv(gym.Env):
             self.vehicle = Vehicle(self.world, self.world.map.get_spawn_points()[0],
                                    on_collision_fn=lambda e: self._on_collision(e),
                                    on_invasion_fn=lambda e: self._on_invasion(e))
+
+
 
             # Create hud and initialize pygame for visualization
             if self.activate_render:
