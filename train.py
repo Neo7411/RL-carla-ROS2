@@ -20,7 +20,7 @@ from stable_baselines3.common.logger import configure
 #Import VAE
 from vae.models import VAE
 
-from carla_env.envs.carla_route_env_backup import CarlaRouteEnv
+from carla_env.envs.carla_route_env import CarlaRouteEnv
 
 
 from carla_env.encode_decode_functions import create_encode_state_fn
