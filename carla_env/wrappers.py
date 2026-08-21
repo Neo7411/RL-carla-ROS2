@@ -314,39 +314,11 @@ class Camera(CarlaActorBase):
         if not self:
             return
         if callable(self.on_recv_image):
-
             image.convert(self.color_converter)
             array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
             array = np.reshape(array, (image.height, image.width, 4))
             array = array[:, :, :3]
             array = array[:, :, ::-1]
-
-            if self.custom_palette:
-                classes = {
-                    0: [0, 0, 0],  # None
-                    1: [0, 0, 0],  # Buildings
-                    2: [0, 0, 0],  # Fences
-                    3: [0, 0, 0],  # Other
-                    4: [0, 0, 0],  # Pedestrians
-                    5: [0, 0, 0],  # Poles
-                    6: [157, 234, 50],  # RoadLines
-                    7: [50, 64, 128],  # Roads
-                    8: [255, 255, 255],  # Sidewalks
-                    9: [0, 0, 0],  # Vegetation
-                    10: [0, 0, 0],  # Vehicles
-                    11: [0, 0, 0],  # Walls
-                    12: [0, 0, 0]  # TrafficSigns
-                }
-                segimg = np.round((array[:, :, 0])).astype(np.uint8)
-                array = array.copy()
-                for j in range(array.shape[0]):
-                    for i in range(array.shape[1]):
-                        r_id = segimg[j, i]
-                        if r_id <= 12:
-                            array[j, i] = classes[segimg[j, i]]
-                        else:
-                            array[j, i] = classes[0]
-
             self.on_recv_image(array)
 
     def destroy(self):

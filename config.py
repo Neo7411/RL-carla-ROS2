@@ -18,7 +18,7 @@ ACTIVATE_RENDER = True
 
 ALGORITHM_PARAMS = dict(
     learning_rate=lr_schedule(1e-4, 5e-7, 2),
-    buffer_size=300000,
+    buffer_size=100_000,
     batch_size=256,
     ent_coef='auto',
     gamma=0.98,

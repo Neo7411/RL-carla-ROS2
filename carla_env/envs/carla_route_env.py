@@ -30,17 +30,19 @@ class CarlaRouteEnv(gym.Env):
     def __init__(self, host="127.0.0.1", port=2000,
                  viewer_res=(1920, 1080), obs_res=(160, 80),
                  town="Town04",
-                 # === VALTOZAS 1: dinamikus route hossz ===
+                 # === dinamikus route hossz ===
                  min_route_length=150,   # waypoint = meter (resolution=1.0 miatt)
                  max_route_length=400,
-                 # === VALTOZAS 2: akadaly-erzekeles hatarai ===
+                 # === akadaly-erzekeles hatarai ===
                  obstacle_near=15.0,     # ettol kozelebb: teljes savvalto szabadsag
                  obstacle_far=30.0,      # ennel tavolabb: nincs kedvezmeny
+                 # === render optimalizacio ===
+                 draw_path_lookahead=60,  # hany waypointot vetitsunk a kepre
                  reward_fn=None,
                  observation_space=None,
-                 encode_state_fn=None, decode_vae_fn=None,
-                 fps=15, 
-                 action_smoothing=0.0, 
+                 encode_state_fn=None,
+                 fps=15,
+                 action_smoothing=0.0,
                  action_space_type="continuous",
                  activate_spectator=True,
                  activate_lidar=False,
@@ -51,6 +53,7 @@ class CarlaRouteEnv(gym.Env):
         self.max_route_length = max_route_length
         self.obstacle_near = obstacle_near
         self.obstacle_far = obstacle_far
+        self.draw_path_lookahead = draw_path_lookahead
 
         width, height = viewer_res
         if obs_res is None:
@@ -70,17 +73,20 @@ class CarlaRouteEnv(gym.Env):
         self.episode_idx = -2
 
         self.encode_state_fn = (lambda x: x) if not callable(encode_state_fn) else encode_state_fn
-        self.decode_vae_fn = None if not callable(decode_vae_fn) else decode_vae_fn
+
         self.reward_fn = (lambda x: 0) if not callable(reward_fn) else reward_fn
-        self.max_distance = 3000  # m
+        self.max_distance = 30000  # m
         self.activate_spectator = activate_spectator
         self.activate_lidar = activate_lidar
         self.eval = eval
 
         # Akadaly-jelzes. 0.0 = szabad ut elottem, 1.0 = kozel van valami.
-        # A step() minden tickben frissiti; itt csak inicializaljuk, hogy a
-        # reward_fn mar az elso hivasnal is biztosan lassa.
         self.obstacle_ahead = 0.0
+
+        # A spectator kamera projekcios matrixa. A kameraparameterek nem
+        # valtoznak futas kozben, ezert eleg egyszer kiszamolni - a regi kod
+        # minden waypointra ujraepitette ugyanezt a 3x3 matrixot.
+        self._proj_K = None
 
         self.world = None
         try:
@@ -107,17 +113,23 @@ class CarlaRouteEnv(gym.Env):
             if self.activate_render:
                 pygame.init()
                 pygame.font.init()
-                self.display = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.DOUBLEBUF)
+                # HWSURFACE nelkul: modern rendszereken a szoftveres surface
+                # jellemzoen gyorsabb, es nem varja be a kepfrissitest.
+                self.display = pygame.display.set_mode((width, height), pygame.DOUBLEBUF)
                 self.clock = pygame.time.Clock()
                 self.hud = HUD(width, height)
                 self.hud.set_vehicle(self.vehicle)
                 self.world.on_tick(self.hud.on_world_tick)
 
+            # A 'seg_camera' kulcs jelenlete kapcsolja be a szemantikus kamerat.
+            # A CityScapesPalette a CARLA sajat, szerveroldali konverzioja -
+            # mindig az adott verzio osztalykeszletet hasznalja, ezert nem tud
+            # elavulni, mint egy kezzel irt palettatabla.
             seg_settings = {}
             if "seg_camera" in self.observation_space.keys():
                 seg_settings.update({
                     'camera_type': "sensor.camera.semantic_segmentation",
-                    'custom_palette': True
+                    'color_converter': carla.ColorConverter.CityScapesPalette
                 })
             self.dashcam = Camera(self.world, out_width, out_height,
                                   transform=sensor_transforms["dashboard"],
@@ -200,7 +212,7 @@ class CarlaRouteEnv(gym.Env):
             # Savvaltasos route kiszurese.
             # Ilyenkor a route waypointjai egy tick alatt atugranak a szomszedos
             # sav kozepvonalara -> a distance_from_center hirtelen ~3.5 m lesz,
-            # miozben az auto egyenesen megy. Az agens ok nelkul halna meg.
+            # mikozben az auto egyenesen megy. Az agens ok nelkul halna meg.
             if any(o.name.startswith("CHANGELANE") for _, o in route):
                 continue
 
@@ -241,7 +253,7 @@ class CarlaRouteEnv(gym.Env):
         self.current_waypoint_index = 0
         self.num_routes_completed += 1
 
-        # === VALTOZAS 3: a route elso waypointjara teleportalunk, nem a start_wp-re ===
+        # A route elso waypointjara teleportalunk, nem a start_wp-re.
         # A GlobalRoutePlanner a topologia-graf elei menten dolgozik, ezert a
         # route[0] gyakran nem azonos a start_wp-vel - tobbsavos uton (Town04)
         # akar masik savba is eshet. Ha a start_wp-re tennenk az autot, a
@@ -257,9 +269,6 @@ class CarlaRouteEnv(gym.Env):
         self.vehicle.set_simulate_physics(True)
 
         # A teleport tavolsaga ne szamitson bele a megtett utba.
-        # (Enelkul a step() hozzaadna a regi es uj pozicio kozti tavolsagot -
-        #  akar 300 m-t is -, es a max_distance korabban triggerelne.)
-        # Ha a regi viselkedest akarod, kommenteld ki ezt a ket sort.
         if hasattr(self, "previous_location"):
             self.previous_location = self.vehicle.get_transform().location
 
@@ -362,14 +371,11 @@ class CarlaRouteEnv(gym.Env):
             # Blit image from spectator camera
             self.viewer_image = self._draw_path(self.camera, self.viewer_image)
             self.display.blit(pygame.surfarray.make_surface(self.viewer_image.swapaxes(0, 1)), (0, 0))
-            # Superimpose current observation into top-right corner
+
+        # Superimpose current observation into top-right corner
         obs_h, obs_w = self.observation.shape[:2]
         pos_observation = (self.display.get_size()[0] - obs_w - 10, 10)
         self.display.blit(pygame.surfarray.make_surface(self.observation.swapaxes(0, 1)), pos_observation)
-
-        pos_vae_decoded = (self.display.get_size()[0] - 2 * obs_w - 10, 10)
-        if self.decode_vae_fn:
-            self.display.blit(pygame.surfarray.make_surface(self.observation_decoded.swapaxes(0, 1)), pos_vae_decoded)
 
         if self.activate_lidar:
             lidar_h, lidar_w = self.lidar_data.shape[:2]
@@ -405,7 +411,9 @@ class CarlaRouteEnv(gym.Env):
             self.vehicle.control.throttle = smooth_action(self.vehicle.control.throttle, throttle,
                                                           self.action_smoothing)
         # Tick game
+        _t0 = time.perf_counter()
         self.world.tick()
+        _t1 = time.perf_counter()
 
         # Get most recent observation and viewer image
         self.observation = self._get_observation()
@@ -414,6 +422,7 @@ class CarlaRouteEnv(gym.Env):
 
         if self.activate_lidar:
             self.lidar_data = self._get_lidar_data()
+        _t2 = time.perf_counter()
 
         # Get vehicle transform
         transform = self.vehicle.get_transform()
@@ -443,7 +452,7 @@ class CarlaRouteEnv(gym.Env):
         self.routes_completed = self.num_routes_completed + (self.current_waypoint_index + 1) / len(
             self.route_waypoints)
 
-        # === VALTOZAS 4: akadaly-tudatos saveltere-meres ===
+        # === akadaly-tudatos saveltere-meres ===
         self.obstacle_ahead = self._obstacle_ahead()
 
         # (a) Eltres a ROUTE savjatol - ez az eredeti metrika.
@@ -453,7 +462,7 @@ class CarlaRouteEnv(gym.Env):
 
         # (b) Eltres attol a savtol, amiben EPPEN vagyok. A get_waypoint() a
         #     legkozelebbi driving sav kozepvonalara vetit, tehat ez akkor is
-        #     kicsi, ha atmentem a szomszed savba - feltéve hogy ott a sav
+        #     kicsi, ha atmentem a szomszed savba - felteve hogy ott a sav
         #     kozepen vagyok.
         lane_wp = self.world.map.get_waypoint(transform.location)
         lane_dev = (transform.location.distance(lane_wp.transform.location)
@@ -486,21 +495,31 @@ class CarlaRouteEnv(gym.Env):
 
         # Encode the state
         encoded_state = self.encode_state_fn(self)
-        if self.decode_vae_fn:
-            self.observation_decoded = self.decode_vae_fn(encoded_state['vae_latent'])
         self.step_count += 1
 
         # DEBUG: Draw path
         # self._draw_path_server(life_time=1.0, skip=8)
-        # DEBUG: Draw current waypoint
-        # self.world.debug.draw_point(self.current_waypoint.transform.location + carla.Location(z=1.25), size=0.1,color=carla.Color(0, 255, 255), life_time=2.0, persistent_lines=False)
 
         # Check for ESC press
         if self.activate_render:
             pygame.event.pump()
             if pygame.key.get_pressed()[K_ESCAPE]:
                 self.terminal_state = True
+
             self.render()
+
+        # === IDOMERES ===
+        # tick   = a CARLA szerver mennyit dolgozott (szerveroldali terheles)
+        # obs    = mennyit vartunk a kamerakepekre (szenzor atvitel)
+        # render = a pygame oldal (blit, draw_path, flip)
+        # Csak a 80 ms folotti stepeket logolja, hogy ne arassza el a konzolt.
+        _t3 = time.perf_counter()
+        if (_t3 - _t0) > 0.08:
+            print("[SLOW] tick={:.0f} obs={:.0f} render={:.0f} ms  (osszesen {:.0f})".format(
+                1000 * (_t1 - _t0),
+                1000 * (_t2 - _t1),
+                1000 * (_t3 - _t2),
+                1000 * (_t3 - _t0)))
 
         info = {
             "closed": self.closed,
@@ -544,47 +563,64 @@ class CarlaRouteEnv(gym.Env):
     def _draw_path(self, camera, image):
         """
             Draw a connected path from start of route to end using homography.
+
+        Optimalizalva: a K projekcios matrix egyszer szamolodik ki (nem minden
+        waypointra ujra), es a ciklus csak draw_path_lookahead waypointig megy.
+        A regi verzio 800 hosszu route-nal 800-szor futott le tickenkent, ami
+        fps=15-nel 12000 felesleges iteracio masodpercenkent.
         """
         vehicle_vector = vector(self.vehicle.get_transform().location)
         # Get the world to camera matrix
         world_2_camera = np.array(camera.get_transform().get_inverse_matrix())
 
-        # Get the attributes from the camera
-        image_w = int(camera.actor.attributes['image_size_x'])
-        image_h = int(camera.actor.attributes['image_size_y'])
-        fov = float(camera.actor.attributes['fov'])
-        for i in range(self.current_waypoint_index, len(self.route_waypoints)):
+        # A kameraparameterek nem valtoznak futas kozben -> egyszer olvassuk be
+        # es egyszer epitjuk fel a projekcios matrixot.
+        if self._proj_K is None:
+            image_w = int(camera.actor.attributes['image_size_x'])
+            image_h = int(camera.actor.attributes['image_size_y'])
+            fov = float(camera.actor.attributes['fov'])
+            self._proj_K = build_projection_matrix(image_w, image_h, fov)
+        K = self._proj_K
+
+        # A tavolsagszuro amugy is csak 50 m-en belulit rajzol, ezert felesleges
+        # az egesz hatralevo route-on vegigmenni.
+        last_index = len(self.route_waypoints) - 1
+        end = min(len(self.route_waypoints),
+                  self.current_waypoint_index + self.draw_path_lookahead)
+
+        for i in range(self.current_waypoint_index, end):
             waypoint_location = self.route_waypoints[i][0].transform.location + carla.Location(z=1.25)
             waypoint_vector = vector(waypoint_location)
             if not (2 < abs(np.linalg.norm(vehicle_vector - waypoint_vector)) < 50):
                 continue
-            # Calculate the camera projection matrix to project from 3D -> 2D
-            K = build_projection_matrix(image_w, image_h, fov)
             x, y = get_image_point(waypoint_location, K, world_2_camera)
-            if i == len(self.route_waypoints) - 1:
+            if i == last_index:
                 color = (255, 0, 0)
             else:
                 color = (0, 0, 255)
             image = cv2.circle(image, (int(np.int32(x)), int(np.int32(y))), radius=3, color=color, thickness=-1)
         return image
 
+    # A ket busy-wait ciklus helyett rovid alvas. Az ures 'while: pass' 100%
+    # CPU-t eszik egy magon, es pont azokert a magokert versenyez, amelyeken a
+    # CARLA kliens szalai a kepet szallitanak - vagyis lassitja azt, amire var.
     def _get_observation(self):
         while self.observation_buffer is None:
-            pass
+            time.sleep(0.001)
         obs = self.observation_buffer.copy()
         self.observation_buffer = None
         return obs
 
     def _get_viewer_image(self):
         while self.viewer_image_buffer is None:
-            pass
+            time.sleep(0.001)
         image = self.viewer_image_buffer.copy()
         self.viewer_image_buffer = None
         return image
 
     def _get_lidar_data(self):
         while self.lidar_data_buffer is None:
-            pass
+            time.sleep(0.001)
         image = self.lidar_data_buffer.copy()
         self.lidar_data_buffer = None
         return image

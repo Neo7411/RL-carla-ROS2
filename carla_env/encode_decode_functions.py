@@ -1,51 +1,30 @@
-import torch
-from torchvision import transforms
 import numpy as np
-
-
 
 from carla_env.wrappers import vector, get_displacement_vector
 
 
-
-
-# Help functions 
-def preprocess_frame(frame):
-    preprocess = transforms.Compose([
-        transforms.ToTensor(),
-    ])
-    frame = preprocess(frame).unsqueeze(0)
-    return frame
-
-
-def create_encode_state_fn(vae):
-    # ENCODE AND DECODE STATE
-    # Encode current state 
+def create_encode_state_fn():
+    # Encode current state
     def encode_state(env):
-        # dict for current CARLA state 
+        # dict for current CARLA state
         encoded_state = {}
-        
-        # create the latent from the image 
-        with torch.no_grad():
-            frame = preprocess_frame(env.observation)
-            mu, logvar = vae.encode(frame)
-            vae_latent = vae.reparameterize(mu, logvar)[0].cpu().detach().numpy().squeeze()
-        
-        # vae value of the current image 
-        encoded_state['vae_latent'] = vae_latent
-        
+
+        # Nyers szegmentalt kep. uint8, (80,160,3), NEM normalizalva -
+        # az SB3 NatureCNN belul oszt 255-tel.
+        encoded_state['seg_camera'] = np.asarray(env.observation, dtype=np.uint8)
+
         vehicle_measures = []
-        
-        # ask current vechile measures steer, throttle, speed, angle, waypoint 
+
+        # ask current vechile measures steer, throttle, speed, angle, waypoint
         vehicle_measures.append(env.vehicle.control.steer)
         vehicle_measures.append(env.vehicle.control.throttle)
         vehicle_measures.append(env.vehicle.get_speed())
         vehicle_measures.append(env.vehicle.get_angle(env.current_waypoint))
-        
-        # Append to dict 
+
+        # Append to dict
         encoded_state['vehicle_measures'] = vehicle_measures
-        
-        # actual vehicle maneuver 
+
+        # actual vehicle maneuver
         encoded_state['maneuver'] = env.current_road_maneuver.value
         next_waypoints_state = env.route_waypoints[env.current_waypoint_index: env.current_waypoint_index + 15]
         waypoints = [vector(way[0].transform.location) for way in next_waypoints_state]
@@ -62,13 +41,4 @@ def create_encode_state_fn(vae):
         encoded_state['waypoints'] = relative_waypoints
         return encoded_state
 
-    # Decode state 
-    def decode_vae_state(z):
-        with torch.no_grad():
-            sample = torch.tensor(z)
-            sample = vae.decode(sample).cpu()
-            generated_image = sample.view(3, 80, 160).numpy().transpose((1, 2, 0)) * 255
-        return generated_image
-
-
-    return encode_state, decode_vae_state
+    return encode_state

@@ -3,9 +3,6 @@ import time
 
 import numpy as np 
 
-# torch imports
-import torch
-from torchvision import transforms
 
 # GYM 
 import gymnasium as gym
@@ -16,14 +13,11 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import configure
 
 
-# Custom coded imports 
-#Import VAE
-from vae.models import VAE
-
 from carla_env.envs.carla_route_env import CarlaRouteEnv
 
 
-from carla_env.encode_decode_functions import create_encode_state_fn
+from carla_env.wrappers import vector, get_displacement_vector
+
 
 
 from carla_env.reward import reward_fn
@@ -36,19 +30,41 @@ from config import (
 )
 
 
-# VAE loader function 
-def load_vae(vae_dir, latent_size):
-    model_dir = os.path.join(vae_dir, 'best.tar')
-    model = VAE(latent_size)
-    if os.path.exists(model_dir):
-        state = torch.load(model_dir)
-        print("Reloading model at epoch {}"
-              ", with test error {}".format(
-            state['epoch'],
-            state['precision']))
-        model.load_state_dict(state['state_dict'])
-        return model
-    raise Exception("Error - VAE model does not exist")
+def encode_state(env):
+        # dict for current CARLA state
+        encoded_state = {}
+
+        # Nyers szegmentalt kep. uint8, (80,160,3), NEM normalizalva -
+        # az SB3 NatureCNN belul oszt 255-tel.
+        encoded_state['seg_camera'] = np.asarray(env.observation, dtype=np.uint8)
+
+        vehicle_measures = []
+
+        # ask current vechile measures steer, throttle, speed, angle, waypoint
+        vehicle_measures.append(env.vehicle.control.steer)
+        vehicle_measures.append(env.vehicle.control.throttle)
+        vehicle_measures.append(env.vehicle.get_speed())
+        vehicle_measures.append(env.vehicle.get_angle(env.current_waypoint))
+
+        # Append to dict
+        encoded_state['vehicle_measures'] = vehicle_measures
+
+        # actual vehicle maneuver
+        encoded_state['maneuver'] = env.current_road_maneuver.value
+        next_waypoints_state = env.route_waypoints[env.current_waypoint_index: env.current_waypoint_index + 15]
+        waypoints = [vector(way[0].transform.location) for way in next_waypoints_state]
+        vehicle_location = vector(env.vehicle.get_location())
+        theta = np.deg2rad(env.vehicle.get_transform().rotation.yaw)
+        relative_waypoints = np.zeros((15, 2))
+        for i, w_location in enumerate(waypoints):
+            relative_waypoints[i] = get_displacement_vector(vehicle_location, w_location, theta)[:2]
+        if len(waypoints) < 15:
+            start_index = len(waypoints)
+            reference_vector = relative_waypoints[start_index-1] - relative_waypoints[start_index-2]
+            for i in range(start_index, 15):
+                relative_waypoints[i] = relative_waypoints[i-1] + reference_vector
+        encoded_state['waypoints'] = relative_waypoints
+        return encoded_state
 
 
 # Create observation space for the car 
@@ -57,7 +73,11 @@ def create_observation_space():
     observation_space = {}
     
     # vae encoded camera input 
-    observation_space['vae_latent'] = gym.spaces.Box(low=-4, high=4, shape=(LSIZE, ), dtype=np.float32) 
+    # observation_space['vae_latent'] = gym.spaces.Box(low=-4, high=4, shape=(LSIZE, ), dtype=np.float32) 
+    
+    # Change the latent t raw camera
+    observation_space['seg_camera'] = gym.spaces.Box(low=0, high=255, shape=(80, 160, 3), dtype=np.uint8)
+    
     
     # lists for vehicle description 
     low, high = [],[]
@@ -75,19 +95,15 @@ def create_observation_space():
 
 
 def main():
-    # step one clear cuda cache!!!
-    torch.cuda.empty_cache()
+
     
     os.makedirs(LOG_DIR, exist_ok=True)
-
-    vae = load_vae('./vae/model', LSIZE)
-    encode_state_fn, decode_vae_fn = create_encode_state_fn(vae)
-
     
     observation_space = create_observation_space()
 
 
     rl_model_path= RELOAD_MODEL_PATH+"/model_final.zip"
+
     env = CarlaRouteEnv(
         obs_res=OBS_RES,
         viewer_res=(1280,720),
@@ -98,14 +114,14 @@ def main():
         min_route_length=400,
         reward_fn=reward_fn,
         observation_space=observation_space,
-        encode_state_fn=encode_state_fn,
-        decode_vae_fn=decode_vae_fn,
+        encode_state_fn=encode_state,
         fps=FPS,
         action_smoothing=ACTION_SMOOTHING,
         action_space_type='continuous',
         activate_spectator=ACTIVATE_SPECTATOR,
         activate_render=ACTIVATE_RENDER,
     )
+
 
     if RELOAD_MODEL:
         model = SAC.load(rl_model_path, env=env, device='cuda',
