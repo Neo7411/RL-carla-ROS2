@@ -1,8 +1,9 @@
 import os
 import time
 
-import numpy as np 
+import numpy as np
 
+import torch
 
 # GYM 
 import gymnasium as gym
@@ -18,6 +19,8 @@ from carla_env.envs.carla_route_env import CarlaRouteEnv
 
 from carla_env.wrappers import vector, get_displacement_vector
 
+from autoencoders.camera.ae import Autoencoder
+
 
 
 from carla_env.reward import reward_fn
@@ -26,17 +29,51 @@ from config import (
     LSIZE, LOG_DIR, RELOAD_MODEL, RELOAD_MODEL_PATH, TOTAL_STEPS, SEED,TOWN,
     OBS_RES, ACTION_SMOOTHING, NUM_CHECKPOINTS,
     FPS, ACTIVATE_SPECTATOR, ACTIVATE_RENDER,
-    ALGORITHM_PARAMS, CONFIG,
+    AE_CKPT_PATH, ALGORITHM_PARAMS, CONFIG,
 )
 
 
-def encode_state(env):
+# AE loader
+def load_ae(ckpt_path, device):
+    if not os.path.exists(ckpt_path):
+        raise Exception(f"Error - AE model does not exist: {ckpt_path}")
+
+    # map_location: ha CUDA-n tanult es most CPU-n futtatnank, e nelkul elszall.
+    ae = Autoencoder.load_from_checkpoint(ckpt_path, map_location=device)
+    # eval(): a BatchNorm maskepp viselkedik tanitas es kiertekeles kozben.
+    ae.eval().to(device)
+    # Az AE fix: az RL nem tanitja tovabb.
+    for p in ae.parameters():
+        p.requires_grad_(False)
+
+    print(f"Loaded AE from {ckpt_path}, latent_dim {ae.hparams.latent_dim}")
+    return ae
+
+
+# Az encode_state-nek szuksege van a betoltott AE-re, ezert egy gyarfuggveny
+# adja at neki - igy nem kell globalis valtozo.
+def create_encode_state_fn(ae, device):
+
+    @torch.no_grad()
+    def encode_state(env):
         # dict for current CARLA state
         encoded_state = {}
 
-        # Nyers szegmentalt kep. uint8, (80,160,3), NEM normalizalva -
-        # az SB3 NatureCNN belul oszt 255-tel.
-        encoded_state['seg_camera'] = np.asarray(env.observation, dtype=np.uint8)
+        # Nyers RGB kep -> AE latent. A normalizalas ugyanaz, mint a
+        # tanitasban: uint8/255 es (H,W,C) -> (C,H,W).
+        # ascontiguousarray: a CARLA kamera BGR->RGB fordulata (wrappers.py
+        # array[:, :, ::-1]) negativ stride-ot hagy, amit a from_numpy nem vesz at.
+        image = np.ascontiguousarray(env.observation, dtype=np.uint8)
+        x = torch.from_numpy(image).permute(2, 0, 1).float().div_(255.0)
+        x = x.unsqueeze(0).to(device)                # (1, 3, 80, 160)
+        z = ae.encode(x)
+        encoded_state['ae_latent'] = z[0].cpu().numpy().astype(np.float32)
+
+        # A rekonstrukcio csak a megjelenitesnek kell (env.render rakja ki a
+        # nyers kamerakep ala) - renderelés nelkul felesleges dekodolni.
+        if env.activate_render:
+            recon = ae.decode(z)[0].clamp(0, 1)
+            env.ae_reconstruction = (recon * 255).byte().permute(1, 2, 0).cpu().numpy()
 
         vehicle_measures = []
 
@@ -66,18 +103,19 @@ def encode_state(env):
         encoded_state['waypoints'] = relative_waypoints
         return encoded_state
 
+    return encode_state
 
-# Create observation space for the car 
+
+# Create observation space for the car
 def create_observation_space():    
     #OBS Space dict  
     observation_space = {}
     
-    # vae encoded camera input 
-    # observation_space['vae_latent'] = gym.spaces.Box(low=-4, high=4, shape=(LSIZE, ), dtype=np.float32) 
-    
-    # Change the latent t raw camera
-    observation_space['seg_camera'] = gym.spaces.Box(low=0, high=255, shape=(80, 160, 3), dtype=np.uint8)
-    
+    # AE-vel kodolt kamerakep. Az encode() vegen tanh van (latent_scale=4.0),
+    # ezert a latent garantaltan -4..4 - ugyanaz a nagysagrend, mint a tobbi
+    # obs jele. Korlat nelkul -121..144 kozott mozgott, es elnyomta oket.
+    observation_space['ae_latent'] = gym.spaces.Box(low=-4, high=4, shape=(LSIZE, ), dtype=np.float32)
+
     
     # lists for vehicle description 
     low, high = [],[]
@@ -101,6 +139,11 @@ def main():
     
     observation_space = create_observation_space()
 
+    # Az AE-t a CARLA elott toltjuk be: ha a checkpoint hibas, ne alljon fel
+    # elotte a teljes szimulacio.
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    ae = load_ae(AE_CKPT_PATH, device)
+    encode_state_fn = create_encode_state_fn(ae, device)
 
     rl_model_path= RELOAD_MODEL_PATH+"/model_final.zip"
 
@@ -114,7 +157,7 @@ def main():
         min_route_length=400,
         reward_fn=reward_fn,
         observation_space=observation_space,
-        encode_state_fn=encode_state,
+        encode_state_fn=encode_state_fn,
         fps=FPS,
         action_smoothing=ACTION_SMOOTHING,
         action_space_type='continuous',

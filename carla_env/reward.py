@@ -13,9 +13,9 @@ import numpy as np
 
 # --- Beallitasok (itt szerkesztheto minden) --------------------------------
 EARLY_STOP = True             # korai epizod-vege engedelyezve?
-MIN_SPEED = 20.0              # ez alatt aranyosan buntetunk [km/h]
-MAX_SPEED = 70.0              # ezen felul terminal [km/h]
-TARGET_SPEED = 50.0           # ideal sebesseg [km/h]
+MAX_SPEED = 100.0              # ezen felul terminal [km/h]
+TARGET_SPEED = 80.0           # ideal sebesseg [km/h]
+SPEED_WEIGHT = 1.5            # a sebesseg sulya (1.0 = nincs sulyozas)
 MAX_DISTANCE = 2.0            # max eltres a sav kozeptol [m]
 MAX_STD_CENTER_LANE = 0.35    # max szoras a kozeptol valo tavolsagban [m]
 MAX_ANGLE_CENTER_LANE = 90    # max szogeltres [fok]
@@ -68,14 +68,20 @@ def reward_fn(env):
         return PENALTY_REWARD
 
     # --- 2) Jutalom tenyezok (mind 0..1) -----------------------------------
-    # a) Sebesseg: MIN_SPEED alatt linearisan no, MIN..TARGET kozott 1.0,
-    #    TARGET folott linearisan csokken MAX_SPEED-ig.
-    if speed_kmh < MIN_SPEED:
-        speed_factor = speed_kmh / MIN_SPEED
-    elif speed_kmh > TARGET_SPEED:
-        speed_factor = 1.0 - (speed_kmh - TARGET_SPEED) / (MAX_SPEED - TARGET_SPEED)
+    # a) Sebesseg: 0-tol TARGET_SPEED-ig VEGIG novekvo, folotte csokken.
+    #
+    #    A korabbi valtozat MIN_SPEED es TARGET_SPEED kozott lapos 1.0-t adott,
+    #    vagyis 21 es 49 km/h kozott NULLA volt a gradiens: az agensnek semmi
+    #    nem erte meg gyorsulni. A merés ezt igazolta - 34k lepes utan az
+    #    epizodok atlagsebessege 16.5 km/h volt, es csak 36%-uk ment 20 folott.
+    #    Lassan menni ugyanis biztonsagosabb (kisebb esely a lesodrodasra es a
+    #    -10-es buntetesre), a jutalom-kulonbseg pedig alig 0.2 volt.
+    #
+    #    Igy viszont minden km/h szamit egeszen a celsebessegig.
+    if speed_kmh <= TARGET_SPEED:
+        speed_factor = speed_kmh / TARGET_SPEED
     else:
-        speed_factor = 1.0
+        speed_factor = 1.0 - (speed_kmh - TARGET_SPEED) / (MAX_SPEED - TARGET_SPEED)
     speed_factor = float(np.clip(speed_factor, 0.0, 1.0))
 
     # b) Sav-kozepen tartas: minel kozelebb a kozephez, annal jobb.
@@ -90,4 +96,13 @@ def reward_fn(env):
     smoothness_factor = max(1.0 - abs(std) / MAX_STD_CENTER_LANE, 0.0)
 
     env.extra_info.extend([terminal_reason, ""])
-    return speed_factor * centering_factor * angle_factor * smoothness_factor
+
+    # A sebesseget sulyozzuk (hatvanyozas: a 0..1 tartomanyban a nagyobb kitevo
+    # jobban bunteti a lassusagot, tehat a sebesseg dominansabb lesz).
+    #
+    # Miert kell: a jutalom SZORZAT, es gyorsabban menni rontja a masik harom
+    # tenyezot (nehezebb a sav kozepen maradni, no a szogeltres es a szoras).
+    # Sulyozas nelkul ezek epp ~35-40 km/h-nal egyensulyozzak ki a sebesseget,
+    # ezert az agens ott allt meg - helyesen, mert a reward szerint az volt az
+    # optimum. Modellezve: w=1.0 -> 35 km/h, w=1.5 -> 40, w=2.0 -> 45, w=3.0 -> 50.
+    return (speed_factor ** SPEED_WEIGHT) * centering_factor * angle_factor * smoothness_factor

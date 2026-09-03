@@ -13,7 +13,6 @@ from collections import deque
 import random
 
 import carla
-from carla_env.navigation.controller import VehiclePIDController
 from carla_env.tools.misc import distance_vehicle, draw_waypoints
 
 
@@ -131,6 +130,11 @@ class LocalPlanner(object):
                 args_longitudinal_dict = opt_dict['longitudinal_control_dict']
 
         self._current_waypoint = self._map.get_waypoint(self._vehicle.get_location())
+        # Kesleltetett import: a controller.py torolve lett, es a LocalPlanner-t
+        # sem hasznalja mar semmi - a planner.py csak a RoadOption enumot veszi
+        # innen. Igy a modul importalhato marad a controller nelkul is, es csak
+        # akkor szall el, ha valaki tenylegesen LocalPlanner-t peldanyosit.
+        from carla_env.navigation.controller import VehiclePIDController
         self._vehicle_controller = VehiclePIDController(self._vehicle,
                                                        args_lateral=args_lateral_dict,
                                                        args_longitudinal=args_longitudinal_dict)

@@ -161,6 +161,7 @@ class CarlaRouteEnv(gym.Env):
         self.closed = False  # Set to True when ESC is pressed
         self.extra_info = []  # List of extra info shown on the HUD
         self.observation = self.observation_buffer = None  # Last received observation
+        self.ae_reconstruction = None  # AE rekonstrukcio a HUD-hoz (encode_state_fn tolti)
         self.viewer_image = self.viewer_image_buffer = None  # Last received image to show in the viewer
         self.lidar_data = self.lidar_data_buffer = None
         self.step_count = 0
@@ -190,9 +191,15 @@ class CarlaRouteEnv(gym.Env):
             return v.actor.id
         return v.id
 
-    def _sample_route(self, max_tries=30):
+    def _sample_route(self, max_tries=2000):
         """Random spawn-part huz, amig a route hossza a [min, max] ablakba nem esik.
         A kanyarok / keresztezodesek szama igy epizodrol epizodra random lesz.
+
+        A max_tries azert ilyen bo: Town04 tobbsavos autopalya, ott a random
+        spawn-parok ~83%-a savvaltasos, es a megmarado route-oknak is csak a
+        tizede esik a hossz-ablakba. 30 probabol ez rendszeresen elbukott
+        ("Nem sikerult ervenyes route-ot generalni"). Merve ~2.6 s epizodonkent,
+        ami epizodonkent egyszer fut - megeri.
 
         Visszaad: (start_wp, end_wp, route_waypoints)
         """
@@ -376,6 +383,17 @@ class CarlaRouteEnv(gym.Env):
         obs_h, obs_w = self.observation.shape[:2]
         pos_observation = (self.display.get_size()[0] - obs_w - 10, 10)
         self.display.blit(pygame.surfarray.make_surface(self.observation.swapaxes(0, 1)), pos_observation)
+
+        # Alatta az AE rekonstrukcioja: ez mutatja, mit tart meg a latent,
+        # vagyis mit "lat" tenylegesen az agent.
+        if getattr(self, "ae_reconstruction", None) is not None:
+            pos_recon = (self.display.get_size()[0] - obs_w - 10, 10 + obs_h + 24)
+            self.display.blit(
+                pygame.surfarray.make_surface(self.ae_reconstruction.swapaxes(0, 1)),
+                pos_recon)
+            self.display.blit(
+                self.hud.font_mono.render("AE recon", True, (255, 255, 255)),
+                (pos_recon[0], pos_recon[1] - 18))
 
         if self.activate_lidar:
             lidar_h, lidar_w = self.lidar_data.shape[:2]

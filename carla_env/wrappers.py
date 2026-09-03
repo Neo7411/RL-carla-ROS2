@@ -56,7 +56,13 @@ def angle_diff(v0, v1):
 
     v0_xy_u = v0_xy / v0_xy_norm
     v1_xy_u = v1_xy / v1_xy_norm
-    dot_product = np.dot(v0_xy_u, v1_xy_u)
+    # A clip NEM kozmetikai: ket egysegvektor skalarszorzata elvileg [-1, 1],
+    # de a normalizalas lebegopontos kerekitese miatt lehet 1.0000000000000002,
+    # es az arccos ott NaN-t ad. Ez majdnem parhuzamos vektoroknal fordul elo,
+    # vagyis EGYENESEN HALADVA - a tipikus esetben. Az igy kapott NaN vegigment
+    # a rewardon a replay bufferbe, es a SAC ott szallt el
+    # ("Expected parameter loc ... to satisfy the constraint Real()").
+    dot_product = np.clip(np.dot(v0_xy_u, v1_xy_u), -1.0, 1.0)
     angle = np.arccos(dot_product)
 
     # Calculate the sign of the angle using the cross product
@@ -299,6 +305,25 @@ class Camera(CarlaActorBase):
         camera_bp.set_attribute("image_size_y", str(height))
         camera_bp.set_attribute("fov", f"110")
         # camera_bp.set_attribute("sensor_tick", str(sensor_tick))
+
+        # Motion blur KI. A CARLA RGB kameraja alapertelmezetten elmossa a
+        # kepet (motion_blur_intensity=0.45), es 70 km/h-nal ez lathatoan
+        # elkeni a sav szelet es a tavoli autokat.
+        #
+        # Ket okbol rossz ez nekunk:
+        #   - a halonak pont ezek a reszletek kellenek a donteshez
+        #   - az elmosas MERTEKE a sebessegtol fugg, tehat ugyanaz a hely
+        #     mas kepet ad allva es haladva - a halonak ez csak zaj
+        #
+        # Ezt a beallitast a dataset gyujtoben (autoencoders/camera/
+        # collect_dataset_v2.py) is ugyanigy kell tartani, kulonben az AE
+        # mas kepen tanul, mint amit eles futasban lat.
+        if camera_bp.has_attribute("motion_blur_intensity"):
+            camera_bp.set_attribute("motion_blur_intensity", "0.0")
+        if camera_bp.has_attribute("motion_blur_max_distortion"):
+            camera_bp.set_attribute("motion_blur_max_distortion", "0.0")
+        if camera_bp.has_attribute("motion_blur_min_object_screen_size"):
+            camera_bp.set_attribute("motion_blur_min_object_screen_size", "0.0")
 
         # Create and setup camera actor
         weak_self = weakref.ref(self)
