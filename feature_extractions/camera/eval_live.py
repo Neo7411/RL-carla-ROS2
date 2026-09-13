@@ -35,7 +35,7 @@ from pygame.locals import (
     K_a, K_c, K_d, K_p, K_q, K_s, K_v, K_w, KMOD_SHIFT,
 )
 
-from ae import Autoencoder
+from feature_extractions.camera.camera_ae import Autoencoder
 
 HOST = "127.0.0.1"
 PORT = 2000
