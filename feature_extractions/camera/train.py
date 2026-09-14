@@ -1,4 +1,9 @@
-"""LiDAR autoencoder tanitasa ELO CARLA adaton.
+"""Kamera autoencoder tanitasa ELO CARLA adaton.
+
+A feature_extractions/lidar/train.py mintajara. Ugyanaz a felepites: a CARLA
+sajat utemben fut, az ego autopilotban jar, a kepek egy replay bufferbe
+gyulnek, es egy KULON SZAL tanit beloluk.
+
 Billentyuk:
     P     - autopilot be/ki (kikapcsolva TE vezetsz)
     T     - tanitas szunet/inditas
@@ -20,6 +25,7 @@ import threading
 import time
 from collections import deque
 
+import lightning as pl
 import numpy as np
 import pygame
 import torch
@@ -33,10 +39,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 import carla  # noqa: E402
 
 from carla_env.tools.hud import HUD  # noqa: E402
-from carla_env.wrappers import Lidar, lidar_bev_to_rgb, sensor_transforms  # noqa: E402
+from carla_env.wrappers import Camera, sensor_transforms  # noqa: E402
 
-from AE.geometry import pcd2range, process_scan  # noqa: E402
-from AE.model import LidarAE  # noqa: E402
+from camera_ae import CameraAutoEncoder  # noqa: E402
 from feature_extractions.manual_control import VehicleController  # noqa: E402
 
 HOST = "127.0.0.1"
@@ -46,93 +51,49 @@ TOWN = "Town04"
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
 
-# None = annyi auto, ahany spawn pont van a palyan (Town04-en ~370). Ennyi
-# forgalom csak hybrid physics mode mellett fut ertelmesen - lasd
-# spawn_traffic(). Szammal felulirhato, ha kevesebb kell.
 NUM_TRAFFIC = 60
 
 # Hybrid physics: ezen a sugaron belul (meter) van teljes kerekfizika a hero
 # korul, azon kivul a TM olcso "teleportalos" modban mozgatja az autokat.
-# 70 m bosegesen tobb a lidar 50 m-es hatotavjanal, tehat minden auto, amit a
-# szenzor lat, valodi fizikaval mozog.
 HYBRID_PHYSICS_RADIUS = 70.0
 EGO_SPEED_KMH = 60.0
 START_WITH_AUTOPILOT = True
 
 # ---------------------------------------------------------------------------
-# Range image parameterei - EZEN tanul a halo
+# A kep parameterei - EZEN tanul a halo
 # ---------------------------------------------------------------------------
-# A range image a lidar sajat nezopontjabol keszul: 64 sor = elevacios szogek
-# (+10 fok .. -25 fok), 1024 oszlop = 360 fok azimut korbe az auto korul. A
-# cella erteke a TAVOLSAG, nem egy raszterezett folt - vagyis ez a pontfelho
-# tomor, szinte vesztesegmentes reprezentacioja.
-#
-# Ezert tanul ezen a halo, es nem a BEV-en: a BEV felulnezet, ahol az uttest
-# nagy resze ures (~3% kitoltottseg, a graf Stemje utan 11% tartalmas pont).
-# A range image-ben minden sugarnak van merese: ~96% kitoltottseg, 97%
-# tartalmas pont. A graf-encoder (EdgeConv) ilyen suru bemenetre valo.
-#
-# Ezeknek egyeznie KELL a wrappers.py Lidar blueprintjevel (channels=64,
-# upper_fov=10, lower_fov=-25, range=50), kulonben a vetites rossz cellakba
-# szorja a pontokat.
-RANGE_SIZE = (64, 1024)
-FOV = (10.0, -25.0)
-DEPTH_RANGE = (1.0, 50.0)
-# depth_scale: a log2(d+1) skalazott melyseget viszi [0,1]-be.
-# log2(50+1) = 5.67, ezert 6 a biztonsagos felso hatar.
-DEPTH_SCALE = 6.0
-LOG_SCALE = True
+# Ennek PONTOSAN egyeznie kell a config.py OBS_RES ertekevel, kulonben az RL
+# mas meretu kepet adna az AE-nek, mint amin tanult. A CameraAutoEncoder
+# felepitese is erre a meretre van meretezve (4 db felezo conv: 80x160 ->
+# 5x10), mas felbontasnal a fc_encode bemenete nem stimmelne.
+OBS_WIDTH = 160
+OBS_HEIGHT = 80
 
-# A BEV kep csak a HUD-nak kell, hogy lasd, mi tortenik az auto korul.
-BEV_SIZE = 256
+# A kamera pozicioja. A "dashboard" a menetirany szerinti elore nezo kep -
+# ugyanez megy az RL-ben is (carla_route_env.py).
+CAMERA_TRANSFORM = "dashboard"
 
 # ---------------------------------------------------------------------------
 # Tanitas
 # ---------------------------------------------------------------------------
-# BATCH_SIZE=4: 276 ms/lepes es 3.6 GB VRAM egy RTX 4070 Laptopon (8 GB).
-# Nyolccal mar 7 GB lenne, ami a CARLA szerver mellett nem fer be.
-BATCH_SIZE = 4
-LEARNING_RATE = 1e-4
+# A kamera AE lenyegesen olcsobb a lidarenal (nincs k-NN graf), ezert nagyobb
+# batch is elfer: 32 kep 80x160-on par szaz MB VRAM.
+BATCH_SIZE = 32
+LEARNING_RATE = 1e-3
 
-# A HUD "kozeli" hibametrikajanak hatara a normalizalt skalan. A
-# process_scan log2 skalazasa miatt 0.333 pont 15 meternek felel meg -
-# vezetes szempontjabol nagyjabol eddig terjed az erdekes zona.
-NEAR_THRESHOLD = 0.333
-BUFFER_SIZE = 512       # hany range image-et tartunk a memoriaban
-LEARNING_STARTS = 64    # ennyi kep alatt meg csak gyujtunk, nem tanulunk
+# A latent merete. Ez kerul az RL observationbe, ezert a config.py LSIZE
+# ertekevel kell egyeznie.
+LATENT_DIM = 64
+BASE_CHANNELS = 32
+# A latens hatara: az encode() vegen tanh * latent_scale all, tehat a kimenet
+# garantaltan -latent_scale .. +latent_scale. Az RL obs_space-ben ugyanez a
+# hatar szerepel (train_rl.py: low=-4, high=4).
+LATENT_SCALE = 4.0
+
+BUFFER_SIZE = 2048      # hany kepet tartunk a memoriaban
+LEARNING_STARTS = 256   # ennyi kep alatt meg csak gyujtunk, nem tanulunk
 SAVE_EVERY_STEPS = 1000
-CKPT_PATH = os.path.join(os.path.dirname(__file__), "lidar_ae.ckpt")
-
-# A LidarAE-nek atadott halo-config. A z_channels/ch az encodert es a decodert
-# is erinti, a ch_mult/strides/num_res_blocks csak a decodert.
-#
-# A strides indexelese CSAPDA (decoder.py:143):
-#
-#     stride = strides[i_level - 1] if i_level > 0 else None
-#
-# Vagyis az i_level=0 szinten NINCS upsample, es a listat eggyel eltolva
-# olvassa. Ezert len(ch_mult)-1 darab upsample fut, es a strides UTOLSO eleme
-# soha nem kerul felhasznalasra (dummy).
-#
-# A Stem fuggolegesen /4, vizszintesen /8: (64, 1024) -> (16, 128). Ezt kell
-# pontosan visszaadni, ehhez HAROM upsample kell, tehat NEGY szint. A
-# felhasznalasi sorrend forditott (i_level=3 veszi a strides[2]-t):
-#
-#     (16, 128) --(1,2)--> (16, 256) --(2,2)--> (32, 512) --(2,2)--> (64, 1024)
-DDCONFIG = dict(
-    in_channels=1,      # csak a range csatorna (remission nelkul)
-    out_ch=1,
-    z_channels=16,
-    ch=64,
-    ch_mult=(1, 2, 4, 4),
-    strides=((2, 2), (2, 2), (1, 2), (1, 1)),
-    num_res_blocks=1,
-    attn_levels=[],
-    dropout=0.0,
-    resamp_with_conv=True,
-    double_z=False,
-    tanh_out=True,      # a bemenet [-1, 1], a kimenet is oda keruljon
-)
+CKPT_PATH = os.path.join(os.path.dirname(__file__), "camera_new_ae.ckpt")
 
 
 def spawn_at_free_point(world, bp, spawn_points):
@@ -160,7 +121,7 @@ def spawn_traffic(client, world, count=None):
         count = len(spawn_points)
     points = random.sample(spawn_points, len(spawn_points))
 
-    # Egy batchben kuldjuk a spawnt: 370 kulon RPC hivas percekig tartana.
+    # Egy batchben kuldjuk a spawnt: sok kulon RPC hivas percekig tartana.
     batch = []
     for point, _ in zip(points, range(count)):
         bp = random.choice(blueprints)
@@ -179,38 +140,34 @@ def spawn_traffic(client, world, count=None):
     return vehicles
 
 
-def points_to_range_image(xyz):
-    proj_range, _ = pcd2range(xyz, RANGE_SIZE, FOV, DEPTH_RANGE)
-    range_img, _ = process_scan(proj_range, DEPTH_SCALE, log_scale=LOG_SCALE)
-    return range_img.astype(np.float32)
+def image_to_tensor_array(image):
+    """
+    CARLA kamerakep -> (3, H, W) float32, [0, 1].
+
+    A normalizalasnak EGYEZNIE kell a train_rl.py encode_state fuggvenyevel,
+    kulonben az AE mas eloszlasu kepet latna elesben, mint tanitas kozben.
+    Ott ez all: uint8 / 255, majd (H,W,C) -> (C,H,W).
+    """
+    arr = np.ascontiguousarray(image, dtype=np.uint8)
+    return arr.transpose(2, 0, 1).astype(np.float32) / 255.0
 
 
-def range_to_surface(img, width, height):
-    v = np.clip((img[0] + 1.0) * 0.5, 0.0, 1.0)     # vissza [0, 1]-be
-    rgb = np.zeros((v.shape[0], v.shape[1], 3), dtype=np.uint8)
-    rgb[:, :, 0] = ((1.0 - v) * 255).astype(np.uint8)   # kozel -> piros
-    rgb[:, :, 2] = (v * 255).astype(np.uint8)           # tavol -> kek
-    rgb[v < 0.02] = 0                                    # ures cella -> fekete
-    surface = pygame.surfarray.make_surface(rgb.swapaxes(0, 1))
-    return pygame.transform.scale(surface, (width, height))
-
-
-def bev_to_surface(bev, width, height):
-    rgb = lidar_bev_to_rgb(bev)
+def image_to_surface(chw, width, height):
+    """(3, H, W) float [0,1] -> pygame surface."""
+    rgb = (np.clip(chw, 0.0, 1.0) * 255).astype(np.uint8).transpose(1, 2, 0)
     surface = pygame.surfarray.make_surface(rgb.swapaxes(0, 1))
     return pygame.transform.scale(surface, (width, height))
 
 
 class Ego(object):
-    """Az ego auto, a lidarja es a spectator kameraja."""
+    """Az ego auto, a tanitokameraja es a spectator kameraja."""
 
-    def __init__(self, world, on_points, on_bev):
+    def __init__(self, world, on_image):
         self.world = world
-        self.on_points = on_points   # nyers XYZ -> ezen tanul a halo
-        self.on_bev = on_bev         # felulnezeti kep -> csak a HUD-nak
+        self.on_image = on_image     # a kis felbontasu kep -> ezen tanul a halo
         self.player = None
-        self.lidar = None
-        self.camera = None
+        self.camera = None           # tanito kamera (OBS_WIDTH x OBS_HEIGHT)
+        self.viewer_camera = None    # nagy kep a kepernyore
         self.viewer_image = None
 
         self.weather_presets = [
@@ -244,20 +201,24 @@ class Ego(object):
             raise RuntimeError(
                 "Nem sikerult lerakni az egot - minden spawn pont foglalt. "
                 "Csokkentsd a NUM_TRAFFIC erteket.")
-        self.lidar = Lidar(self.world, width=BEV_SIZE, height=BEV_SIZE,
-                           transform=sensor_transforms["lidar"],
-                           attach_to=self,
-                           on_recv_points=self.on_points,
-                           on_recv_image=self.on_bev)
 
-        camera_bp = self.world.get_blueprint_library().find("sensor.camera.rgb")
-        camera_bp.set_attribute("image_size_x", str(WINDOW_WIDTH))
-        camera_bp.set_attribute("image_size_y", str(WINDOW_HEIGHT))
-        self.camera = self.world.spawn_actor(
-            camera_bp, sensor_transforms["spectator"], attach_to=self.player)
-        self.camera.listen(self._on_camera)
+        # A tanito kamera a wrappers.Camera-n keresztul megy, nem kozvetlenul
+        # a CARLA API-n: igy a motion blur kikapcsolasa es a BGR->RGB fordulat
+        # PONTOSAN ugyanugy tortenik, mint az RL futasakor. Ha ezt itt kezzel
+        # csinalnank, a ket ut elcsuszhatna egymastol.
+        self.camera = Camera(self.world, OBS_WIDTH, OBS_HEIGHT,
+                             transform=sensor_transforms[CAMERA_TRANSFORM],
+                             attach_to=self,
+                             on_recv_image=self.on_image)
 
-    def _on_camera(self, image):
+        viewer_bp = self.world.get_blueprint_library().find("sensor.camera.rgb")
+        viewer_bp.set_attribute("image_size_x", str(WINDOW_WIDTH))
+        viewer_bp.set_attribute("image_size_y", str(WINDOW_HEIGHT))
+        self.viewer_camera = self.world.spawn_actor(
+            viewer_bp, sensor_transforms["spectator"], attach_to=self.player)
+        self.viewer_camera.listen(self._on_viewer_image)
+
+    def _on_viewer_image(self, image):
         bgra = np.reshape(np.frombuffer(image.raw_data, dtype=np.uint8),
                           (image.height, image.width, 4))
         self.viewer_image = bgra[:, :, :3][:, :, ::-1].copy()
@@ -272,13 +233,13 @@ class Ego(object):
         return preset[1]
 
     def destroy(self):
+        if self.viewer_camera is not None:
+            self.viewer_camera.stop()
+            self.viewer_camera.destroy()
+            self.viewer_camera = None
         if self.camera is not None:
-            self.camera.stop()
             self.camera.destroy()
             self.camera = None
-        if self.lidar is not None:
-            self.lidar.destroy()
-            self.lidar = None
         if self.player is not None:
             self.player.destroy()
             self.player = None
@@ -295,15 +256,25 @@ class WorldShim(object):
 
 
 class Trainer(object):
+    """
+    Replay buffer + a halo tanitasa KULON SZALON.
+
+    Ugyanaz a felepites, mint a lidar tanitoban: a fo szal csak rajzol es a
+    pygame esemenyeket kezeli, a gradiens lepesek a hatterben futnak. A GIL
+    nem gond, mert a PyTorch a CUDA hivasok idejere elengedi.
+    """
+
     def __init__(self, device):
         self.device = device
-        self.model = LidarAE(ddconfig=DDCONFIG,
-                             learning_rate=LEARNING_RATE).to(device)
+        self.model = CameraAutoEncoder(latent_dim=LATENT_DIM,
+                                       base_channels=BASE_CHANNELS,
+                                       lr=LEARNING_RATE,
+                                       latent_scale=LATENT_SCALE).to(device)
         self.optimizer = self.model.configure_optimizers()
 
         if os.path.exists(CKPT_PATH):
-            self.model.init_from_ckpt(CKPT_PATH)
-            print(f"[train] folytatas innen: {CKPT_PATH}")
+            self.load(CKPT_PATH)
+
         self.buffer = deque(maxlen=BUFFER_SIZE)
         self.lock = threading.Lock()
         self.save_lock = threading.Lock()
@@ -311,7 +282,6 @@ class Trainer(object):
         self.enabled = True
         self.steps = 0
         self.last_loss = float("nan")
-        self.last_occ_loss = float("nan")
         self.frames_seen = 0
         self.last_input = None
         self.last_recon = None
@@ -320,11 +290,27 @@ class Trainer(object):
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
 
-    def add(self, bev):
+    def load(self, path):
+        """
+        Folytatas checkpointbol.
+
+        A Lightning sajat formatumat is elfogadja (load_from_checkpoint), de
+        itt eleg a state_dict: a hiperparametereket a fenti konstansok adjak.
+        """
+        ckpt = torch.load(path, map_location="cpu", weights_only=False)
+        state = ckpt["state_dict"] if "state_dict" in ckpt else ckpt
+        missing, unexpected = self.model.load_state_dict(state, strict=False)
+        if missing:
+            print(f"[train] hianyzo kulcsok: {missing}")
+        if unexpected:
+            print(f"[train] varatlan kulcsok: {unexpected}")
+        print(f"[train] folytatas innen: {path}")
+
+    def add(self, image):
         with self.lock:
-            self.buffer.append(bev)
+            self.buffer.append(image)
         self.frames_seen += 1
-        self.last_input = bev
+        self.last_input = image
 
     def _loop(self):
         """A tanito szal: amig van mibol, tanul; kulonben var."""
@@ -357,17 +343,10 @@ class Trainer(object):
         self.model.train()
         x_rec = self.model(x)
 
-        # Sima L1 rekonstrukcio - ahogy az eredeti TopoAutoencoder is hasznalja.
-        #
-        # A range image ~97%-ban kitoltott (minden lezersugar beleutkozik
-        # valamibe), ezert itt NINCS szukseg a ritka kepeknel elkerulhetetlen
-        # sulyozasra. BEV-en kellett: ott a kep csak 3%-ban volt kitoltott, es
-        # sima L1 mellett a halonak megerte mindent uresre allitani.
-        #
-        # L1 es nem MSE: az L1 elesebb kimenetet ad, az MSE elmosna az
-        # objektumok konturjait - range image-nel pont az elek (egy auto szele,
-        # egy fal vege) hordozzak az informaciot.
-        loss = torch.nn.functional.l1_loss(x, x_rec)
+        # MSE, ahogy a CameraAutoEncoder _shared_step-je is hasznalja. Itt
+        # nincs ertelme L1-re valtani: a kamerakep suru es folytonos, nem
+        # ritka, mint a BEV volt.
+        loss = torch.nn.functional.mse_loss(x_rec, x)
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -376,26 +355,36 @@ class Trainer(object):
 
         self.steps += 1
         self.last_loss = float(loss.detach())
-        # A kozeli cellakon vett hiba kulon. Ez a beszedesebb szam: a tavoli
-        # hatter (falak, epuletek) konnyen tanulhato es dominalja az atlagot,
-        # mikozben vezetes szempontjabol a kozeli objektumok szamitanak.
-        with torch.no_grad():
-            near = x < NEAR_THRESHOLD
-            if near.any():
-                self.last_occ_loss = float((x[near] - x_rec[near]).abs().mean())
 
     @torch.no_grad()
-    def _reconstruct(self, bev):
+    def _reconstruct(self, image):
         """
         Egy kep atengedese a halon, megjelenitesre.
 
-        eval() mod: a decoder dropoutja tanito modban zajossa tenne a
-        megjelenitett kepet.
+        eval() mod: a BatchNorm maskepp viselkedik tanitas es kiertekeles
+        kozben, es egy elemu batch-nel tanito modban ertelmetlen statisztikat
+        szamolna.
         """
         self.model.eval()
-        x = torch.from_numpy(bev).unsqueeze(0).to(self.device)
-        x_rec = self.model(x)
-        return x_rec[0].cpu().numpy()
+        x = torch.from_numpy(image).unsqueeze(0).to(self.device)
+        return self.model(x)[0].cpu().numpy()
+
+    @torch.no_grad()
+    def latent_stats(self):
+        """
+        A latens tartomanya az utolso kepen. Ezt erdemes szemmel tartani: az
+        RL obs_space -LATENT_SCALE..+LATENT_SCALE hatart hirdet, es a tanh
+        miatt ezt nem is lehet tullepni. Ha viszont a latens VEGIG a hatar
+        kozeleben all, az azt jelenti, hogy a tanh telitesben van, es a halo
+        gyakorlatilag binarizalta a latenst - olyankor a LATENT_SCALE-t kell
+        emelni.
+        """
+        if self.last_input is None:
+            return float("nan"), float("nan")
+        self.model.eval()
+        x = torch.from_numpy(self.last_input).unsqueeze(0).to(self.device)
+        z = self.model.encode(x)
+        return float(z.min()), float(z.max())
 
     def stop(self):
         self._stop.set()
@@ -408,8 +397,13 @@ class Trainer(object):
         # elotti, masok a lepes utani sulyokkal).
         with self.save_lock:
             state = {k: v.detach().cpu().clone() for k, v in self.model.state_dict().items()}
+        # A train_rl.py a Lightning load_from_checkpoint-jat hasznalja, az
+        # pedig HAROM kulcsot var. A "pytorch-lightning_version" nelkul
+        # KeyError-ral szall el (a migracios logika keresi eloszor), ezert
+        # nem eleg a state_dict + hyper_parameters.
         torch.save({"state_dict": state,
-                    "ddconfig": DDCONFIG,
+                    "hyper_parameters": dict(self.model.hparams),
+                    "pytorch-lightning_version": pl.__version__,
                     "steps": self.steps}, CKPT_PATH)
         print(f"\n[train] mentve: {CKPT_PATH} ({self.steps} lepes)")
 
@@ -425,8 +419,7 @@ def set_autopilot(ego, tm, enabled):
     tm.set_desired_speed(v, EGO_SPEED_KMH)
     tm.auto_lane_change(v, True)
     # A lampakat atlepjuk, hogy ne alljon sokat egy helyben - allo autonal a
-    # BEV kepek szinte azonosak lennenek, az pedig hasznalhatatlan
-    # tanitoadat.
+    # kepek szinte azonosak lennenek, az pedig hasznalhatatlan tanitoadat.
     tm.ignore_lights_percentage(v, 100)
     tm.distance_to_leading_vehicle(v, 2.5)
 
@@ -438,7 +431,7 @@ def main():
     pygame.init()
     pygame.font.init()
     display = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.DOUBLEBUF)
-    pygame.display.set_caption("LiDAR AE tanitas - T: tanitas, P: autopilot, S: mentes, ESC: kilepes")
+    pygame.display.set_caption("Kamera AE tanitas - T: tanitas, P: autopilot, S: mentes, ESC: kilepes")
 
     trainer = Trainer(device)
 
@@ -449,16 +442,13 @@ def main():
     hud = HUD(WINDOW_WIDTH, WINDOW_HEIGHT)
     print(f"[train] palya: {TOWN}")
 
-    # A legutobbi range image (a halonak) es BEV kep (a HUD-nak). A lidar a
-    # SAJAT szalan hivja a callbackeket, ezert itt csak lerakjuk oket, es a fo
-    # ciklus veszi at - igy a vetites es a tanitas nem a szenzor szalat fogja.
-    pending = {"range": None, "bev": None}
+    # A legutobbi kep. A kamera a SAJAT szalan hivja a callbacket, ezert itt
+    # csak lerakjuk, es a fo ciklus veszi at - igy a normalizalas es a tanitas
+    # nem a szenzor szalat fogja.
+    pending = {"image": None}
 
-    def on_points(xyz):
-        pending["range"] = points_to_range_image(xyz)
-
-    def on_bev(bev):
-        pending["bev"] = bev
+    def on_image(image):
+        pending["image"] = image_to_tensor_array(image)
 
     ego = None
     traffic = []
@@ -466,9 +456,9 @@ def main():
         # Az EGO megy le eloszor, csak utana a forgalom. Ket okbol:
         #  - a hybrid physics a hero kore rajzolja a teljes-fizika kort, tehat
         #    a hero-nak mar lennie kell, amikor a TM bekapcsolja
-        #  - ha a forgalom eloszor foglalna el mind a ~370 spawn pontot, az
-        #    egonak nem maradna hely
-        ego = Ego(world, on_points, on_bev)
+        #  - ha a forgalom eloszor foglalna el minden spawn pontot, az egonak
+        #    nem maradna hely
+        ego = Ego(world, on_image)
         hud.set_vehicle(ego.player)
 
         target = "minden szabad spawn pont" if NUM_TRAFFIC is None else f"{NUM_TRAFFIC} auto"
@@ -537,12 +527,12 @@ def main():
             if not autopilot:
                 throttle, brake, steer = controller.apply(ego.player, dt)
 
-            # Uj lidar kep? -> bufferbe. A tanitas es a rekonstrukcio a
-            # Trainer sajat szalan fut (GPU-n), itt csak atadjuk az adatot.
-            range_img = pending["range"]
-            if range_img is not None:
-                pending["range"] = None
-                trainer.add(range_img)
+            # Uj kep? -> bufferbe. A tanitas es a rekonstrukcio a Trainer
+            # sajat szalan fut (GPU-n), itt csak atadjuk az adatot.
+            image = pending["image"]
+            if image is not None:
+                pending["image"] = None
+                trainer.add(image)
 
             # --- rajzolas ---
             if ego.viewer_image is not None:
@@ -553,48 +543,33 @@ def main():
 
             font = hud.font_mono
 
-            # --- MINDEN a jobb felso sarokban, egy oszlopban ---
+            # --- a ket panel a jobb felso sarokban ---
             #
-            #   1. Felulnezet (BEV)      - ezen NEM tanul a halo, csak neked
-            #                              mutatja, mi van az auto korul
-            #   2. Range image (bemenet) - EZEN tanul
-            #   3. AE rekonstrukcio      - amit a halo visszaad belole
+            #   1. Bemenet        - EZEN tanul a halo (160x80)
+            #   2. AE rekonstrukcio - amit visszaad belole
             #
-            # A 2. es 3. panel osszehasonlitasa mutatja a tanitas haladasat:
-            # ahogy tanul, a kettonek egyre jobban hasonlitania kell.
-            #
-            # A range image 64x1024, vagyis 16:1 arányú csik - ezert fektetve,
-            # kisebb magassaggal fer el a panel szelessegeben.
+            # A ketto osszehasonlitasa mutatja a tanitas haladasat.
             pw = 360                               # panel szelesseg
+            ph = int(pw * OBS_HEIGHT / OBS_WIDTH)  # 2:1 arany megtartva
             px_ = WINDOW_WIDTH - pw - 10           # bal szele
-            # A range image valodi aranya 16:1, ami 360 px szelesnel 22 px
-            # magas csik lenne - azon semmit nem lehet kivenni. Ezert
-            # fuggolegesen nyujtva rajzoljuk (90 px): a sorok igy vastagabbak,
-            # az alakzatok lathatoak. A torzitas itt nem baj, ez csak
-            # megjelenites - a halo a valodi aranyu adatot kapja.
-            rh = 90
             y = 10
 
             def label(text, ypos):
                 display.blit(font.render(text, True, (255, 255, 255)), (px_, ypos))
                 return ypos + 17
 
-            if pending["bev"] is not None:
-                y = label("Felulnezet (csak nezni)", y)
-                display.blit(bev_to_surface(pending["bev"], pw, pw), (px_, y))
-                pygame.draw.rect(display, (90, 90, 90), (px_, y, pw, pw), 1)
-                y += pw + 10
-
             if trainer.last_input is not None:
-                y = label("Range image (bemenet) - EZEN TANUL", y)
-                display.blit(range_to_surface(trainer.last_input, pw, rh), (px_, y))
-                pygame.draw.rect(display, (90, 90, 90), (px_, y, pw, rh), 1)
-                y += rh + 10
+                y = label("Bemenet - EZEN TANUL", y)
+                display.blit(image_to_surface(trainer.last_input, pw, ph), (px_, y))
+                pygame.draw.rect(display, (90, 90, 90), (px_, y, pw, ph), 1)
+                y += ph + 10
 
                 if trainer.last_recon is not None:
                     y = label("AE rekonstrukcio (decoded)", y)
-                    display.blit(range_to_surface(trainer.last_recon, pw, rh), (px_, y))
-                    pygame.draw.rect(display, (90, 90, 90), (px_, y, pw, rh), 1)
+                    display.blit(image_to_surface(trainer.last_recon, pw, ph), (px_, y))
+                    pygame.draw.rect(display, (90, 90, 90), (px_, y, pw, ph), 1)
+
+            z_min, z_max = trainer.latent_stats()
 
             # Autopilot alatt a kezi vezerles sorai csak zavarnanak - a TM
             # ertekei ugyis a HUD felso reszen latszanak.
@@ -604,20 +579,20 @@ def main():
             hud.tick(world, clock)
             hud.render(display, extra_info=[
                 "",
-                "LiDAR AE",
+                "Kamera AE",
                 "Tanitas:      % 11s" % ("FUT" if trainer.enabled else "SZUNET"),
                 "Lepes:        % 11d" % trainer.steps,
-                "Loss (L1):    % 11.5f" % trainer.last_loss,
-                # EZT erdemes nezni: a foglalt cellakon vett hiba. A teljes
-                # loss akkor is csokken, ha a halo csak az ures hatteret
-                # tanulta meg - ez a szam viszont csak akkor, ha tenyleg
-                # eltalalja, hol vannak az objektumok.
-                "Loss (kozeli):% 11.5f" % trainer.last_occ_loss,
+                "Loss (MSE):   % 11.5f" % trainer.last_loss,
+                # A latens tartomanya. A tanh miatt sosem lephet ki a
+                # +-LATENT_SCALE-bol; ha viszont VEGIG a hataron all, a tanh
+                # telitesben van - olyankor emelni kell a LATENT_SCALE-t.
+                "Latens min:   % 11.3f" % z_min,
+                "Latens max:   % 11.3f" % z_max,
                 "Buffer:       % 8d/%d" % (len(trainer.buffer), BUFFER_SIZE),
                 "Kepek:        % 11d" % trainer.frames_seen,
-                # Lepes/kep arany: ha ez sokkal 1 alatt van, a halo jobban
-                # lemarad az adatgyujtestol, vagyis sok kep ugy esik ki a
-                # bufferbol, hogy egyszer sem tanult belole.
+                # Lepes/kep arany: ha ez sokkal 1 alatt van, a halo lemarad az
+                # adatgyujtestol, vagyis sok kep ugy esik ki a bufferbol, hogy
+                # egyszer sem tanult belole.
                 "Lepes/kep:    % 11.2f" % (trainer.steps / max(1, trainer.frames_seen)),
             ] + manual_lines)
             pygame.display.flip()
@@ -632,7 +607,7 @@ def main():
             if time.time() - last_report > 2.0:
                 last_report = time.time()
                 print(f"\r[train] lepes {trainer.steps} | loss {trainer.last_loss:.5f} | "
-                      f"kozeli {trainer.last_occ_loss:.5f} | "
+                      f"latens {z_min:.2f}..{z_max:.2f} | "
                       f"buffer {len(trainer.buffer)}/{BUFFER_SIZE} | "
                       f"kep {trainer.frames_seen}", end="", flush=True)
 

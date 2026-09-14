@@ -43,10 +43,10 @@ def load_cam_ae(ckpt_path, device):
     # eval(): a BatchNorm maskepp viselkedik tanitas es kiertekeles kozben.
     cam_ae.eval().to(device)
     # Az AE fix: az RL nem tanitja tovabb.
-    for p in ae.parameters():
+    for p in cam_ae.parameters():
         p.requires_grad_(False)
 
-    print(f"Loaded AE from {ckpt_path}, latent_dim {ae.hparams.latent_dim}")
+    print(f"Loaded AE from {ckpt_path}, latent_dim {cam_ae.hparams.latent_dim}")
     return cam_ae
 
 
@@ -72,7 +72,7 @@ def create_encode_state_fn(cam_ae, device):
         # A rekonstrukcio csak a megjelenitesnek kell (env.render rakja ki a
         # nyers kamerakep ala) - renderelés nelkul felesleges dekodolni.
         if env.activate_render:
-            recon = ae.decode(z)[0].clamp(0, 1)
+            recon = cam_ae.decode(z)[0].clamp(0, 1)
             env.ae_reconstruction = (recon * 255).byte().permute(1, 2, 0).cpu().numpy()
 
         vehicle_measures = []

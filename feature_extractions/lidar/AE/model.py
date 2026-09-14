@@ -25,19 +25,15 @@ except ImportError:
 
 from .encoder import Encoder
 from .decoder import Decoder
-from .distributions import DiagonalGaussianDistribution
 
 
 class LidarAE(pl.LightningModule):
     """
     Range image autoencoder graf-alapu encoderrel.
 
-    Ket uzemmod:
-      kl_weight = 0    -> determinisztikus AE (mint az eredeti TopoAutoencoder)
-      kl_weight > 0    -> VAE (double_z=True kell a ddconfig-ban!)
-
-    A VAE-nek RL-ben van egy konkret elonye: a KL-tag magatol N(0,1) kore
-    huzza a latenst, igy nem kell kezzel skalazni (tanh * latent_scale).
+    Determinisztikus AE (mint az eredeti TopoAutoencoder): egy kep -> egy
+    konkret latens, nem eloszlas. A ddconfig double_z-je ezert vegig False,
+    az encoder z_channels csatornat ad.
     """
 
     def __init__(self,
@@ -45,7 +41,6 @@ class LidarAE(pl.LightningModule):
                  embed_dim=16,
                  image_key="image",
                  learning_rate=1e-4,
-                 kl_weight=0.0,
                  ckpt_path=None,
                  monitor="val/rec_loss",
                  **kwargs
@@ -53,14 +48,7 @@ class LidarAE(pl.LightningModule):
         super().__init__()
         self.image_key = image_key
         self.learning_rate = learning_rate
-        self.kl_weight = kl_weight
         self.monitor = monitor
-
-        # VAE eseten az encodernek 2*z csatornat kell adnia
-        self.use_vae = kl_weight > 0
-        if self.use_vae:
-            ddconfig = dict(ddconfig)
-            ddconfig['double_z'] = True
 
         self.encoder = Encoder(**ddconfig)
         self.decoder = Decoder(**ddconfig)
@@ -89,38 +77,54 @@ class LidarAE(pl.LightningModule):
     # Az RL EZT a ket metodust fogja hasznalni (fokent az elsot)
     # ------------------------------------------------------------------
 
-    def encode(self, x, sample=False):
+    def encode(self, x):
         """
         Range image -> latens.
 
         x      : (B, 1, 64, 1024) float, [-1, 1]
-        return: VAE eseten posterior.mode() (a mean), kulonben z
-                shape: (B, z_channels, 16, 128)
+        return: z, shape (B, z_channels, 16, 128)
 
-        RL-ben: sample=False (determinisztikus, a mean kell, nem minta).
+        VESZTESEGMENTES: a teljes feature map jon vissza, pont ez megy a
+        decode()-ba is. A dimenzio-csokkentes (RL obs-hoz) NEM itt tortenik
+        - lasd a lenti megjegyzest.
         """
         h, _, _ = self.encoder(x)
-        if self.use_vae:
-            posterior = DiagonalGaussianDistribution(h)
-            return posterior.sample() if sample else posterior.mode()
         return h
 
     def decode(self, z):
         """Latens -> range image. RL futaskor NEM kell."""
         return self.decoder(z)
 
+    # ------------------------------------------------------------------
+    # MEGJEGYZES az RL-integraciohoz (meg NINCS megoldva, ott intezzuk)
+    #
+    # Az encode() (B, z_channels, 16, 128) = 32768 szamot ad mintankent,
+    # korlatlan tartomanyban. Ez tudatos: az AE dolga a veszteseg nelkuli
+    # kodolas, es a decoder is ezt a teljes feature mapet varja.
+    #
+    # Az RL obs-ba viszont igy nem tehato be kozvetlenul, ket ok miatt:
+    #
+    #   1. MERET: a kamera latent 64 dim, ez 32768 - 512-szeres tulsuly.
+    #      Osszefuzve elnyomna a waypointokat, a sebesseget, mindent.
+    #
+    #   2. TARTOMANY: az encoder vegen csak egy nn.Conv1d all, aktivacio
+    #      NELKUL (encoder.py), tehat nincs felso korlat. Meresben a
+    #      jelenlegi ckpt -1.42 .. +2.96 kozott mozog, de ez a tanitas
+    #      soran szabadon elszallhat. A gym.spaces.Box fix low/high-t var,
+    #      es az SB3 a hataron kivuli erteket nem vagja le.
+    #
+    # Ezt a ket dolgot az RL oldalan kell kezelni (train_rl.py), nem itt:
+    # az AE maradjon veszteseg nelkuli. Merve, ha valaha kell:
+    #   - pooling (16 csat. x 4 azimut szektor = 64 dim) -> -1.84..3.81
+    #   - utana tanh * 4 -> garantalt -4..4 (extrem bemenetre is tart)
+    # ------------------------------------------------------------------
+
     def forward(self, x):
         """
         Teljes kor. Tanitashoz.
-        return: x_rec, posterior (vagy None, ha nem VAE)
+        return: x_rec
         """
-        h, _, _ = self.encoder(x)
-        if self.use_vae:
-            posterior = DiagonalGaussianDistribution(h)
-            z = posterior.sample()
-        else:
-            posterior, z = None, h
-        return self.decoder(z), posterior
+        return self.decoder(self.encode(x))
 
     # ------------------------------------------------------------------
     # Tanitas
@@ -134,20 +138,12 @@ class LidarAE(pl.LightningModule):
 
     def _shared_step(self, batch, stage):
         inputs = self.get_input(batch, self.image_key)
-        x_rec, posterior = self(inputs)
+        x_rec = self(inputs)
 
         # L1 rekonstrukcio (az eredeti TopoAutoencoder is ezt hasznalta)
-        loss_rec = F.l1_loss(inputs, x_rec)
-        loss = loss_rec
+        loss = F.l1_loss(inputs, x_rec)
 
-        self.log(f"{stage}/rec_loss", loss_rec, prog_bar=True)
-
-        if posterior is not None:
-            loss_kl = posterior.kl().mean()
-            loss = loss + self.kl_weight * loss_kl
-            self.log(f"{stage}/kl_loss", loss_kl, prog_bar=True)
-
-        self.log(f"{stage}/total_loss", loss, prog_bar=True)
+        self.log(f"{stage}/rec_loss", loss, prog_bar=True)
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -166,7 +162,7 @@ class LidarAE(pl.LightningModule):
     def log_images(self, batch, **kwargs):
         log = dict()
         x = self.get_input(batch, self.image_key).to(self.device)
-        xrec, _ = self(x)
+        xrec = self(x)
         log["inputs"] = x
         log["reconstructions"] = xrec
         return log
