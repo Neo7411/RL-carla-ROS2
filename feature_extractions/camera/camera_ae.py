@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 
 class CameraAutoEncoder(L.LightningModule):
-    def __init__(self, latent_dim: int = 64, base_channels: int = 32, lr: float = 1e-3,
+    def __init__(self, latent_dim: int = 256, base_channels: int = 32, lr: float = 1e-3,
                  latent_scale: float = 4.0):
         super().__init__()
 
