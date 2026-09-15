@@ -35,8 +35,7 @@ import carla  # noqa: E402
 from carla_env.tools.hud import HUD  # noqa: E402
 from carla_env.wrappers import Lidar, lidar_bev_to_rgb, sensor_transforms  # noqa: E402
 
-from AE.geometry import pcd2range, process_scan  # noqa: E402
-from AE.model import LidarAE  # noqa: E402
+from lidar_ae import LidarAE, points_to_range_image  # noqa: E402
 from feature_extractions.manual_control import VehicleController  # noqa: E402
 
 HOST = "127.0.0.1"
@@ -46,10 +45,13 @@ TOWN = "Town04"
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
 
-# None = annyi auto, ahany spawn pont van a palyan (Town04-en ~370). Ennyi
-# forgalom csak hybrid physics mode mellett fut ertelmesen - lasd
-# spawn_traffic(). Szammal felulirhato, ha kevesebb kell.
-NUM_TRAFFIC = 60
+# Hany auto keruljon a palyara. None = ahany spawn pont van (Town04-en ~370),
+# de az meg hybrid physics mellett is megfogja a szimulaciot.
+#
+# Ha akadozik, ezt vedd lejjebb (30-40 mar keves gepen is elmegy); ha birja,
+# emeld feljebb. A hybrid physics (lasd spawn_traffic) a szamitast kimeli, de
+# a memoriat es a renderelest nem.
+NUM_TRAFFIC = 50
 
 # Hybrid physics: ezen a sugaron belul (meter) van teljes kerekfizika a hero
 # korul, azon kivul a TM olcso "teleportalos" modban mozgatja az autokat.
@@ -81,7 +83,8 @@ DEPTH_RANGE = (1.0, 50.0)
 # depth_scale: a log2(d+1) skalazott melyseget viszi [0,1]-be.
 # log2(50+1) = 5.67, ezert 6 a biztonsagos felso hatar.
 DEPTH_SCALE = 6.0
-LOG_SCALE = True
+# A log skalazas fixen bent van a lidar_ae.process_scan()-ben (nincs kapcsolo):
+# a kozeli tartomany felbontasa vezetes szempontjabol mindig fontosabb.
 
 # A BEV kep csak a HUD-nak kell, hogy lasd, mi tortenik az auto korul.
 BEV_SIZE = 256
@@ -127,10 +130,8 @@ DDCONFIG = dict(
     ch_mult=(1, 2, 4, 4),
     strides=((2, 2), (2, 2), (1, 2), (1, 1)),
     num_res_blocks=1,
-    attn_levels=[],
     dropout=0.0,
-    resamp_with_conv=True,
-    double_z=False,
+    k=20,               # hany szomszed a graf-retegekben
     tanh_out=True,      # a bemenet [-1, 1], a kimenet is oda keruljon
 )
 
@@ -156,33 +157,44 @@ def spawn_traffic(client, world, count=None):
     blueprints = [bp for bp in world.get_blueprint_library().filter("vehicle.*")
                   if int(bp.get_attribute("number_of_wheels")) == 4]
     spawn_points = world.get_map().get_spawn_points()
-    if count is None:
-        count = len(spawn_points)
+    # A spawn pontokat EGYSZER keverjuk meg, es mindegyiket legfeljebb egyszer
+    # probaljuk. A regi kod pontonkent ujrakeverte a teljes listat, ami
+    # sok autonal negyzetes koltseg lett volna.
     points = random.sample(spawn_points, len(spawn_points))
+    if count is None:
+        count = len(points)
 
-    # Egy batchben kuldjuk a spawnt: 370 kulon RPC hivas percekig tartana.
-    batch = []
-    for point, _ in zip(points, range(count)):
-        bp = random.choice(blueprints)
-        if bp.has_attribute("color"):
-            bp.set_attribute("color", random.choice(
-                bp.get_attribute("color").recommended_values))
-        tf = carla.Transform(point.location + carla.Location(z=0.3), point.rotation)
-        batch.append(carla.command.SpawnActor(bp, tf).then(
-            carla.command.SetAutopilot(carla.command.FutureActor, True, tm.get_port())))
+    def make_batch(pts):
+        """Spawn+autopilot parancsok egy adag spawn pontra."""
+        batch = []
+        for point in pts:
+            bp = random.choice(blueprints)
+            if bp.has_attribute("color"):
+                bp.set_attribute("color", random.choice(
+                    bp.get_attribute("color").recommended_values))
+            # A spawn pont SAJAT z-jet hasznaljuk, kis rahagyassal - Town04 nem
+            # sik, a feluljarokon a pontok 10+ meteren vannak.
+            tf = carla.Transform(point.location + carla.Location(z=0.3), point.rotation)
+            batch.append(carla.command.SpawnActor(bp, tf).then(
+                carla.command.SetAutopilot(carla.command.FutureActor, True, tm.get_port())))
+        return batch
 
+    # Egy batchben kuldjuk a spawnt: sok kulon RPC hivas percekig tartana.
+    #
+    # A foglalt pontok (az ego, es amit a szimulacio mar elfoglalt) hibat adnak
+    # vissza, ezert NEM eleg pontosan `count` parancsot kuldeni - ugy kevesebb
+    # auto lenne a kertnel. Amig van meg nem probalt pont es hianyzik auto,
+    # kuldunk egy ujabb adagot a maradekbol.
     vehicles = []
-    for response in client.apply_batch_sync(batch, True):
-        # A foglalt pontok hibat adnak vissza - ezeket csendben atlepjuk.
-        if not response.error:
-            vehicles.append(world.get_actor(response.actor_id))
+    remaining = list(points)
+    while remaining and len(vehicles) < count:
+        take = min(count - len(vehicles), len(remaining))
+        chunk, remaining = remaining[:take], remaining[take:]
+        for response in client.apply_batch_sync(make_batch(chunk), True):
+            if not response.error:
+                vehicles.append(world.get_actor(response.actor_id))
+
     return vehicles
-
-
-def points_to_range_image(xyz):
-    proj_range, _ = pcd2range(xyz, RANGE_SIZE, FOV, DEPTH_RANGE)
-    range_img, _ = process_scan(proj_range, DEPTH_SCALE, log_scale=LOG_SCALE)
-    return range_img.astype(np.float32)
 
 
 def range_to_surface(img, width, height):
@@ -455,7 +467,12 @@ def main():
     pending = {"range": None, "bev": None}
 
     def on_points(xyz):
-        pending["range"] = points_to_range_image(xyz)
+        # A parametereket EXPLICIT adjuk at, nem hagyatkozunk a lidar_ae.py
+        # alapertelmezeseire: igy ha itt atallitod a felbontast vagy a FOV-ot,
+        # tenylegesen ervenyre jut, nem csendben marad a regi ertek.
+        pending["range"] = points_to_range_image(
+            xyz, size=RANGE_SIZE, fov=FOV,
+            depth_range=DEPTH_RANGE, depth_scale=DEPTH_SCALE)
 
     def on_bev(bev):
         pending["bev"] = bev
