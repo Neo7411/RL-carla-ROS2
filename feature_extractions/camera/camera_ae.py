@@ -5,30 +5,11 @@ import torch.nn.functional as F
 
 
 class CameraAutoEncoder(L.LightningModule):
-    def __init__(self, latent_dim: int = 256, base_channels: int = 32, lr: float = 1e-3,
+    def __init__(self, latent_dim: int = 128, base_channels: int = 32, lr: float = 1e-3,
                  latent_scale: float = 4.0):
         super().__init__()
 
         self.save_hyperparameters()
-
-        # ------------------------------------------------------------------
-        # ENCODER: (3, 80, 160) -> (latent_dim,)
-        # ------------------------------------------------------------------
-        # Minden Conv2d(kernel=4, stride=2, padding=1) blokk PONTOSAN felezi a
-        # terbeli meretet. A keplet:  out = floor((in + 2*pad - kernel)/stride) + 1
-        # behelyettesitve: (in + 2 - 4)/2 + 1 = in/2
-        #
-        # Ezert kovethetjuk vegig fejben a meretet:
-        #   bemenet:      (3,   80, 160)
-        #   conv1 utan:   (C,   40,  80)
-        #   conv2 utan:   (2C,  20,  40)
-        #   conv3 utan:   (4C,  10,  20)
-        #   conv4 utan:   (8C,   5,  10)
-        #
-        # A csatornaszam kozben duplazodik. Ez a szokasos CNN "trade": terbeli
-        # felbontast vesztunk, cserebe egyre absztraktabb jellemzoket nyerunk.
-        # Az elso retegek eleket es szineket latnak, az utolsok mar olyasmit,
-        # hogy "ut", "jarda", "auto".
         C = base_channels
         self.encoder = nn.Sequential(
             # (3, 80, 160) -> (C, 40, 80)

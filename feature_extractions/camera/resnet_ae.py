@@ -1,47 +1,3 @@
-"""
-ResNetAE - a farrell236/ResNetAE TensorFlow implementacio PyTorch atirata.
-
-Forras: https://github.com/farrell236/ResNetAE
-
-AZ EREDETIHEZ KEPEST EGYETLEN VALTOZTATAS: az eredeti negyzetes kepet kovetel
-(`assert input_shape[0] == input_shape[1]`), mi viszont 160x80-as kepekkel
-dolgozunk. Ezert a latent terkep merete kulon van szamolva magassagra es
-szelessegre:
-
-    (80, 160) --4 szint felezes-->  (5, 10)
-
-A halo logikaja valtozatlan.
-
-FELEPITES
-
-  ENCODER                               DECODER
-    input_conv: 3 -> 8 csatorna           input_conv: z_dim -> max_filters
-    4 szint, szintenkent:                 4 szint, szintenkent:
-      n_ResidualBlock db ResBlock           ConvTranspose (duplazas)
-      strided conv (felezes)                n_ResidualBlock db ResBlock
-      + multi-res skip a vegere             + multi-res skip a z_top-bol
-    output_conv -> z_dim                  output_conv -> 3 csatorna
-
-MULTI-RESOLUTION SKIP
-
-Ez az architektura lenyege. Minden szint kimenete kap egy sajat "rovidzarat"
-egyenesen a bottleneck ele, kulonbozo lepteku konvolucioval (ks = 2^(n-i)).
-Az encoder vegen ezek OSSZEADODNAK:
-
-    x = x + skip_0 + skip_1 + skip_2 + skip_3
-
-Igy a finom reszletek (korai szintek, nagy felbontas) is eljutnak a
-latentig, nem csak a legmelyebb, legdurvabb jellemzok.
-
-FONTOS: ez NEM U-Net skip. A U-Net az encoderbol a DECODERBE vezet at
-informaciot, megkerulve a latentet. Itt minden skip a bottleneck ELOTT
-egyesul, tehat minden informacio atmegy a latent vektoron - ami az RL
-felhasznalashoz kotelezo.
-
-HASZNALAT
-    from camera.resnet_ae import ResNetAE
-    model = ResNetAE(latent_dim=256)
-"""
 
 import lightning as L
 import torch
@@ -217,16 +173,47 @@ class ResNetAE(L.LightningModule):
     Az eredeti 256x256-os kepekkel dolgozott, ott a latent terkep 16x16 volt,
     tehat a bottleneck ele 16*16*10 = 2560 ertek erkezett. A mi 80x160-as
     kepeinknel a terkep csak 5x10, vagyis z_dim=10 mellett 5*10*10 = 500
-    ertek maradna - ebbol kellene 256 dimenziot kinyerni.
+    ertek maradna - ebbol kellene 128 dimenziot kinyerni.
 
-    Az 500 -> 256 szoritas maga lenne a szuk keresztmetszet, nem a latent:
+    Az 500 -> 128 szoritas maga lenne a szuk keresztmetszet, nem a latent:
     a halo mar azelott elvesztene az informaciot, hogy a bottleneckhez erne.
     z_dim=64 mellett 5*10*64 = 3200 ertek all rendelkezesre, ami aranyaiban
     az eredetihez hasonlo.
+
+    MIERT EGYETLEN Linear(3200 -> 128), ES NEM TOBB RETEG:
+
+    Kezenfekvo otlet fokozatosan szukiteni (3200 -> 512 -> 128), de merve
+    ROSSZABB. Valodi CARLA kepeken (1200 kep, 1500 tanito lepes):
+
+        Linear(3200->128)                val MSE 0.00614   3.6M param
+        3200 -> 512 -> 128               val MSE 0.00726   6.2M param
+        3200 -> 1024 -> 512 -> 128       val MSE 0.00994  10.5M param
+
+    Ket oka van: a nemlinearis munkat a ResNet blokkok mar elvegzik a
+    flatten elott, a Linear utani tanh pedig annal nehezebben engedi vissza
+    a gradienst, minel tobb retegen kell atmennie.
+
+    N_RESIDUALBLOCK = 2 ES NEM 8 (az eredeti alapertek):
+
+    Az eredeti 256x256-os kepekre keszult; a mi 80x160-as kepunk jóval
+    egyszerubb feladat. 8 blokk x 4 szint x 2 konv x 2 (enc+dec) = 128
+    konvolucios reteg sorosan, ami lassu: 125 ms/lepes (batch=32) a sima
+    Conv2d-s camera_ae.py 7 ms-ahoz kepest.
+
+    AZONOS 90 MASODPERCES idokeretben merve (valodi CARLA kepek) a keves
+    blokk TOBB lepest enged, es ezzel jobb eredmenyt ad:
+
+        n_ResidualBlock=8:  1337 lepes -> PSNR 22.17 dB  (125 ms/lepes)
+        n_ResidualBlock=4:  2418 lepes -> PSNR 22.19 dB  ( 68 ms)
+        n_ResidualBlock=2:  4038 lepes -> PSNR 22.21 dB  ( 40 ms)  <- ez
+        n_ResidualBlock=1:  6119 lepes -> PSNR 21.73 dB  ( 26 ms)
+
+    A 2 a forduloppont: 1-nel mar kevés a kapacitas (romlik a minoseg),
+    2 folott pedig csak lassabb lesz, jobb nem.
     """
 
-    def __init__(self, latent_dim: int = 256, img_size=(80, 160),
-                 n_ResidualBlock: int = 8, n_levels: int = 4,
+    def __init__(self, latent_dim: int = 128, img_size=(80, 160),
+                 n_ResidualBlock: int = 2, n_levels: int = 4,
                  z_dim: int = 64, lr: float = 1e-3,
                  latent_scale: float = 4.0, bUseMultiResSkips: bool = True):
         super().__init__()
@@ -285,7 +272,7 @@ class ResNetAE(L.LightningModule):
 
 if __name__ == "__main__":
     # Onteszt: alakok es egy tanito lepes 160x80-as kepekkel.
-    model = ResNetAE(latent_dim=256)
+    model = ResNetAE(latent_dim=128)
     x = torch.rand(2, 3, 80, 160)
 
     z = model.encode(x)

@@ -30,7 +30,7 @@ AMI VALTOZATLAN:
 
 HASZNALAT
     from camera.vgg_ae import VGGAE
-    model = VGGAE(latent_dim=256)
+    model = VGGAE(latent_dim=128)
 """
 
 import lightning as L
@@ -178,13 +178,29 @@ class VGGAE(L.LightningModule):
               merete a nyolcada a bemenetnek: 80x160 -> 10x20.
     bottleneck_channels: ennyire vagjuk le az 512 csatornat a lapitas elott.
 
+    A LATENS MERETE KET PARAMETERTOL FUGG (a masik ket modellnel csak
+    egytol!), mert a szukites KET lepesben tortenik:
+
+        encoder      -> (512, 10, 20) = 102 400 ertek
+        to_bottleneck-> (bc,  10, 20) =   6 400   (1x1 conv, bc=32)
+        flatten + fc1-> latent_dim    =     128   (Linear)
+
+    Vagyis a bottleneck_channels MAR szukit, mielott a latent_dim-hez
+    ernenk. Ha a latenst allitod, erdemes ranezni a bc-re is: bc=32 mellett
+    a Linear(6400, 128) 0.82M parameter, bc=16-tal csak 0.41M.
+
+    Osszehasonlitasul a masik ketto egy lepesben szukit:
+        camera_ae : 12800 -> 128
+        resnet_ae :  3200 -> 128
+        vgg_ae    : 102400 -> 6400 -> 128
+
     FIGYELEM - A TANULASI RATA: az alapertek 1e-4, NEM 1e-3 mint a masik ket
     modellnel. Ez a halo 22 konvolucios reteg normalizalas nelkul; 1e-3
     mellett meressel elszall (a loss 0.09-rol 0.33-ra ugrik, a Sigmoid 0/1-re
     telitodik, es ott is ragad). Ha atallitod, ellenorizd a tanulasi gorbet.
     """
 
-    def __init__(self, latent_dim: int = 256, img_size=(80, 160),
+    def __init__(self, latent_dim: int = 128, img_size=(80, 160),
                  bottleneck_channels: int = 32, lr: float = 1e-4,
                  latent_scale: float = 4.0, pretrained: bool = True,
                  freeze_encoder: bool = False):
@@ -258,7 +274,7 @@ class VGGAE(L.LightningModule):
 
 
 if __name__ == "__main__":
-    model = VGGAE(latent_dim=256)
+    model = VGGAE(latent_dim=128)
     x = torch.rand(2, 3, 80, 160)
 
     z = model.encode(x)
