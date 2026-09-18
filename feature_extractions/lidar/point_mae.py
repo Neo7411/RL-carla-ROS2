@@ -210,9 +210,13 @@ class PointMAE(L.LightningModule):
     def encode(self, points):
         """Nyers pontfelho -> latens, MASZKOLAS NELKUL. EZT hasznalja az RL."""
         patches, center = self.group(points)
-        x = self.embed(patches) + self.pos_embed(center)
+        x = self.embed(patches)
+        pos = self.pos_embed(center)
+        # A poziciokodolas MINDEN blokkban ujra bekerul (x + pos), nem csak a
+        # bemeneten. Igy a mely blokkokban sem halvanyul el, hogy melyik
+        # patch hol van a terben. Ez a hivatalos Point-MAE viselkedese.
         for blk in self.encoder:
-            x = blk(x)
+            x = blk(x + pos)
         x = self.encoder_norm(x)
         z = self.to_latent(torch.cat([x.max(dim=1)[0], x.mean(dim=1)], dim=-1))
         # tanh korlatozza a latenst [-scale, scale] koze, mert az RL
@@ -243,17 +247,18 @@ class PointMAE(L.LightningModule):
 
         # Az encoder CSAK a lathato patch-eket latja - ettol lesz a feladat
         # nehez, es ettol tanul valodi geometriat a halo.
-        x = tokens[~mask].reshape(B, n_vis, C) + self.pos_embed(vis_center)
+        x = tokens[~mask].reshape(B, n_vis, C)
+        pos = self.pos_embed(vis_center)
         for blk in self.encoder:
-            x = blk(x)
+            x = blk(x + pos)
         x = self.encoder_norm(x)
 
         # A decoder megkapja a lathato jellemzoket es a maszk-tokeneket; a
         # poziciokodolas mondja meg, melyik maszk-token hova tartozik.
         full = torch.cat([x, self.mask_token.expand(B, n_mask, -1)], dim=1)
-        full = full + self.decoder_pos_embed(torch.cat([vis_center, mask_center], dim=1))
+        pos_full = self.decoder_pos_embed(torch.cat([vis_center, mask_center], dim=1))
         for blk in self.decoder:
-            full = blk(full)
+            full = blk(full + pos_full)
         # Csak a maszkolt helyeket epitjuk vissza (azok vannak a vegen).
         rec = self.decoder_norm(full[:, n_vis:])
 
