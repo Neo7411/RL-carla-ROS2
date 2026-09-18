@@ -1,14 +1,3 @@
-"""
-Egyetlen, osszevont jutalomfuggveny a CARLA sav-koveteshez.
-
-Hasznalat a train.py-ban - csak ennyi kell, semmi mas:
-    from carla_env.reward import reward_fn
-    ...
-    env = CarlaRouteEnv(..., reward_fn=reward_fn, ...)
-
-Minden beallitas itt lent van, a config.py-t nem kell hozzanyulni.
-"""
-
 import numpy as np
 
 # --- Beallitasok (itt szerkesztheto minden) --------------------------------

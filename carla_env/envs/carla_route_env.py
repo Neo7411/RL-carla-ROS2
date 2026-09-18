@@ -1,7 +1,3 @@
-import os
-import subprocess
-import sys
-import glob
 import time
 import gymnasium as gym
 import pygame
@@ -396,9 +392,11 @@ class CarlaRouteEnv(gym.Env):
                 (pos_recon[0], pos_recon[1] - 18))
 
         if self.activate_lidar:
-            lidar_h, lidar_w = self.lidar_data.shape[:2]
+            # A lidar magassag-kodolt float kepet ad - szinezni kell, mert a
+            # make_surface csak uint8 RGB-vel mukodik.
+            lidar_rgb = lidar_bev_to_rgb(self.lidar_data)
             pos_lidar = (self.display.get_size()[0] - obs_w - 10, 100)
-            self.display.blit(pygame.surfarray.make_surface(self.lidar_data.swapaxes(0, 1)), pos_lidar)
+            self.display.blit(pygame.surfarray.make_surface(lidar_rgb.swapaxes(0, 1)), pos_lidar)
 
         # Render HUD
         self.hud.render(self.display, extra_info=self.extra_info)

@@ -169,22 +169,83 @@ class CarlaActorBase(object):
 # Lidar
 # ===============================================================================
 
+def lidar_bev_to_rgb(bev):
+    """
+    Magassag-kodolt BEV (H, W) float [0,1] -> (H, W, 3) uint8, megjelenitesre.
+
+    Szinskala szurkearnyalat helyett: a magassag igy szabad szemmel is
+    leolvashato. Az ures cellak feketek maradnak, kulonben a "nincs itt semmi"
+    ugyanugy nezne ki, mint a talajszintu pont.
+    """
+    rgb = np.zeros((bev.shape[0], bev.shape[1], 3), dtype=np.uint8)
+    occupied = bev > 0.0
+    # alacsony -> zold, kozepes -> sarga, magas -> piros
+    rgb[:, :, 0] = np.clip(bev * 2.0, 0, 1) * 255        # R no a magassaggal
+    rgb[:, :, 1] = np.clip(2.0 - bev * 2.0, 0, 1) * 255  # G csokken
+    rgb[~occupied] = 0
+    return rgb
+
+
 class Lidar(CarlaActorBase):
-    def __init__(self, world, width=120, height=120, transform=carla.Transform(), on_recv_image=None,
-                 attach_to=None):
+    """
+    Ray-cast lidar. Ket kimenete van, KULON celra:
+
+      on_recv_image  -> (H, W) float [0,1] felulnezeti (BEV) kep. Ez csak
+                        MEGJELENITES: az ember ezt tudja ertelmezni ranezesre.
+                        A pixel erteke az oda eso legmagasabb pont z-je.
+
+      on_recv_points -> (N, 3) nyers XYZ pontfelho a szenzor sajat
+                        koordinatarendszereben. EZ megy a halonak: ebbol keszul
+                        a range image (feature_extractions/lidar).
+
+    Miert nem a BEV megy a halonak: a BEV felulnezet, ahol az uttest nagy resze
+    ures - meressel a kep csak ~3%-ban kitoltott, es a graf-encoder Stemje utan
+    a pontok mindossze 11%-a hordoz informaciot. A range image ezzel szemben a
+    szenzor SAJAT nezopontjat orzi meg (64 elevacio x 1024 azimut), ahol
+    gyakorlatilag minden sugarnak van merese: ~96% kitoltottseg, a Stem utan
+    97% tartalmas pont. A graf-encodernek pont ilyen suru bemenet kell.
+    """
+
+    def __init__(self, world, width=256, height=256, transform=carla.Transform(), on_recv_image=None,
+                 attach_to=None, on_recv_points=None):
         self._width = width
         self._height = height
         self.on_recv_image = on_recv_image
-        self.range = 20
+        self.on_recv_points = on_recv_points
+        self.range = 50
+        # A magassag-kodolas hatarai meterben, a szenzorhoz kepest. A szenzor
+        # z=2.4-en van, tehat a talaj kb. -2.4. A felso hatar 4 m: e folott mar
+        # csak epuletek es fak vannak, azokat egy szintre vonjuk ossze.
+        self._z_min = -3.0
+        self._z_max = 4.0
+
         # Setup lidar blueprint
+        #
+        # 360 fokos, mert a range image azimut tengelye korbeer, es a halo
+        # CircularConv2d-je erre epul: az utolso oszlopot a legelsohoz padeli.
+        # Kisebb FOV-nal a halo a jelenet ket, egymassal NEM szomszedos szelet
+        # ragasztana ossze.
+        #
+        # points_per_second es rotation_frequency EGYUTT jar!
+        #
+        # A points_per_second a teljes pontkibocsatas, ami elosztodik a
+        # fordulatok kozott. Egy teljes 64x1024-es range image-hez
+        # fordulatonkent 65536 pont kell, tehat:
+        #
+        #     points_per_second = 64 * 1024 * rotation_frequency
+        #     40 Hz -> 64 * 1024 * 40 = 2621440
+        #
+        # Ha csak a frekvenciat emeled a pontszam nelkul, a range image
+        # aranyosan kilyukad (40 Hz-en 1310720 ponttal a fele uresen maradna),
+        # es a halo a lyukakat tanulna meg.
         lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast')
-        lidar_bp.set_attribute('points_per_second', '50000')
+        lidar_bp.set_attribute('points_per_second', '2621440')
         lidar_bp.set_attribute('channels', '64')
         lidar_bp.set_attribute('range', str(self.range))
         lidar_bp.set_attribute('upper_fov', '10')
-        lidar_bp.set_attribute('horizontal_fov', '110')
-        lidar_bp.set_attribute('lower_fov', '-20')
-        lidar_bp.set_attribute('rotation_frequency', '30')
+        lidar_bp.set_attribute('horizontal_fov', '360')
+        lidar_bp.set_attribute('lower_fov', '-25')
+        lidar_bp.set_attribute('rotation_frequency', '40')
 
         # Create and setup camera actor
         weak_self = weakref.ref(self)
@@ -199,31 +260,53 @@ class Lidar(CarlaActorBase):
         self = weak_self()
         if not self:
             return
-        if callable(self.on_recv_image):
-            lidar_range = 2.0 * float(self.range)
+        # A CARLA bufferje (x, y, z, intensity) negyesek sorozata.
+        points = np.frombuffer(raw.raw_data, dtype=np.dtype('f4'))
+        points = np.reshape(points, (int(points.shape[0] / 4), 4))
 
-            points = np.frombuffer(raw.raw_data, dtype=np.dtype('f4'))
-            points = np.reshape(points, (int(points.shape[0] / 4), 4))
-            lidar_data = np.array(points[:, :2])
-            lidar_data *= min(self._width, self._height) / lidar_range
-            lidar_data += (0.5 * self._width, 0.5 * self._height)
-            lidar_data = np.fabs(lidar_data)  # pylint: disable=E1111
-            lidar_data = lidar_data.astype(np.int32)
-            lidar_data = np.reshape(lidar_data, (-1, 2))
-            lidar_img_size = (self._width, self._height, 3)
-            lidar_img = np.zeros((lidar_img_size), dtype=np.uint8)
+        if callable(self.on_recv_points):
+            # A copy() kell: a szerver ujrahasznositja a buffert, tehat
+            # masolas nelkul a tartalom barmikor felulirodhat alattunk.
+            #
+            # A CARLA y tengelye balra pozitiv (bal kezes rendszer), a
+            # pcd2range gombi vetitese viszont jobb kezes rendszert var. Az y
+            # elojelvaltasa nelkul a range image vizszintesen tukrozve lenne.
+            xyz = points[:, :3].copy()
+            xyz[:, 1] = -xyz[:, 1]
+            self.on_recv_points(xyz)
 
-            lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-            self.on_recv_image(lidar_img)
-        """
-        if callable(self.on_recv_image):
-            lidar_data.convert(self.color_converter)
-            array = np.frombuffer(lidar_data.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (lidar_data.height, lidar_data.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-            self.on_recv_image(array)
-            """
+        if not callable(self.on_recv_image):
+            return
+
+        # Meterbol pixelbe. A kep kozepe (0, 0) = az ego auto.
+        #
+        # NINCS np.fabs(): a regi kod abszolutertekkel szamolt, ami a kep egy
+        # negyedebe gyurte az egesz jelenetet - az autotol balra es jobbra, il-
+        # letve elore es hatra eso pontok egymasra tukrozodtek. 110 fokos,
+        # elore nezo lidarnal ez meg nem tunt fel, 360 foknal viszont az auto
+        # mogotti forgalom rahajtogatodna az elotte levore.
+        scale = min(self._width, self._height) / (2.0 * float(self.range))
+        px = points[:, 0] * scale + 0.5 * self._width
+        py = points[:, 1] * scale + 0.5 * self._height
+
+        # A hatotavon kivuli pontokat ELDOBJUK, nem levagjuk: a clip a kep
+        # szelere kenne oket egy hamis "fal" csikot rajzolva.
+        inside = (px >= 0) & (px < self._width) & (py >= 0) & (py < self._height)
+        px = px[inside].astype(np.int32)
+        py = py[inside].astype(np.int32)
+        pz = points[inside, 2]
+
+        # Magassag -> [0, 1]. A z_min alatti (talaj) es z_max feletti
+        # (epuletteto) ertekek a ket vegponton torlodnak ossze.
+        z_norm = np.clip((pz - self._z_min) / (self._z_max - self._z_min), 0.0, 1.0)
+
+        # Egy cellaba tobb pont is eshet - a LEGMAGASABBAT tartjuk meg. A
+        # maximum.at azert kell, mert a sima indexeles (img[py, px] = z) nem
+        # determinisztikus utkozesnel: az utolso ertek nyerne, nem a legnagyobb.
+        lidar_img = np.zeros((self._height, self._width), dtype=np.float32)
+        np.maximum.at(lidar_img, (py, px), z_norm)
+
+        self.on_recv_image(lidar_img)
 
 
 # ===============================================================================
