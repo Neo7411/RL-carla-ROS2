@@ -288,9 +288,28 @@ class BEVConvAE(L.LightningModule):
         """MSE a pszeudo-kep es a rekonstrukcioja kozott.
 
         A pszeudo-kepet csak egyszer szamoljuk ki - a voxelizacio a lassu resz.
+
+        A CEL `.detach()`-elve van, es ez NEM reszletkerdes.
+        A `bev` a PillarFeatureNet kimenete, tehat maga is TANULHATO. Ha a cel
+        is a gradiensen lognne, a halonak nem kellene megtanulnia
+        rekonstrualni: eleg lenne, ha a `pfn` a pszeudo-kepet a NULLA fele
+        huzza, mert a nulla celt a decoder trivialisan eltalalja. Az MSE
+        raadasul negyzetes, tehat a cel 10%-os zsugoritasa onmagaban ~19%
+        loss-csokkenest ad ingyen.
+
+        Merve is ez tortent: 80 lepes alatt a loss 2.63 -> 0.94 esett, mikozben
+        a cel atlagos abszolut erteke 0.387 -> 0.338, a szorasa 1.566 -> 1.412
+        zsugorodott. Egy teljes tanitason a val loss 0.0001-ig ment le, ami nem
+        jo rekonstrukcio, hanem ures latens - pont az, ami az RL-nek
+        hasznalhatatlan.
+
+        A `.detach()`-csel a cel egy lepesen belul FIX, tehat nem tud
+        elszokni. A `pfn` tovabbra is tanul, csak az encoder feloli agon
+        keresztul - ugyanugy, ahogy az eredeti PointPillarsban is a detekcios
+        fej tanitja, nem a rekonstrukcio.
         """
         bev = self.to_bev(points)
-        return F.mse_loss(self.decode(self.encode_bev(bev)), bev)
+        return F.mse_loss(self.decode(self.encode_bev(bev)), bev.detach())
 
     # --- Lightning --------------------------------------------------------
 

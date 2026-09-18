@@ -1,24 +1,3 @@
-"""
-CARLA adatgyujtes: kamera + lidar, szinkron modban parositva.
-
-Kimenet:
-    dataset/camera/<ido>.png    160x80 RGB (a camera_ae.py bemenete)
-    dataset/lidar/<ido>.npy     (N,3) float32 nyers pontfelho
-    dataset/meta.json
-
-A fajlnev a szimulacios ido: az azonos nevu png es npy egy pillanatban keszult.
-
-Billentyuk:
-    R - rogzites indit/szunet (indulaskor SZUNET)
-    P - autopilot be/ki
-    C - idojaras (Shift+C vissza)
-    BACKSPACE - uj auto, uj pozicio
-    ESC - kilepes
-
-Kezi vezetes (P-vel kikapcsolt autopilot mellett): W/A/S/D, SPACE kezifek,
-Q hatramenet, vagy PS5 kontroller. Lasd: manual_control.py
-"""
-
 import json
 import os
 import random
