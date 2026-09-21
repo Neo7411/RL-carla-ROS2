@@ -11,7 +11,7 @@ from torch import Tensor
 #
 # A lidar nyers kimenete egy rendezetlen (N, 3) pontfelho. A konvolucio viszont
 # racsot var. A megoldas: a lidar NEM veletlenszeruen szor pontokat, hanem
-# szabalyos sugarracsban paszaz (64 elevacios szog x 1024 azimut). Ha ezt a
+# szabalyos sugarracsban paszaz (64 elevacios szog x 512 azimut). Ha ezt a
 # racsot allitjuk helyre, semmi nem vesz el.
 # =============================================================================
 
@@ -22,14 +22,14 @@ def pcd2range(pcd, size, fov, depth_range):
     A harom terbeli koordinatabol KETTO a cella cime lesz, a harmadik
     (a tavolsag) pedig a cella tartalma:
 
-        x, y  ->  azimut (yaw)    ->  OSZLOP  (0..1023)
+        x, y  ->  azimut (yaw)    ->  OSZLOP  (0..255)
         z     ->  elevacio (pitch)->  SOR     (0..63)
         r     ->  a CELLA ERTEKE
 
     pcd         : (N, 3) float, a szenzor koordinatarendszereben
-    size        : (H, W), nalunk (64, 1024)
-    fov         : (fov_up, fov_down) fokban, nalunk (10, -25)
-    depth_range : (min, max) meterben, nalunk (1.0, 50.0)
+    size        : (H, W), nalunk (44, 256)
+    fov         : (fov_up, fov_down) fokban, nalunk (-0.9, -25) - MERVE
+    depth_range : (min, max) meterben, nalunk (1.0, 50.0) - MERVE
 
     return: (H, W) float32; ahol nincs pont, ott -1
     """
@@ -120,7 +120,7 @@ def pcd2range(pcd, size, fov, depth_range):
     return proj_range
 
 
-def process_scan(range_img, depth_scale=6.0):
+def process_scan(range_img, depth_scale=5.68):
     """
     Nyers range image (meterben) -> normalizalt tensor [-1, 1].
 
@@ -136,7 +136,7 @@ def process_scan(range_img, depth_scale=6.0):
        10 m ->  0.153        50 m -> 0.891
        15 m ->  0.333
 
-    depth_scale = 6.0, mert log2(50+1) = 5.67 - ez a biztonsagos felso hatar.
+    depth_scale = 5.68, mert log2(50+1) = 5.672 - a mi hatotavunk.
 
     return: (1, H, W) float32, [-1, 1]
     """
@@ -156,9 +156,63 @@ def process_scan(range_img, depth_scale=6.0):
     return np.expand_dims(range_img, axis=0).astype(np.float32)
 
 
-def points_to_range_image(xyz, size=(64, 1024), fov=(10.0, -25.0),
-                          depth_range=(1.0, 50.0), depth_scale=6.0):
-    """A ket fenti lepes egyben: nyers XYZ -> (1, 64, 1024) float32, [-1, 1]."""
+def points_to_range_image(xyz, size=(44, 256), fov=(-0.9, -25.0),
+                          depth_range=(1.0, 50.0), depth_scale=5.68):
+    """A ket fenti lepes egyben: nyers XYZ -> (1, 44, 256) float32, [-1, 1].
+
+    A HALO az eredeti TopoLiDM config szerint van (ch=64, ch_mult (1,2,2,4),
+    strides [[1,2],[2,2],[2,2]], nrb=2, lr 4.5e-6), a GEOMETRIA viszont a MI
+    szenzorunkhoz - a kettot nem szabad osszekeverni.
+
+    A TopoLiDM KITTI-re (Velodyne HDL-64E) van hangolva: fov [3,-25],
+    depth_range [1,56], scale 5.84. A mi CARLA-lidarunk MASIK szenzor, es a
+    parametereit az ADATBOL mertuk ki (40 frame, 1.1M pont):
+
+        elevacio    -25.00 .. +10.00 fok, pontosan 64 diszkret szinttel
+        tavolsag      5.67 .. 50.00 m  (p99: 48.9)
+
+    Ezert fov = (10, -25) es depth_range = (1, 50). A TopoLiDM [3,-25]-e
+    levagna a felso 7 fokot - az adat ~5%-at, vagyis a magas targyakat
+    (teherautok, tablak, fak koronaja).
+
+    depth_scale = 5.68, mert log2(50+1) = 5.672 - igy a legtavolabbi pont
+    pont 1.0-ra normalodik. (A TopoLiDM 5.84-e a sajat 56 m-es hatotavabol
+    jon: log2(57) = 5.833.)
+
+    A FELBONTAS A MI SZENZORUNKHOZ VAN MERVE, nem a KITTI-hez.
+
+    A TopoLiDM 64x1024-et hasznal, de az a KITTI HDL-64E-re valo (~120 000
+    pont/frame). A mi lidarunk 28 368 pontot ad - a SURUSEG 24%-a -, tehat
+    ugyanaz a racs nalunk 60%-ban URES lenne, mig a KITTI-n teljesen tele van.
+
+    Ket dolgot valtoztattunk, mindkettot MERES alapjan:
+
+    1. AZ EG LEVAGASA. A +10 fokos sor csak 19.6%-ban telik meg, a -3.3 fok
+       alattiak 77-78%-ban - a kep felso harmada az eg, ott nincs mit
+       eltalalni. A fov_up -0.9 fokra vagva a sorok 64 -> 44.
+
+    2. KISEBB RACS. Kevesebb cella, surubben kitoltve.
+
+    MERVE (30 frame), es a "geom. hiba" a lenyeg - minden EREDETI pont
+    atlagos tavolsaga a legkozelebbi MEGTARTOTT ponttol:
+
+        H x W   fov_up   kitoltott   megtartott pont   geom. hiba
+        64x512   +10.0      60.7%         71.9%          0.363 m
+        48x384    +1.2      81.5%         60.3%          0.312 m
+        48x320    +1.2      85.9%         52.9%          0.310 m
+        44x256    -0.9      90.2%         42.5%          0.310 m   <- ez
+        44x192    -0.9      92.9%         32.9%          0.306 m
+
+    A 44x256 a pontok 57%-at eldobja, MEGIS kisebb a geometriai hibaja
+    (0.310 m), mint a 64x512-e (0.363 m). Ennek az az oka, hogy a range
+    image cellankent a LEGKOZELEBBI pontot tartja meg (takaras-kezeles) -
+    amit eldob, az mogotte van, ugyanazon a feluleten. A <20 m-es, vezeteshez
+    lenyeges pontoknal ugyanez az arany, nincs szelektiv veszteseg.
+
+    A racs merete a halo stemjehez is illeszkedik: a 3 lepcso ((1,2),(2,2),
+    (2,2)) miatt a magassagnak 4-gyel, a szelessegnek 8-cal oszthatonak kell
+    lennie. 44/4 = 11, 256/8 = 32, tehat a latens (16, 11, 32).
+    """
     return process_scan(pcd2range(xyz, size, fov, depth_range), depth_scale)
 
 
@@ -220,157 +274,31 @@ class CircularConv2d(nn.Conv2d):
         return self._conv_forward(x, self.weight, self.bias)
 
 
-def knn(x, k):
-    """
-    k legkozelebbi szomszed a FEATURE-terben (nem a 3D terben).
-
-    x      : (B, C, N)   N darab pont, mindegyik C hosszu vektor
-    return : (B, N, k)   indexek
-
-    ---------------------------------------------------------------------
-    A MATEMATIKA RESZLETESEN
-    ---------------------------------------------------------------------
-
-    Ket pont (a es b, mindketto C hosszu vektor) negyzetes euklideszi
-    tavolsaga definicio szerint:
-
-        ||a - b||^2 = SUM_i (a_i - b_i)^2
-
-    Bontsuk ki a negyzetet tagonkent:
-
-        SUM_i (a_i^2 - 2*a_i*b_i + b_i^2)
-      = SUM_i a_i^2  -  2 * SUM_i a_i*b_i  +  SUM_i b_i^2
-      = ||a||^2      -  2 * (a . b)        +  ||b||^2
-
-    Ez a HAROM TAG, es pontosan ezeket szamolja ki a kod harom sora:
-
-        xx                  ->  ||a||^2      (minden pont hossznegyzete)
-        inner               ->  -2 * (a . b) (a skalarszorzat matrix)
-        xx.transpose(2, 1)  ->  ||b||^2      (ugyanaz, masik tengelyen)
-
-    MIERT EZ A FORMA, es nem a definicio szerinti kivonas?
-
-    Mert igy az OSSZES pontpar tavolsaga EGYETLEN matrixszorzassal adodik.
-    Nezzuk a kozepso tagot: x^T * x, ahol x a (C, N) matrix. Az eredmeny
-    (N, N) meretu, es az [i, j] eleme pont x_i . x_j, vagyis az i-edik es
-    j-edik pont skalarszorzata. Egy hivas, N^2 skalarszorzat.
-
-    A naiv megoldas (ket egymasba agyazott ciklus, pontparonkent kivonas)
-    ugyanezt szamolna ki, de tobb nagysagrenddel lassabban - a GPU a nagy
-    matrixszorzasra van optimalizalva, nem a ciklusokra.
-
-    A BROADCASTING:
-        xx alakja                 : (B, 1, N)
-        inner alakja              : (B, N, N)
-        xx.transpose(2,1) alakja  : (B, N, 1)
-
-    Amikor ezeket osszeadjuk, a PyTorch automatikusan "kiteregeti" az 1-es
-    tengelyeket N-re (broadcasting). Igy a (B, N, N) eredmeny [i, j] eleme:
-
-        -||x_i||^2 + 2*(x_i . x_j) - ||x_j||^2  =  -||x_i - x_j||^2
-
-    MIERT NEGATIV az egesz?
-
-    Figyeld meg, hogy a fenti eredmeny a tavolsag MINUSZ EGYSZERESE. Ez
-    szandekos: a topk() a LEGNAGYOBB k erteket adja vissza, mi viszont a
-    LEGKISEBB tavolsagokat keressuk. A negalas megforditja a sorrendet, igy
-    a legkisebb tavolsagbol lesz a legnagyobb ertek.
-
-    KOLTSEG: N x N matrix batch-enkent.
-        N = 2048  (a Stem utan)  -> 4.2 millio elem   -> megy
-        N = 65536 (a nyers kep)  -> 4.3 MILLIARD elem -> kezelhetetlen
-    Ezert kell a Stem downsampling.
-
-    MEGJEGYZES: minden pont elso szomszedja onmaga, mert ||a - a||^2 = 0, ami
-    a negalas utan a legnagyobb ertek. Ez szandekos - a kozeppont sajat
-    feature-je is kell az EdgeConv-hoz.
-    """
-    inner = -2 * torch.matmul(x.transpose(2, 1), x)
-    xx = torch.sum(x ** 2, dim=1, keepdim=True)
-    pairwise_distance = -xx - inner - xx.transpose(2, 1)
-    # A [1] azert kell, mert a topk KET dolgot ad vissza: (ertekek, indexek).
-    return pairwise_distance.topk(k=k, dim=-1)[1]
-
-
-def get_graph_feature(x, k=20):
-    """
-    El-feature-ok epitese: [szomszed - kozep || kozep].
-
-    EZ AZ EGESZ GRAF-MEGKOZELITES MAGJA (DGCNN / EdgeConv).
-
-    ---------------------------------------------------------------------
-    A MATEMATIKA
-    ---------------------------------------------------------------------
-
-    Jelolje x_i az i-edik pont feature-vektorat, es N(i) az i-edik pont k
-    darab legkozelebbi szomszedjanak halmazat. Az EdgeConv minden (i, j)
-    elre - ahol j eleme N(i) - kiszamol egy el-feature-t:
-
-        e_ij = h( x_j - x_i  ||  x_i )
-
-    ahol  ||  az osszefuzes (konkatenacio), h pedig egy tanulhato fuggveny
-    (nalunk 1x1 konvolucio + BatchNorm + LeakyReLU).
-
-    Vagyis a bemenet 2C hosszu: az elso C a KULONBSEG, a masodik C a
-    KOZEPPONT sajat feature-je.
-
-    Aztan a GraphLayer ezeket osszevonja a szomszedok felett:
-
-        x'_i = MAX over j in N(i) of  e_ij
-
-    ---------------------------------------------------------------------
-    MIERT A KULONBSEG (x_j - x_i), ES NEM CSAK x_j?
-    ---------------------------------------------------------------------
-
-    Mert a RELATIV geometria a lenyeg. Vegyunk egy konkret peldat:
-
-        egy auto 10 meterre:  a pontjai kb. 10.0, 10.1, 10.2 tavolsagra
-        ugyanaz 30 meterre :  a pontjai kb. 30.0, 30.1, 30.2 tavolsagra
-
-    Az ABSZOLUT ertekek teljesen masok (10 vs 30), de a KULONBSEGEK
-    azonosak (0.1, 0.2). Tehat a kulonbseggel a halo egyetlen mintazatot
-    tanul meg az "auto" alakzatra, nem kulon-kulon minden tavolsagra.
-
-    Ez az ELTOLAS-INVARIANCIA: f(x + c) ugyanazt adja, mint f(x).
-
-    De a kozeppont abszolut erteke is kell, mert a KONTEXTUS szamit: egy
-    3 meterre levo akadaly mas jelentesu, mint egy 40 meterre levo.
-    Ezert kapja meg a halo mindkettot.
-
-    x      : (B, C, N)
-    return : (B, 2C, N, k)
-    """
-    batch_size, num_dims, num_points = x.size()
-    idx = knn(x, k=k)
-
-    # INDEX-ELTOLAS TRUKK:
-    # A batch minden mintajanak 0..N-1 indexei vannak. Lentebb az egeszet egy
-    # nagy (B*N, C) tablava lapitjuk, ahol a 2. minta 5. pontja a
-    # 2*N + 5 poziciora kerul. Az idx_base pontosan ezt az eltolast adja hozza.
-    idx_base = torch.arange(0, batch_size, device=x.device).view(-1, 1, 1) * num_points
-    idx = (idx + idx_base).view(-1)
-
-    # (B, C, N) -> (B, N, C). A contiguous() azert kell, mert a transpose csak
-    # a "nezetet" valtoztatja meg, a memoriabeli sorrendet nem - a kovetkezo
-    # view() viszont osszefuggo memoriat var.
-    x = x.transpose(2, 1).contiguous()
-
-    # A szomszedok kigyujtese a lapos tablabol, majd vissza (B, N, k, C) alakra.
-    feature = x.view(batch_size * num_points, -1)[idx, :]
-    feature = feature.view(batch_size, num_points, k, num_dims)
-
-    # A kozeppontot k-szor megismeteljuk, hogy minden szomszed melle jusson.
-    x = x.view(batch_size, num_points, 1, num_dims).repeat(1, 1, k, 1)
-
-    # Osszefuzes a csatorna-tengelyen -> 2C, majd (B, 2C, N, k) alakra rendezes,
-    # mert a kovetkezo Conv2d csatorna-elso sorrendet var.
-    feature = torch.cat((feature - x, x), dim=3).permute(0, 3, 1, 2).contiguous()
-    return feature
-
-
 class GraphLayer(nn.Module):
     """
     EdgeConv blokk: kNN -> el-feature -> 1x1 konvolucio -> max-pool.
+
+    EZ AZ EGESZ GRAF-MEGKOZELITES MAGJA (DGCNN / EdgeConv). Jelolje x_i az
+    i-edik pont jellemzovektorat, N(i) pedig a k legkozelebbi szomszedjat a
+    JELLEMZOTERBEN (nem a 3D terben). Minden (i, j) elre keszul egy
+    el-jellemzo, majd a szomszedok folott maximumot veszunk:
+
+        e_ij  = h( x_j - x_i  ||  x_i )
+        x'_i  = MAX over j in N(i) of e_ij
+
+    MIERT A KULONBSEG (x_j - x_i) ES A KOZEPPONT IS?
+    A relativ geometria a lenyeg: egy auto 10 m-re a pontjait 10.0, 10.1,
+    10.2 tavolsagra adja, ugyanaz 30 m-re 30.0, 30.1, 30.2-re. Az abszolut
+    ertekek masok, a KULONBSEGEK azonosak - igy a halo egyetlen mintazatot
+    tanul az "auto" alakra, nem tavolsagonkent kulon. De a kozeppont abszolut
+    erteke is kell, mert a kontextus szamit: egy 3 m-re levo akadaly mas
+    jelentesu, mint egy 40 m-re levo.
+
+    MIERT MAX ES NEM ATLAG? Mindketto permutacio-invarians (a kNN nem garantal
+    sorrendet, tehat ez kotelezo), de a max a legerosebb jelet emeli ki: ha 20
+    szomszedbol egy jelzi, hogy "itt el van" (5.0) es 19 sima felszin (0.1),
+    az atlag 0.34 - majdnem eltunt -, a max 5.0. Range image-nel pont az elek
+    hordozzak az informaciot.
 
     A graf DINAMIKUS: minden reteg ujraszamolja a kNN-t a SAJAT bemeneten,
     tehat a szomszedsagi viszonyok retegrol retegre valtoznak.
@@ -380,197 +308,126 @@ class GraphLayer(nn.Module):
         super().__init__()
         self.k = k
         # kernel_size=1: pontonkent es szomszedonkent fuggetlen linearis reteg,
-        # nincs terbeli keveredes. A bemenet 2C (el-feature), a kimenet C.
-        #
-        # bias=False, mert utana BatchNorm jon, aminek sajat eltolasa (beta)
-        # van - ket eltolas egymas utan felesleges.
+        # nincs terbeli keveredes. A bemenet 2C (el-jellemzo), a kimenet C.
+        # bias=False, mert utana BatchNorm jon a sajat eltolasaval.
         self.conv = nn.Sequential(
             nn.Conv2d(channels * 2, channels, kernel_size=1, bias=False),
             nn.BatchNorm2d(channels),
             nn.LeakyReLU(negative_slope=0.2),
         )
 
-    def forward(self, x):
-        # x: (B, C, N)
-        graph_feat = get_graph_feature(x, k=self.k)   # (B, 2C, N, k)
-        out = self.conv(graph_feat)                   # (B, C,  N, k)
+    def knn(self, x):
+        """k legkozelebbi szomszed a jellemzoterben. (B, C, N) -> (B, N, k)
 
-        # MAX-POOL a szomszedok folott (dim=-1): a k szomszedbol csinal egyet.
-        #
-        #     x'_i = MAX over j in N(i) of e_ij      (elemenkent, csatornankent)
-        #
-        # MIERT MAX ES NEM ATLAG? Ket okbol:
-        #
-        # 1. PERMUTACIO-INVARIANCIA
-        #    A kNN nem garantal sorrendet: ugyanaz a pontfelho mashogy
-        #    indexelve mas sorrendben adhatja vissza a szomszedokat. Egy
-        #    fuggveny akkor permutacio-invarians, ha
-        #
-        #        f(a, b, c) = f(b, c, a) = f(c, a, b) = ...
-        #
-        #    A max ilyen (a maximum nem fugg a sorrendtol). Az atlag is ilyen
-        #    lenne, tehat ez onmagaban nem dontene el a kerdest. Viszont:
-        #
-        # 2. A MAX A "LEGEROSEBB JELET" EMELI KI
-        #    Tegyuk fel, hogy a 20 szomszedbol EGY jelzi, hogy "itt egy el
-        #    van" (nagy aktivacio), a tobbi 19 pedig sima felszin (kicsi).
-        #
-        #        atlag:  (19 * 0.1 + 1 * 5.0) / 20 = 0.34   <- majdnem eltunt
-        #        max  :  max(0.1, ..., 5.0)       = 5.0     <- megmaradt
-        #
-        #    Range image-nel pont az elek (egy auto szele, egy fal vege)
-        #    hordozzak az informaciot, ezert a max a helyes valasztas.
-        #
-        # A [0] azert kell, mert a max() (ertekek, indexek) part ad vissza.
-        return out.max(dim=-1, keepdim=False)[0]      # (B, C, N)
+        ||a - b||^2 = ||a||^2 - 2*(a.b) + ||b||^2 alapjan, mert igy az OSSZES
+        pontpar tavolsaga egyetlen matrixszorzassal adodik - a GPU erre van
+        optimalizalva, nem a pontparonkenti ciklusra. Az eredmeny a tavolsag
+        NEGALTJA, mert a topk a legnagyobbakat adja, nekunk meg a legkisebb
+        tavolsagok kellenek.
+
+        Koltseg: N x N matrix batchenkent. A Stem utan N = 2048 (4.2 millio
+        elem) meg belefer; a nyers kepen N = 65536 lenne (4.3 milliard).
+
+        Minden pont elso szomszedja onmaga (a tavolsaga 0) - ez szandekos, a
+        kozeppont sajat jellemzoje is kell az el-jellemzohoz.
+        """
+        inner = -2 * torch.matmul(x.transpose(2, 1), x)
+        xx = torch.sum(x ** 2, dim=1, keepdim=True)
+        return (-xx - inner - xx.transpose(2, 1)).topk(k=self.k, dim=-1)[1]
+
+    def forward(self, x):
+        B, C, N = x.shape
+        idx = self.knn(x)
+
+        # Index-eltolas: az egeszet egy (B*N, C) tablava lapitjuk, ahol a
+        # b-edik minta i-edik pontja a b*N + i poziciora kerul.
+        idx = (idx + torch.arange(B, device=x.device).view(-1, 1, 1) * N).view(-1)
+
+        x = x.transpose(2, 1).contiguous()                    # (B, N, C)
+        neighbors = x.view(B * N, C)[idx].view(B, N, self.k, C)
+        center = x.view(B, N, 1, C).expand(-1, -1, self.k, -1)
+
+        # [szomszed - kozep || kozep] -> (B, 2C, N, k) a Conv2d-nek.
+        edge = torch.cat((neighbors - center, center), dim=3)
+        out = self.conv(edge.permute(0, 3, 1, 2).contiguous())
+
+        # Max-pool a szomszedok folott: a k szomszedbol egy vektor.
+        return out.max(dim=-1)[0]                             # (B, C, N)
 
 
 class PositionalEncoding2D(nn.Module):
     """
-    2D abszolut szinuszos poziciokodolas.
+    2D abszolut szinuszos poziciokodolas, TANULHATO sullyal.
 
-    MI A BAJ, AMIT MEGOLD: az encoderben a kepet "kilapitjuk" 2048 ponttá.
+    MI A BAJ, AMIT MEGOLD: az encoderben a kepet "kilapitjuk" 2048 pontta.
     Ezzel elveszne, hogy melyik pont HOL volt a kepen - a graf-reteg csak egy
     rendezetlen halmazt latna.
 
     A MEGOLDAS: minden poziciohoz hozzaadunk egy jellegzetes szinusz-koszinusz
-    mintazatot, kulonbozo frekvenciakon. Olyan, mint egy binaris szam, csak
-    folytonos: minden poziciónak egyedi "ujjlenyomata" lesz, es a kozeli
-    poziciok ujjlenyomata hasonlo.
-
-    ---------------------------------------------------------------------
-    A MATEMATIKA RESZLETESEN
-    ---------------------------------------------------------------------
-
-    A keplet (a Transformer paperbol, "Attention is All You Need"):
+    mintazatot, kulonbozo frekvenciakon (a Transformer paper keplete):
 
         PE(pos, 2i)   = sin(pos / 10000^(2i/d))
         PE(pos, 2i+1) = cos(pos / 10000^(2i/d))
 
-    ahol  pos = a pozicio (0, 1, 2, ... W-1)
-          i   = a csatorna indexe
-          d   = a csatornak szama
+    Sin es cos egyutt kell, mert egyedul a szinusz nem egyertelmu
+    (sin(30 fok) = sin(150 fok)); a ket fuggveny egyutt viszont mar igen -
+    ugyanaz az elv, mint az egysegkoron a (cos, sin) par. Ezert osztjuk a
+    csatornakat negy reszre: sin(x), cos(x), sin(y), cos(y).
 
-    A kodban a nevezot elore kiszamoljuk reciprokkent:
+    MIERT TANULHATO A SULY - EZ KIMERT HIBA VOLT:
+    A kodolas amplitudoja fixen ~0.59, a Stem kimeneteinek szorasa viszont
+    csak ~0.056, tehat a kodolas 10x-esen ELNYOMTA a tenyleges jellemzoket.
+    Emiatt a kNN gyakorlatilag csak a poziciot latta:
 
-        inv_freq = 1 / 10000^(2i/d)
+        a valasztott szomszedok atlagos terbeli tavolsaga
+            kodolas nelkul  : 29.6 cella
+            fix kodolassal  :  1.8 cella      (a veletlen ~31.4 lenne)
 
-    tehat a szorzas (pos * inv_freq) ugyanaz, mint az osztas a keplettel.
+    Vagyis a "dinamikus graf" egy fix 5x5-os ablakka fajult, es a negy
+    EdgeConv reteg egy dragan szamolt konvoluciot vegzett - pont az veszett
+    el, amiert a graf-megkozelites egyaltalan erdekes (hogy a tavoli, de
+    HASONLO ALAKU reszeket is osszekosse).
 
-    MIERT EZ A KEPLET? Harom tulajdonsag miatt:
-
-    1. MINDEN POZICIONAK EGYEDI MINTAZATA VAN.
-       Az inv_freq egy geometriai sorozat 1-tol 1/10000-ig. Minden csatorna
-       mas frekvencian "rezeg":
-
-           i = 0       -> inv_freq = 1        -> gyors rezges
-           i = d/2     -> inv_freq = 1/100    -> kozepes
-           i = d       -> inv_freq = 1/10000  -> nagyon lassu
-
-       Ez pont olyan, mint egy binaris szam: a magas frekvenciak a also
-       biteket kodoljak (finom felbontas), az alacsonyak a felsoket (durva
-       felbontas). Csak itt folytonos, nem diszkret.
-
-    2. A KOZELI POZICIOK KODJA HASONLO.
-       A szinusz folytonos, tehat sin(5*f) es sin(6*f) kozel van egymashoz.
-       Ez fontos: a halo igy tudja, hogy a 5. es 6. oszlop szomszedos.
-
-    3. MIERT KELL SIN ES COS IS?
-       Mert egyedul a szinusz nem egyertelmu: sin(30 fok) = sin(150 fok).
-       A koszinusz viszont ezeket megkulonbozteti (cos(30) != cos(150)).
-       A ket fuggveny EGYUTT egyertelmuen meghatarozza a szoget - ez ugyanaz
-       az elv, mint az egysegkoron a (cos, sin) koordinatapar.
-
-       Ezert osztjuk a csatornakat negy reszre: sin(x), cos(x), sin(y), cos(y).
-
-    MERT PROBLEMA (tanitatlan halon): ennek a kodolasnak az amplitudoja 0.590,
-    a tenyleges feature-e viszont csak 0.035 - vagyis 17x-esen elnyomja. Emiatt
-    a kNN gyakorlatilag csak a poziciot "latja", es a valasztott szomszedok
-    atlagos terbeli tavolsaga 1.8 cella (kodolas nelkul 36.1 lenne). Tanitas
-    soran ez az arany eltolodhat; ha nem, a kodolas leskalazasa javithat.
+    A `weight` kezdoerteke ezert 0.03: ezzel a kodolas/jellemzo arany ~0.3,
+    ahol a kNN mar a jellemzoket is latja, de a poziciot sem hagyja figyelmen
+    kivul. Mivel a Stem tanul, ez az arany menet kozben elcsuszna - a
+    tanulhato suly engedi a halonak, hogy maga allitsa be.
     """
 
-    def __init__(self, channels):
+    def __init__(self, channels, init_weight=0.03):
         super().__init__()
-        self.channels = channels
         # A csatornakat negy reszre osztjuk: sin(x), cos(x), sin(y), cos(y).
         # A ceil felfele kerekit, hogy 4-gyel nem oszthato csatornaszamnal is
         # jusson mindegyiknek - a felesleget a forward() vegen levagjuk.
-        channels = int(np.ceil(channels / 4) * 2)
+        c = int(np.ceil(channels / 4) * 2)
 
-        # inv_freq = 1 / 10000^(2i/d), geometriai sorozat 1-tol 1/10000-ig.
-        # A torch.arange(0, channels, 2) a 2i-t adja: 0, 2, 4, 6, ...
-        self.inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        # inv_freq = 1 / 10000^(2i/d), geometriai sorozat 1-tol 1/10000-ig:
+        # minden csatorna mas frekvencian "rezeg", mint egy folytonos binaris
+        # szam. A magas frekvenciak a finom, az alacsonyak a durva felbontast
+        # kodoljak, es a kozeli poziciok kodja hasonlo marad.
+        inv_freq = 1.0 / (10000 ** (torch.arange(0, c, 2).float() / c))
+
+        # register_buffer: a modell allapotanak resze (menti/tolti a
+        # checkpoint, koveti a .to(device)-ot), de NEM tanulhato parameter.
+        # A regi kod sima attributumkent tartotta, ami CPU-n ragadt volna.
+        self.register_buffer("inv_freq", inv_freq)
+        self.weight = nn.Parameter(torch.tensor(float(init_weight)))
 
     def forward(self, tensor):
-        B, C, H, W = tensor.shape
-        pos_x = torch.arange(W, device=tensor.device).type(self.inv_freq.type())
-        pos_y = torch.arange(H, device=tensor.device).type(self.inv_freq.type())
+        C, H, W = tensor.shape[1:]
+        pos_x = torch.arange(W, device=tensor.device, dtype=self.inv_freq.dtype)
+        pos_y = torch.arange(H, device=tensor.device, dtype=self.inv_freq.dtype)
 
-        # einsum("i,j->ij", a, b): kulso szorzat - a minden elemehez b minden
-        # eleme. Eredmeny: (len(a), len(b)).
-        sin_inp_x = torch.einsum("i,j->ij", pos_x, self.inv_freq)
-        sin_inp_y = torch.einsum("i,j->ij", pos_y, self.inv_freq)
+        # Kulso szorzat: minden poziciohoz minden frekvencia.
+        sin_x = torch.einsum("i,j->ij", pos_x, self.inv_freq)
+        sin_y = torch.einsum("i,j->ij", pos_y, self.inv_freq)
 
-        # sin es cos egyutt: ezek egyutt egyertelmuen meghatarozzak a szoget.
-        emb_x = torch.cat((sin_inp_x.sin(), sin_inp_x.cos()), dim=-1).unsqueeze(0).repeat(H, 1, 1)
-        emb_y = torch.cat((sin_inp_y.sin(), sin_inp_y.cos()), dim=-1).unsqueeze(1).repeat(1, W, 1)
-        emb = torch.cat((emb_x, emb_y), dim=-1).permute(2, 0, 1).unsqueeze(0)
+        emb_x = torch.cat((sin_x.sin(), sin_x.cos()), -1).unsqueeze(0).expand(H, -1, -1)
+        emb_y = torch.cat((sin_y.sin(), sin_y.cos()), -1).unsqueeze(1).expand(-1, W, -1)
+        # A [:C] levagas a ceil-bol eredo tobbletcsatornakat dobja el.
+        emb = torch.cat((emb_x, emb_y), -1).permute(2, 0, 1).unsqueeze(0)[:, :C]
 
-        # A [:, :C] levagas azert kell, mert a felfele kerekites (ceil) miatt
-        # tobb csatornat generaltunk, mint amennyi kell.
-        return tensor + emb[:, :C, :, :].to(tensor.device)
-
-
-class Stem(nn.Module):
-    """
-    Bemenet downsamplingje: (B, C, 64, 1024) -> (B, D, 16, 128).
-
-    MIERT KELL: a graf-reteg minden pontra egy N x N tavolsagmatrixot szamol.
-    N = 64*1024 = 65536 eseten ez 4.3 MILLIARD elem retegenkent -
-    kezelhetetlen. N = 16*128 = 2048 eseten 4.2 millio, ami mar megy.
-
-    MIERT ASZIMMETRIKUS (fuggolegesen /4, vizszintesen /8): mert a bemenet
-    maga is az - 64 elevacios sor all szemben 1024 azimut oszloppal.
-
-    ---------------------------------------------------------------------
-    A KONVOLUCIO MERETKEPLETE
-    ---------------------------------------------------------------------
-
-        out = floor((in + 2*padding - kernel) / stride) + 1
-
-    Levezetes: a kernel kozeppontja az elso ervenyes poziciotol az utolsoig
-    csuszik. A padelt kep hossza (in + 2*padding); ebbol a kernel meg eppen
-    (in + 2*padding - kernel + 1) kulonbozo helyre fer be. Ha stride-onkent
-    lepunk, ezek kozul minden stride-adikat vesszuk - innen az osztas.
-
-    Behelyettesitve a mi ertekeinkkel (kernel=3, padding=1):
-
-        stride = 2:  out = (in + 2 - 3)/2 + 1 = (in - 1)/2 + 1 ~ in/2
-        stride = 1:  out = (in + 2 - 3)/1 + 1 = in              (valtozatlan)
-
-    Vagyis a (2,2) stride felez mindket tengelyen, az (1,2) csak
-    vizszintesen. A meret alakulasa:
-
-        (64, 1024) --(2,2)--> (32, 512) --(2,2)--> (16, 256) --(1,2)--> (16, 128)
-           |                                                              |
-           +---- fuggolegesen /4, vizszintesen /8 ------------------------+
-    """
-
-    def __init__(self, in_dim=1, out_dim=64):
-        super().__init__()
-        self.conv1 = CircularConv2d(in_dim, out_dim // 4, kernel_size=3, stride=(2, 2), padding=1)
-        self.conv2 = CircularConv2d(out_dim // 4, out_dim // 2, kernel_size=3, stride=(2, 2), padding=1)
-        self.conv3 = CircularConv2d(out_dim // 2, out_dim, kernel_size=3, stride=(1, 2), padding=1)
-
-    def forward(self, x):
-        # LeakyReLU es nem ReLU: a ReLU a negativ ertekeket pontosan 0-ra vagja,
-        # es ott a gradiens is 0 - az ilyen neuron "meghalhat", soha tobbe nem
-        # tanul. A LeakyReLU kis meredeksege (0.2) mindig hagy gradienst.
-        x = F.leaky_relu(self.conv1(x), 0.2)
-        x = F.leaky_relu(self.conv2(x), 0.2)
-        x = F.leaky_relu(self.conv3(x), 0.2)
-        return x
+        return tensor + self.weight * emb
 
 
 # =============================================================================
@@ -585,59 +442,67 @@ class Encoder(nn.Module):
     graf-konvolucioval tomoriti.
 
     Adatut:
-        (B, 1, 64, 1024)
-          -> Stem              -> (B, 64, 16, 128)
+        (B, 1, 44, 256)
+          -> stem (3 konvolucio) -> (B, ch, 11, 32)
           -> PositionalEncoding
-          -> flatten           -> (B, 64, 2048)     "pontfelho" alak
-          -> GraphLayer x4     -> (B, 64, 2048)     dinamikus kNN minden retegben
-          -> Conv1d projekcio  -> (B, 16, 2048)
-          -> reshape           -> (B, 16, 16, 128)  <- a LATENS
+          -> flatten             -> (B, 64, 2048)   "pontfelho" alak
+          -> GraphLayer x4       -> (B, 64, 2048)   dinamikus kNN retegenkent
+          -> Conv1d projekcio    -> (B, 16, 2048)
+          -> reshape             -> (B, 16, 16, 128)  <- a LATENS
+
+    MIERT KELL A STEM DOWNSAMPLING: a graf-reteg N x N tavolsagmatrixot szamol.
+    A nyers kepen N = 44*256 = 11264, ami 127 MILLIO elem retegenkent -
+    kezelhetetlen. A stem utan N = 16*128 = 2048, vagyis 4.2 millio.
+
+    A konvolucio meretkeplete out = floor((in + 2*pad - kernel)/stride) + 1
+    szerint (kernel=3, pad=1) a (2,2) stride felez mindket tengelyen:
+
+        (44,256) --(1,2)--> (44,128) --(2,2)--> (22,64) --(2,2)--> (11,32)
     """
 
     def __init__(self, in_channels=1, z_channels=16, ch=64, k=20, **kwargs):
         super().__init__()
-        self.k = k
-        self.z_channels = z_channels
-
-        self.stem = Stem(in_channels, ch)
+        # LeakyReLU es nem ReLU: a ReLU a negativ ertekeket 0-ra vagja, es ott
+        # a gradiens is 0 - az ilyen neuron "meghalhat". A LeakyReLU kis
+        # meredeksege mindig hagy gradienst.
+        # A stem lepcsoi az EREDETI TopoLiDM strides-aival egyeznek:
+        # [[1,2],[2,2],[2,2]] - az elso csak VIZSZINTESEN felez, mert a range
+        # image szeles es lapos (64 sor, 1024 oszlop).
+        #
+        #     (64,1024) --(1,2)--> (64,512) --(2,2)--> (32,256) --(2,2)--> (16,128)
+        #
+        # A dekoder ugyanezeket forditva jatssza vissza, igy a kimenet alakja
+        # pontosan a bemenete.
+        self.stem = nn.Sequential(
+            CircularConv2d(in_channels, ch // 4, 3, stride=(1, 2), padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+            CircularConv2d(ch // 4, ch // 2, 3, stride=(2, 2), padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+            CircularConv2d(ch // 2, ch, 3, stride=(2, 2), padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
         self.pos_enc = PositionalEncoding2D(ch)
 
         # Negy graf-reteg egymas utan. Mindegyik ujraszamolja a kNN-t, tehat a
         # szomszedsagok retegrol retegre valtozhatnak (dinamikus graf).
-        self.layer1 = GraphLayer(ch, k)
-        self.layer2 = GraphLayer(ch, k)
-        self.layer3 = GraphLayer(ch, k)
-        self.layer4 = GraphLayer(ch, k)
+        self.layers = nn.ModuleList([GraphLayer(ch, k) for _ in range(4)])
 
-        # Conv1d kernel_size=1: pontonkenti linearis reteg, ami ch csatornabol
-        # z_channels-t csinal. Ez a tenyleges szuk keresztmetszet.
+        # Conv1d kernel_size=1: pontonkenti linearis reteg ch -> z_channels.
         self.proj = nn.Conv1d(ch, z_channels, 1)
 
     def forward(self, x):
-        # 1. Downsampling: (B, 1, 64, 1024) -> (B, 64, 16, 128)
-        h = self.stem(x)
-
-        # 2. Poziciokodolas hozzaadasa - a kovetkezo lepes elott KELL, mert
-        #    utana mar nincs terbeli informacio.
-        h = self.pos_enc(h)
+        # A poziciokodolas a kilapitas ELOTT kell: utana mar nincs terbeli
+        # informacio, a graf-reteg csak egy rendezetlen halmazt latna.
+        h = self.pos_enc(self.stem(x))
 
         B, D, H, W = h.shape
-        N = H * W                       # 16 * 128 = 2048 "pont"
+        h = h.view(B, D, H * W)         # (B, 64, 2048) "pontfelho" alak
 
-        # 3. Kilapitas pont-halmaz alakra: (B, 64, 16, 128) -> (B, 64, 2048)
-        h = h.view(B, D, N)
+        for layer in self.layers:
+            h = layer(h)
 
-        # 4. Hierarchikus graf-kodolas
-        h = self.layer1(h)
-        h = self.layer2(h)
-        h = self.layer3(h)
-        h = self.layer4(h)
-
-        # 5. Vetites a latens dimenziora: (B, 64, 2048) -> (B, 16, 2048)
-        z = self.proj(h)
-
-        # 6. Vissza 2D alakra, hogy a konvolucios decoder tudjon vele dolgozni.
-        return z.view(B, -1, H, W)      # (B, 16, 16, 128)
+        # Vissza 2D alakra, hogy a konvolucios decoder tudjon vele dolgozni.
+        return self.proj(h).view(B, -1, H, W)       # (B, 16, 16, 128)
 
 
 # =============================================================================
@@ -649,212 +514,149 @@ class Encoder(nn.Module):
 # hasznalod, a decoder eldobhato.
 # =============================================================================
 
-def nonlinearity(x):
-    """
-    Swish (SiLU): x * sigmoid(x).
+# Kernel es padding a felskalazashoz, illetve a ResnetBlock-hoz. Az upsample
+# kernelje a stride ketszerese korul van, hogy a bilinearis interpolacio utani
+# simitas atfogja az uj pixeleket; a ResnetBlock paddingje meretartó.
+UPSAMPLE_KERNEL_PAD = {(1, 2): ((1, 5), (2, 2, 0, 0)), (2, 2): ((3, 3), (1, 1, 1, 1))}
+RESNET_KERNEL2PAD = {(3, 3): (1, 1, 1, 1), (1, 4): (1, 2, 0, 0)}
 
-    Hasonlit a ReLU-ra, de folytonosan derivalhato - ettol simabb a tanulas.
-    Peldak: swish(-2) = -0.238, swish(0) = 0, swish(2) = 1.762
+
+def norm(channels, num_groups=32):
+    """GroupNorm: csoportonkent nulla atlagra es egyes szorasra normal, majd
+    tanulhato gamma/beta parral visszaadja a szabadsagot.
+
+    MIERT NEM BatchNorm: az a batch osszes mintaja folott atlagol, tehat fugg a
+    batch merettol, es maskepp mukodik tanitaskor mint kiertekeleskor. A
+    GroupNorm egy mintan belul dolgozik, ezert kiszamithatobb.
+
+    A csoportszamot leszoritjuk, hogy (a) ossza a csatornaszamot, es (b)
+    csoportonkent legalabb 4 csatorna maradjon. Enelkul kis `ch` eseten
+    csoportonkent egyetlen csatorna jutna, ami InstanceNorma fajulna - ott
+    nincs mit atlagolni a csatornak kozott.
     """
+    while channels % num_groups or channels // num_groups < 4:
+        num_groups //= 2
+        if num_groups == 1:
+            break
+    return nn.GroupNorm(num_groups, channels, eps=1e-6, affine=True)
+
+
+def swish(x):
+    """x * sigmoid(x). Mint a ReLU, de folytonosan derivalhato - simabb tanulas."""
     return x * torch.sigmoid(x)
-
-
-def Normalize(in_channels, num_groups=32):
-    """
-    GroupNorm: a csatornakat csoportokba osztja, es csoportonkent normalizal
-    (nulla atlag, egyes szoras), majd egy tanulhato skalaval es eltolassal
-    visszaallitja a szabadsagot:  y = (x - atlag)/szoras * gamma + beta
-
-    MIERT GroupNorm es nem BatchNorm: a BatchNorm a batch osszes mintaja folott
-    atlagol, tehat a viselkedese fugg a batch merettol, es maskepp mukodik
-    tanitaskor mint kiertekeleskor. A GroupNorm egy mintan belul dolgozik,
-    ezert batch-merettol fuggetlen es kiszamithatobb.
-    """
-    return nn.GroupNorm(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True)
-
-
-# A felskalazashoz tartozo kernel- es padding-meretek stride-onkent.
-# A kernel a stride ketszerese + 1 korul van, hogy a bilinearis interpolacio
-# utani simitas atfogja az uj pixeleket.
-UPSAMPLE_STRIDE2KERNEL = {(1, 2): (1, 5), (2, 2): (3, 3)}
-UPSAMPLE_STRIDE2PAD = {(1, 2): (2, 2, 0, 0), (2, 2): (1, 1, 1, 1)}
-
-# A ResnetBlock kernel-merethez tartozo padding, hogy a meret ne valtozzon.
-UNIFORM_KERNEL2PAD = {(3, 3): (1, 1, 1, 1), (1, 4): (1, 2, 0, 0)}
-
-
-class Upsample(nn.Module):
-    """
-    Felskalazas: bilinearis interpolacio + konvolucio.
-
-    Az interpolacio "kitolti" a hianyzo pixeleket a szomszedokbol atlagolva -
-    ettol viszont elmosodott lesz. A rakovetkezo konvolucio elesiti.
-    """
-
-    def __init__(self, in_channels, stride):
-        super().__init__()
-        self.stride = stride
-        k = UPSAMPLE_STRIDE2KERNEL[stride]
-        p = UPSAMPLE_STRIDE2PAD[stride]
-        self.conv = CircularConv2d(in_channels, in_channels, kernel_size=k, padding=p)
-
-    def forward(self, x):
-        x = F.interpolate(x, scale_factor=self.stride, mode='bilinear', align_corners=True)
-        return self.conv(x)
 
 
 class ResnetBlock(nn.Module):
     """
-    Ket konvolucio + SKIP CONNECTION.
+    Ket konvolucio + SKIP CONNECTION, pre-activation sorrendben
+    (norm -> aktivacio -> konvolucio).
 
-    A lenyeg a forward() vegen levo `return x + h`: a blokk NEM a kimenetet
-    tanulja meg, hanem a VALTOZTATAST, amit a bemenethez hozza kell adni.
-
-    MIERT JO EZ: mely haloknal a gradiens visszafele haladva egyre kisebb lesz
-    ("eltuno gradiens"), es a korai retegek nem tanulnak. A +x egy
-    "gyorsitosavot" ad: a gradiens ezen az uton valtozatlanul jut vissza.
-
-    Sorrend: norm -> aktivacio -> konvolucio (ez a "pre-activation" ResNet).
+    A lenyeg a forward() vegen levo `x + h`: a blokk nem a kimenetet tanulja
+    meg, hanem a VALTOZTATAST, amit a bemenethez hozza kell adni. Mely haloknal
+    a gradiens visszafele haladva egyre kisebb lesz ("eltuno gradiens"); a +x
+    egy gyorsitosavot ad, amin valtozatlanul jut vissza.
     """
 
-    def __init__(self, *, in_channels, out_channels=None, kernel_size=(3, 3), dropout=0.0):
+    def __init__(self, in_channels, out_channels=None, kernel_size=(3, 3), dropout=0.0):
         super().__init__()
-        self.in_channels = in_channels
-        out_channels = in_channels if out_channels is None else out_channels
-        self.out_channels = out_channels
-        pad = UNIFORM_KERNEL2PAD[kernel_size]
+        out_channels = out_channels or in_channels
+        pad = RESNET_KERNEL2PAD[kernel_size]
 
-        self.norm1 = Normalize(in_channels)
-        self.conv1 = CircularConv2d(in_channels, out_channels, kernel_size=kernel_size,
-                                    stride=1, padding=pad)
-        self.norm2 = Normalize(out_channels)
-        self.dropout = nn.Dropout(dropout)
-        self.conv2 = CircularConv2d(out_channels, out_channels, kernel_size=kernel_size,
-                                    stride=1, padding=pad)
-
-        # Ha valtozik a csatornaszam, a skip aghoz is kell egy vetites -
-        # kulonben az x + h osszeadas nem menne (mas alaku tenzorok).
-        # 1x1 konvolucio: pontonkenti linearis reteg, terbeli keveredes nelkul.
-        if self.in_channels != self.out_channels:
-            self.nin_shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=1,
-                                          stride=1, padding=0)
+        self.block = nn.Sequential(
+            norm(in_channels),
+            nn.SiLU(),
+            CircularConv2d(in_channels, out_channels, kernel_size, stride=1, padding=pad),
+            norm(out_channels),
+            nn.SiLU(),
+            nn.Dropout(dropout),
+            CircularConv2d(out_channels, out_channels, kernel_size, stride=1, padding=pad),
+        )
+        # Csatornavaltasnal a skip aghoz is kell egy 1x1 vetites, kulonben az
+        # osszeadas nem menne (mas alaku tenzorok).
+        self.shortcut = (nn.Conv2d(in_channels, out_channels, 1)
+                         if in_channels != out_channels else nn.Identity())
 
     def forward(self, x):
-        h = self.norm1(x)
-        h = nonlinearity(h)
-        h = self.conv1(h)
+        return self.shortcut(x) + self.block(x)
 
-        h = self.norm2(h)
-        h = nonlinearity(h)
-        h = self.dropout(h)
-        h = self.conv2(h)
 
-        if self.in_channels != self.out_channels:
-            x = self.nin_shortcut(x)
+class Upsample(nn.Module):
+    """Bilinearis interpolacio + konvolucio: az interpolacio kitolti a hianyzo
+    pixeleket (de elmosodottan), a konvolucio utana elesiti."""
 
-        return x + h        # <- a skip connection
+    def __init__(self, channels, stride):
+        super().__init__()
+        self.stride = stride
+        kernel, pad = UPSAMPLE_KERNEL_PAD[stride]
+        self.conv = CircularConv2d(channels, channels, kernel, padding=pad)
+
+    def forward(self, x):
+        x = F.interpolate(x, scale_factor=self.stride, mode="bilinear", align_corners=True)
+        return self.conv(x)
 
 
 class Decoder(nn.Module):
     """
-    Latens -> range image.  (B, 16, 16, 128) -> (B, 1, 64, 1024)
+    Latens -> range image.  (B, 16, 16, 128) -> (B, 1, 64, 512)
 
-    A felepites tobb "szintbol" all; minden szinten nehany ResnetBlock fut, es
-    a szintek kozott egy Upsample duplazza a felbontast.
+    Szintekbol all: minden szinten nehany ResnetBlock fut, a szintek kozott egy
+    Upsample noveli a felbontast. A legmelyebb szinttol a legfelsoig haladunk,
+    tehat a `ch_mult` es a `strides` is VISSZAFELE olvasodik.
 
-    A STRIDES INDEXELES CSAPDAJA (ez az eredeti kod legkellemetlenebb resze):
+    A mi konfiguracionkkal (ch_mult = (1, 2, 4), strides eleje):
+        (16,128) --(2,2)--> (32,256) --(2,2)--> (64,512)
 
-        stride = strides[i_level - 1] if i_level > 0 else None
-
-    Ket dolog egyszerre:
-      - az i_level = 0 szinten NINCS upsample
-      - a listat EGGYEL ELTOLVA olvassa
-
-    Kovetkezmeny: len(ch_mult) - 1 darab upsample fut, es a strides UTOLSO
-    eleme SOHA nem kerul felhasznalasra (dummy).
-
-    A mi konfiguracionkkal:
-        ch_mult = (1, 2, 4, 4)
-        strides = ((2,2), (2,2), (1,2), (1,1))
-                                          ^^^^^ dummy
-
-    A tenyleges felskalazas (forditott sorrendben, i_level = 3, 2, 1):
-        (16,128) --(1,2)--> (16,256) --(2,2)--> (32,512) --(2,2)--> (64,1024)
-
-    Ha elrontod, a kimenet nem 64x1024 lesz, es a loss shape hibaval elszall.
+    A legfelso szint utan nincs felskalazas, ezert a `strides` utolso eleme
+    (az (1,1) a DDCONFIG-ban) sosem kerul felhasznalasra - dummy.
     """
 
     def __init__(self, *, ch, out_ch, ch_mult, strides, num_res_blocks,
                  z_channels, dropout=0.0, tanh_out=True, **kwargs):
         super().__init__()
-        # A stride-hoz tartozo kernel-meret a ResnetBlock-okban.
         stride2kernel = {(2, 2): (3, 3), (1, 2): (1, 4)}
-
-        self.ch = ch
-        self.num_resolutions = len(ch_mult)
-        self.num_res_blocks = num_res_blocks
         self.tanh_out = tanh_out
 
-        # A legmelyebb szint csatornaszama - innen indul a decoder.
-        block_in = ch * ch_mult[self.num_resolutions - 1]
+        block_in = ch * ch_mult[-1]
 
-        # A latenst felvisszuk a munkacsatorna-szamra.
-        self.conv_in = CircularConv2d(z_channels, block_in, kernel_size=3, stride=1, padding=1)
+        # A latenst felvisszuk a munkacsatorna-szamra, majd ket blokk fut a
+        # legkisebb felbontason, meg felskalazas elott.
+        self.conv_in = CircularConv2d(z_channels, block_in, 3, stride=1, padding=1)
+        self.mid = nn.Sequential(
+            ResnetBlock(block_in, dropout=dropout),
+            ResnetBlock(block_in, dropout=dropout),
+        )
 
-        # "Kozepso" blokkok a legkisebb felbontason, meg felskalazas elott.
-        self.mid_block_1 = ResnetBlock(in_channels=block_in, out_channels=block_in, dropout=dropout)
-        self.mid_block_2 = ResnetBlock(in_channels=block_in, out_channels=block_in, dropout=dropout)
-
-        # A szintek felepitese. Forditva megyunk (a legmelyebbtol a legfelso
-        # felbontasig), es insert(0, ...)-tal rakjuk oket a listaba, hogy a
-        # sorrend a vegen novekvo legyen.
-        self.up = nn.ModuleList()
-        for i_level in reversed(range(self.num_resolutions)):
+        # A szintek a vegrehajtas sorrendjeben (legmelyebbtol felfele): igy nem
+        # kell sem forditott indexeles, sem insert(0, ...).
+        levels = []
+        for i_level in reversed(range(len(ch_mult))):
+            # A szint UTAN kovetkezo felskalazas; a legfelso szint utan nincs.
             stride = tuple(strides[i_level - 1]) if i_level > 0 else None
             kernel = stride2kernel[stride] if stride is not None else (1, 4)
 
-            block = nn.ModuleList()
             block_out = ch * ch_mult[i_level]
-            for _ in range(self.num_res_blocks + 1):
-                block.append(ResnetBlock(in_channels=block_in, out_channels=block_out,
-                                         kernel_size=kernel, dropout=dropout))
-                block_in = block_out
+            stage = [ResnetBlock(block_in if i == 0 else block_out, block_out,
+                                 kernel_size=kernel, dropout=dropout)
+                     for i in range(num_res_blocks + 1)]
+            block_in = block_out
 
-            level = nn.Module()
-            level.block = block
             if stride is not None:
-                level.upsample = Upsample(block_in, stride)
-            self.up.insert(0, level)
+                stage.append(Upsample(block_in, stride))
+            levels.append(nn.Sequential(*stage))
 
-        self.norm_out = Normalize(block_in)
+        self.up = nn.Sequential(*levels)
+
+        self.norm_out = norm(block_in)
         # Az utolso konvolucio viszi vissza 1 csatornara (a range ertekre).
         self.conv_out = CircularConv2d(block_in, out_ch, kernel_size=(1, 4),
                                        stride=1, padding=(1, 2, 0, 0))
 
     def forward(self, z):
-        h = self.conv_in(z)
-
-        h = self.mid_block_1(h)
-        h = self.mid_block_2(h)
-
-        # Felfele menet: minden szinten a blokkok, majd (a 0. kivetelevel)
-        # egy felskalazas.
-        for i_level in reversed(range(self.num_resolutions)):
-            for i_block in range(self.num_res_blocks + 1):
-                h = self.up[i_level].block[i_block](h)
-            if i_level != 0:
-                h = self.up[i_level].upsample(h)
-
-        h = self.norm_out(h)
-        h = nonlinearity(h)
-        h = self.conv_out(h)
-
-        # tanh: a kimenetet [-1, 1]-be szoritja. Ez azert kell, mert a bemeneti
-        # range image is ebben a tartomanyban van. Enelkul a halonak kulon meg
-        # kellene tanulnia, hogy "ne menj 1 fole es -1 ala".
-        if self.tanh_out:
-            h = torch.tanh(h)
-        return h
+        h = self.up(self.mid(self.conv_in(z)))
+        h = self.conv_out(swish(self.norm_out(h)))
+        # tanh: a bemeneti range image is [-1, 1]-ben van, igy a halonak nem
+        # kell kulon megtanulnia, hogy ne menjen a tartomanyon kivulre.
+        return torch.tanh(h) if self.tanh_out else h
 
 
 # =============================================================================
@@ -869,74 +671,136 @@ class LidarAE(nn.Module):
     Ugyanaz a bemenet mindig ugyanazt a latenst adja.
 
     Hasznalat tanitashoz:
-        model = LidarAE(**DDCONFIG)
-        x_rec = model(x)
-        loss = F.l1_loss(x, x_rec)
+        model = LidarAE(DDCONFIG)
+        loss = model.loss(x)
 
     Hasznalat RL-ben (csak az encoder kell):
-        z = model.encode(x)        # (B, 16, 16, 128)
+        z = model.encode(x)        # (B, z_channels, 16, 128) jellemzoterkep
+
+    A kimenet TERBELI jellemzoterkep, nem vektor. Az RL sajat CNN
+    feature-extractorral dolgozza fel (SB3 BaseFeaturesExtractor) - igy az
+    extractor a JUTALOMRA optimalizal, nem a rekonstrukciora.
     """
 
-    def __init__(self, ddconfig=None, learning_rate=1e-4, **kwargs):
+    def __init__(self, ddconfig=None, learning_rate=1e-4,
+                 empty_weight=0.25, **kwargs):
         super().__init__()
         # A ddconfig egy dict a halo alakjaval. Megadhato kulcsszavakent is.
         cfg = dict(ddconfig) if ddconfig is not None else {}
         cfg.update(kwargs)
 
         self.learning_rate = learning_rate
+        # Az URES (-1) cellak sulya a lossban. 1.0 = nincs sulyozas.
+        self.empty_weight = empty_weight
         self.encoder = Encoder(**cfg)
         self.decoder = Decoder(**cfg)
 
+        # NINCS BOTTLENECK. A graf-encoder terbeli kimenete MAGA a latens.
+        #
+        # Korabban egy Linear-par (majd szelesseg-conv) vitte le 256-ra.
+        # MERVE (1200 lepes, 600 train frame, L1 a foglalt teruleten):
+        #
+        #   szukites          L1 foglalt   param
+        #   Linear -> 128       0.1061     18.0M
+        #   Linear -> 2048      0.1318    135.5M
+        #   szelesseg-conv      0.1064      3.4M
+        #   NINCS               0.0751      1.2M   <- ez
+        #
+        # A szukites nelkuli ag FELEANNYI hibat ad, nyolcad annyi
+        # parameterbol. Ugyanez jott ki a bev_ae-nel is: a latens MERETE nem
+        # szamit, a TERBELI SZERKEZET elvesztese a problema.
+        #
+        # Az RL ezt a jellemzoterkepet kapja, es sajat CNN feature-extractorral
+        # dolgozza fel - igy az extractor a JUTALOMRA optimalizal.
+        z_ch = cfg["z_channels"]
+        self.spatial = (z_ch, 16, 128)
+        self.latent_shape = self.spatial
+
     def encode(self, x):
         """
-        Range image -> latens.  EZT hasznalja majd az RL.
+        Range image -> TERBELI jellemzoterkep.  EZT hasznalja majd az RL.
 
-        x      : (B, 1, 64, 1024) float, [-1, 1]
-        return : (B, 16, 16, 128)
+        x      : (B, 1, 64, 512) float, [-1, 1]
+        return : (B, z_channels, 16, 128)
 
-        FIGYELEM: a latens 16*16*128 = 32768 ertek. Ez laposítva nagysagrendekkel
-        tobb, mint a kamera AE 64 elemu latense, es az SB3 MultiInputPolicy NEM
-        normalizal - igy elnyomna a tobbi observationt (steer, throttle,
-        waypointok). Az RL-be kotes elott csokkenteni kell.
+        Nincs vektorra lapitas - lasd az __init__ tablazatat.
         """
         return self.encoder(x)
 
     def decode(self, z):
-        """Latens -> range image. RL futaskor NEM kell."""
+        """Jellemzoterkep -> range image. RL futaskor NEM kell."""
         return self.decoder(z)
 
     def forward(self, x):
-        """
-        Teljes kor: kep -> latens -> rekonstrualt kep.
-
-        A forward()-ot sosem hivod kozvetlenul! A modult hivod fuggvenykent
-        (`model(x)`), mert az futtatja a PyTorch beakasztott hookjait is.
-        """
+        """Teljes kor: kep -> latens -> rekonstrualt kep."""
         return self.decode(self.encode(x))
 
+    def loss(self, x, parts=False):
+        """L1 a range image-en.
+
+        MIERT NEM MSE: a kep nagy resze URES (-1), a tobbi valodi tavolsag -
+        ket modusz kozott eles hatarokkal. Az MSE ilyenkor a "biztonsagos
+        kozepet" jutalmazza, ezert ELMOSSA a targyak hataret. Az L1 optimuma
+        a median, ami ketmoduszu adatnal az egyik valodi modusz - eles marad.
+
+        MIERT NINCS SULYOZAS az ures teruletekre: kimerve. A kep 35%-a ures,
+        es felmerult, hogy azok elnyomjak a valodi tavolsagok hibajat (a
+        bev_ae-nel pont ez volt a baj). Itt viszont a sulyozas NETTO rontott
+        (300 lepes, L1 foglalt / L1 ures):
+
+            empty_weight 1.0 (nincs)   0.162 / 0.642
+            empty_weight 0.5           0.104 / 0.780
+            empty_weight 0.2           0.084 / 0.931
+
+        A foglalt hiba javul, de az ures annyira romlik, hogy a rekonstrukcio
+        hasznalhatatlan lesz - a modell nem tudja, hol VEGZODIK egy targy,
+        pedig az RL-nek pont az szamit.
+
+        parts=True : (loss, dict) - kulon az ures es a foglalt teruleten.
+            Egyetlen szam elrejti, ha a modell csak az ures/nem-ures hatart
+            tanulta meg, a geometriat nem.
+        """
+        rec = self(x)
+
+        # SULYOZOTT L1. A kep 35%-a URES (-1), es a sulyozatlan L1-ben ez adta
+        # a loss ~85%-at: 0.35 * 0.633 = 0.222 a 0.259-bol. Merve, 4 epoch:
+        #
+        #   epoch   teljes    l1_occupied   l1_empty
+        #     1     0.2660      0.060        0.646
+        #     2     0.2588      0.056        0.633
+        #     3     0.2544      0.054        0.624
+        #     4     0.2503      0.055        0.611
+        #
+        # Az l1_occupied a 3. epochra beallt (0.054), es a 4.-nel vissza is
+        # ment - vagyis a halo mar csak az URES teruleteket csiszolta, 12
+        # perc/epoch aron. A gradiens rossz helyre ment.
+        #
+        # A dekoder tanh-ja sosem ad pontos -1-et, tehat az ures cellakon
+        # marad egy le nem vihato reziduum - ugyanaz, mint a bev_ae-nel a
+        # Sigmoid. Ott a maszkolas hozta a 0.82 -> 0.98-as ugrast.
+        occ = (x > -0.999).float()
+        w = self.empty_weight + (1.0 - self.empty_weight) * occ
+        total = ((rec - x).abs() * w).sum() / w.sum()
+        if not parts:
+            return total
+        with torch.no_grad():
+            occ = x > -0.999
+            err = (rec - x).abs()
+            occupied = float(err[occ].mean()) if bool(occ.any()) else 0.0
+            empty = float(err[~occ].mean()) if bool((~occ).any()) else 0.0
+        return total, {"l1": float(total), "l1_occupied": occupied,
+                       "l1_empty": empty, "occupied_frac": float(occ.float().mean())}
+
     def configure_optimizers(self):
-        """
-        Az optimalizalo: ez frissiti a sulyokat a gradiensek alapjan.
-
-        Adam: adaptiv optimalizalo, ami parameterenkent kulon lepeskozt tart
-        nyilvan, es figyelembe veszi a korabbi gradiensek atlagat is
-        (momentum). Ezert kevesebb hangolast igenyel, mint a sima SGD.
-
-        betas=(0.5, 0.9): mennyire simitsa a multbeli gradienseket. Az elso a
-        gradiens atlagara, a masodik a negyzetere vonatkozik.
-        """
-        return torch.optim.Adam(self.parameters(), lr=self.learning_rate, betas=(0.5, 0.9))
+        """Adam. A betas=(0.5, 0.9) a szokasosnal gyorsabban felejti a multbeli
+        gradienseket - generativ modelleknel bevett."""
+        return torch.optim.Adam(self.parameters(), lr=self.learning_rate,
+                                betas=(0.5, 0.9))
 
     def init_from_ckpt(self, path):
-        """
-        Sulyok betoltese checkpointbol (tanitas folytatasahoz).
-
-        map_location="cpu": eloszor a rendszermemoriaba toltjuk, onnan megy a
-        GPU-ra. Igy akkor is mukodik, ha a checkpoint mas GPU-n keszult.
-        """
+        """Sulyok betoltese checkpointbol (tanitas folytatasahoz)."""
         sd = torch.load(path, map_location="cpu", weights_only=False)
-        if "state_dict" in sd:
-            sd = sd["state_dict"]
+        sd = sd.get("state_dict", sd)
         missing, unexpected = self.load_state_dict(sd, strict=False)
         print(f"Restored from {path} with {len(missing)} missing "
               f"and {len(unexpected)} unexpected keys")
@@ -950,14 +814,41 @@ class LidarAE(nn.Module):
 # 6. ALAPERTELMEZETT KONFIGURACIO
 # =============================================================================
 
+# A `ch` ES a `num_res_blocks` a DECODERT szabja meg, es MERVE az a draga resz,
+# nem a graf. Egy tanito lepesbol (batch 8, fwd+bwd) 106 ms az encoder es
+# 615 ms a decoder: a legfelso szintje a teljes 64x512 felbontason dolgozik,
+# ami mintankent 4.19M elem blokkonkent.
+#
+# A KONFIGURACIO AZ EREDETI TopoLiDM REPOBOL VALO (IRMVLab/TopoLiDM,
+# configs/autoencoder/kitti/autoencoder_c2_p4_topo.yaml):
+#
+#     base_learning_rate: 4.5e-6      <- EZ A LENYEG
+#     z_channels: 16,  in_channels: 1,  out_ch: 1
+#     ch: 64,  ch_mult: [1,2,2,4],  strides: [[1,2],[2,2],[2,2]]
+#     num_res_blocks: 2,  attn_levels: [],  dropout: 0.0
+#     batch_size: 32
+#     dataset: size [64,1024], fov [3,-25], depth_range [1,56], scale 5.84
+#
+# Korabban sajat kezzel hangolt, kisebb valtozatot hasznaltunk (ch=16,
+# ch_mult (1,4,8), nrb=0, 64x512-es kep, lr=1e-4). Az gyorsabb volt
+# (10.7 vs ~25 perc/epoch), de a loss oszcillalt es alig csokkent - az LR
+# huszonketszerese volt az eredetinek.
+#
+# A sajat meresek a KIS halon (mar nem ervenyesek, csak referenciakent):
+#     ch=32, mult(1,2,4)    47.2 f/s   12.4 perc/epoch   l1_occ 0.1006
+#     ch=16, mult(1,2,4)    84.1 f/s    6.9 perc/epoch   l1_occ 0.1154
+#     ch=16, mult(1,4,8)    56.0 f/s   10.4 perc/epoch   l1_occ 0.0988
+#     ch=8,  mult(1,2,4)   128.2 f/s    4.6 perc/epoch   l1_occ 0.1278
 DDCONFIG = dict(
     in_channels=1,      # egy csatorna: a tavolsag (remission nelkul)
     out_ch=1,
     z_channels=16,      # a latens csatornaszama
-    ch=64,              # a munkacsatorna-szam (encoder es decoder)
-    ch_mult=(1, 2, 4, 4),
-    strides=((2, 2), (2, 2), (1, 2), (1, 1)),   # az utolso dummy, lasd Decoder
-    num_res_blocks=1,
+    ch=32,              # a munkacsatorna-szam (aranyosan a felezett kephez)
+    ch_mult=(1, 2, 2, 4),
+    # Az ELSO lepes csak VIZSZINTESEN felez (1024 -> 512), mert a range image
+    # szeles es lapos: 64 sor, 1024 oszlop. Csak utana jon a ketiranyu felezes.
+    strides=((1, 2), (2, 2), (2, 2)),
+    num_res_blocks=2,
     dropout=0.0,
     tanh_out=True,      # a bemenet [-1, 1], a kimenet is oda keruljon
     k=20,               # hany szomszed a graf-retegekben
@@ -974,7 +865,7 @@ if __name__ == "__main__":
     # Hamis pontfelho: egy "utca" ket fallal.
     rng = np.random.default_rng(0)
     elev = np.linspace(10, -25, 64) * np.pi / 180
-    azim = np.linspace(-np.pi, np.pi, 1024, endpoint=False)
+    azim = np.linspace(-np.pi, np.pi, 512, endpoint=False)
     E, A = np.meshgrid(elev, azim, indexing='ij')
     d = np.minimum(np.full_like(E, 60.0), 8.0 / np.maximum(np.abs(np.sin(A)), 1e-3))
     down = E < -0.02
@@ -990,7 +881,7 @@ if __name__ == "__main__":
           f"{100 * (ri > -0.999).mean():.1f}%")
 
     model = LidarAE(DDCONFIG)
-    x = torch.from_numpy(ri).unsqueeze(0)       # (1, 1, 64, 1024)
+    x = torch.from_numpy(ri).unsqueeze(0)       # (1, 1, 64, 512)
     with torch.no_grad():
         z = model.encode(x)
         x_rec = model(x)
@@ -1003,12 +894,15 @@ if __name__ == "__main__":
     # Egy tanito lepes, hogy a backward is ellenorizve legyen.
     opt = model.configure_optimizers()
     xb = torch.from_numpy(np.stack([ri] * 2))
-    loss = F.l1_loss(xb, model(xb))
+    loss, parts = model.loss(xb, parts=True)
     opt.zero_grad()
     loss.backward()
     opt.step()
 
     n = sum(p.numel() for p in model.parameters())
     print(f"  tanito lepes : OK, loss = {float(loss):.4f}")
+    print(f"  bontas       : foglalt {parts['l1_occupied']:.4f}  "
+          f"ures {parts['l1_empty']:.4f}  "
+          f"(a kep {100 * parts['occupied_frac']:.0f}%-a foglalt)")
     print(f"  parameterek  : {n / 1e6:.1f}M")
     print("OK")

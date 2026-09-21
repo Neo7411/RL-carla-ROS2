@@ -1,5 +1,6 @@
 import json
 import os
+import queue
 import random
 import sys
 import time
@@ -42,10 +43,22 @@ LIDAR_ROTATION_HZ = SENSOR_HZ
 LIDAR_POINTS_PER_SEC = int(64 * 1024 * LIDAR_ROTATION_HZ)
 
 # Voxel ritkitas: ekkora (meter) kockankent egy pont marad. 0 = kikapcsolva.
-# Nagyobb ertek = kisebb fajl, de durvabb pontfelho. A HUD mutatja a valos
-# pontszamot es a megtakaritast, a BEV pedig a MAR RITKITOTT pontokat.
-#   0.10 m -> ~55% marad    0.20 m -> ~30%    0.40 m -> ~15%
-VOXEL_SIZE = 0.35
+#
+# KIKAPCSOLVA HAGYNI A HELYES: a szenzor pontosan 64*1024 sugarat lo, a range
+# image pedig pontosan 64*1024 cella - a sugarak tehat egy-az-egyben a
+# cellakra kepzodnek, es MINDEN ritkitas csak veszit belole. Merve (varosi
+# jelenetet modellezve):
+#
+#     voxel    pont/frame   range kitoltottseg   MB/frame
+#     0 (ki)        62878                95.6%      0.755
+#     0.05          59139                89.9%      0.710
+#     0.10          40323                61.4%      0.484
+#     0.35           9713                14.8%      0.117   <- a regi ertek
+#
+# A 95.6% a geometriai plafon: a sugarak ~4%-a az egbe megy vagy 50 m-en
+# tulra. A regi 0.35-os ertekkel a graph_ae range image-enek 85%-a URES volt,
+# ami a fo oka volt annak, hogy az a halo alig tanult.
+VOXEL_SIZE = 0
 
 # Csak megjelenites, nem kerul mentesre.
 BEV_SIZE = 256
@@ -61,15 +74,46 @@ SENSOR_TRANSFORMS = {
                                  carla.Rotation(pitch=-15)),
 }
 
+# Felso korlat a palya spawn-pontjainak szama (Town04: ~370). Ha ennel tobbet
+# kersz, annyi lesz, amennyi elfer - a HUD kiirja a tenyleges darabszamot.
+#
+# A hybrid physics miatt a tavoli autok fizikaja kikapcsol, ezert a 250 nem
+# 12x annyiba kerul, mint a 20. A koltseg foleg a RENDERELES: ha a
+# "Valos FPS" nagyon leesik vagy az "Elveszett" tick nonni kezd, csokkentsd.
 NUM_TRAFFIC = 20
+
+# Ezen a sugaron (meter) belul valodi fizika, kivul egyszerusitett mozgas.
+# Nagyobb forgalomnal ez tartja kezelhetoen a terhelest.
 HYBRID_PHYSICS_RADIUS = 70.0
-EGO_SPEED_KMH = 60.0
+EGO_SPEED_KMH = 90.0
 START_WITH_AUTOPILOT = True
 
-START_RECORDING = True
-EVERY_N_TICK = 1
+START_RECORDING = False
 MAX_FRAMES = None
 
+# Csak minden N. tickben mentunk. 20 Hz-en az EVERY_N_TICK=1 egymastol 2.8 cm-re
+# levo mintakat ad 60 km/h-nal - ezek majdnem azonosak, es a keveres utan a
+# szomszedjaik a VAL halmazba kerulnek, amitol a val loss hamisan jo lesz.
+# A 4-es ertek ~0.2 s-onkent ment (60 km/h-nal ~3.3 m), ami mar erdemben mas
+# jelenet.
+EVERY_N_TICK = 4
+
+# Milyen surun rajzoljunk. Az 1 folyamatos kepet ad (20 Hz), a nagyobb ertek
+# gyorsabb gyujtest, de ugralo kepet - a mentett adatra nincs hatasa.
+# A mentett kamera/BEV panel csak EVERY_N_TICK-enkent frissul (akkor van uj
+# szenzoradat), a kulso nezet viszont minden rajzolasnal.
+DRAW_EVERY = 1
+
+# A szimulacio valos idoben fusson (0 = amilyen gyorsan csak lehet).
+# Enelkul a ciklus annyit porog, amennyit a gep bir - ami GPU-val gyorsabb a
+# valos idonel, es a vezetes irreal isan gyorsnak tunik. A mentett adatra
+# nincs hatasa (a fizika fixed_delta_seconds szerint lepked), csak arra, hogy
+# nezhetol-e, es hogy a kezi vezetes iranyithato-e.
+REALTIME = True
+
+# A kulso nezet kameraja EZT a felbontast rendereli minden tickben, es a
+# pygame ugyanekkora tombot masol at - a mentett adatra nincs hatasa, de a
+# gyujtes sebessegere igen. 1080p-rol 720p-re valtva ~2.2x kevesebb pixel.
 WINDOW_WIDTH, WINDOW_HEIGHT = 1920, 1080
 
 
@@ -174,8 +218,27 @@ def xyz_to_bev_rgb(xyz, size=BEV_SIZE, max_range=LIDAR_RANGE,
     return rgb
 
 
-def frame_name(snapshot):
-    return f"{snapshot.timestamp.elapsed_seconds:011.3f}"
+def _drain_until(q, frame, timeout):
+    """A queue-bol olvas, amig el nem eri a kert frame-et.
+
+    A korabbi mereseket eldobja (azok mar elavultak), a kesobbieket nem
+    tudja visszatenni - de szinkron modban ilyen nincs, mert framenkent
+    pontosan egy meres keletkezik.
+    """
+    while True:
+        data = q.get(timeout=timeout)
+        if data.frame >= frame:
+            return data
+
+
+def frame_name(frame):
+    """A fajlnev a SZIMULACIOS FRAME sorszama.
+
+    Korabban a snapshot ideje volt a nev, ami ket bajt okozott: a mentett
+    kep/felho nem feltetlenul ahhoz a pillanathoz tartozott, es az azonos
+    idobelyeg utkozhetett. A frame-sorszam egyertelmu es szigoruan novekvo.
+    """
+    return f"{frame:09d}"
 
 
 def count_existing(directory, ext):
@@ -253,6 +316,19 @@ class Ego(object):
         self.xyz = None
         self.raw_points = 0
         self.viewer_image = None
+        # Melyik szimulacios frame-bol szarmazik a jelenlegi rgb/xyz par.
+        self.frame = -1
+
+        # A szenzorok ide kuldenek, a collect() innen szedi ossze a KERT
+        # frame-hez tartozo merest. Igy a kamera es a lidar garantaltan
+        # ugyanazt a pillanatot latja - a listen()-be kotott callbackekkel ez
+        # nem volt garantalt, es a mintak fele duplikatum lett tole.
+        self.camera_queue = queue.Queue()
+        self.lidar_queue = queue.Queue()
+        # A kulso nezet csak a kepernyore megy, ott nem szamit a szinkron.
+        self.viewer_queue = queue.Queue()
+        # Respawn utan az elso tick meg adat nelkul jon - nem hiba.
+        self.just_spawned = False
 
         self.weather_presets = [
             (getattr(carla.WeatherParameters, n), n)
@@ -264,6 +340,17 @@ class Ego(object):
 
     def spawn(self):
         self.destroy()
+        # Az elozo auto adatai nem keveredhetnek az ujeval.
+        self.rgb = self.xyz = self.viewer_image = None
+        self.frame = -1
+        # Az uj szenzorok csak a KOVETKEZO ticktol mernek, tehat az aktualis
+        # tickre nem lesz adat. Ez nem hiba - a fociklus ezt a jelzot nezi,
+        # hogy ne szamolja elveszettnek.
+        self.just_spawned = True
+        for q in (self.camera_queue, self.lidar_queue, self.viewer_queue):
+            while not q.empty():
+                q.get_nowait()
+
         bp = self.world.get_blueprint_library().find("vehicle.tesla.model3")
         bp.set_attribute("role_name", "hero")
 
@@ -288,7 +375,7 @@ class Ego(object):
         cam_bp.set_attribute("fov", str(CAM_FOV))
         self.camera = self.world.spawn_actor(
             cam_bp, SENSOR_TRANSFORMS["dashboard"], attach_to=self.player)
-        self.camera.listen(lambda img: setattr(self, "rgb", carla_image_to_rgb(img)))
+        self.camera.listen(self.camera_queue.put)
 
         lidar_bp = bl.find("sensor.lidar.ray_cast")
         lidar_bp.set_attribute("channels", str(LIDAR_CHANNELS))
@@ -298,9 +385,13 @@ class Ego(object):
         lidar_bp.set_attribute("horizontal_fov", "360")
         lidar_bp.set_attribute("points_per_second", str(LIDAR_POINTS_PER_SEC))
         lidar_bp.set_attribute("rotation_frequency", str(LIDAR_ROTATION_HZ))
+        # NINCS sensor_tick: a szenzorok minden tickben mernek, es a ritkitast
+        # a fociklus vegzi (EVERY_N_TICK). A sensor_tick sajat, a szenzor
+        # letrehozasatol szamolt fazissal fut, ami respawn utan elcsuszik a
+        # fociklus ritmusatol - onnantol minden masodik meres elveszett.
         self.lidar = self.world.spawn_actor(
             lidar_bp, SENSOR_TRANSFORMS["lidar"], attach_to=self.player)
-        self.lidar.listen(self._on_lidar)
+        self.lidar.listen(self.lidar_queue.put)
 
         # Kulso nezet, csak a kepernyore.
         view_bp = bl.find("sensor.camera.rgb")
@@ -308,15 +399,46 @@ class Ego(object):
         view_bp.set_attribute("image_size_y", str(WINDOW_HEIGHT))
         self.viewer = self.world.spawn_actor(
             view_bp, SENSOR_TRANSFORMS["spectator"], attach_to=self.player)
-        self.viewer.listen(
-            lambda img: setattr(self, "viewer_image", carla_image_to_rgb(img)))
+        self.viewer.listen(self.viewer_queue.put)
 
-    def _on_lidar(self, measurement):
+    def collect(self, frame, timeout=0.2):
+        """Megvarja a KERT frame-hez tartozo kamera- es lidaradatot.
+
+        Szinkron modban a `world.tick()` utan mindket szenzor pontosan egy
+        merest kuld, de NEM azonnal es nem sorrendben (halozaton jon at),
+        ezert olvasunk a queue-bol a keresett frame-ig.
+
+        Vissza: True, ha mindketto megerkezett.
+        """
+        try:
+            image = _drain_until(self.camera_queue, frame, timeout)
+            measurement = _drain_until(self.lidar_queue, frame, timeout)
+
+            # A ket szenzor sensor_tick-je respawn utan elcsuszhat egymastol
+            # (mindegyik a sajat letrehozasatol szamol), ezert a kesobbihez
+            # igazitjuk a masikat.
+            while image.frame < measurement.frame:
+                image = _drain_until(self.camera_queue, measurement.frame, timeout)
+            while measurement.frame < image.frame:
+                measurement = _drain_until(self.lidar_queue, image.frame, timeout)
+        except queue.Empty:
+            return False
+
+        self.rgb = carla_image_to_rgb(image)
         raw = carla_lidar_to_xyz(measurement)
         # A ritkitott felho megy MENTESRE es a BEV-re is: amit a kepernyon
         # latsz, pontosan az kerul a fajlba.
         self.xyz = voxel_downsample(raw)
         self.raw_points = len(raw)
+        self.frame = measurement.frame
+
+        return True
+
+    def drain_viewer(self):
+        """A kulso nezet legfrissebb kepe. Nem varunk ra: ha nincs uj, marad
+        a regi. Kulonben a queue korlatlanul nooene."""
+        while not self.viewer_queue.empty():
+            self.viewer_image = carla_image_to_rgb(self.viewer_queue.get_nowait())
 
     def next_weather(self, reverse=False):
         step = -1 if reverse else 1
@@ -384,6 +506,10 @@ def main():
 
         recording = START_RECORDING
         tick_count = 0
+        skipped = 0
+        # A HUD panelek kepei. Csak uj szenzoradatnal szamoljuk ujra oket.
+        range_img = range_rgb = bev_rgb = None
+        range_fill = 0.0
         clock = pygame.time.Clock()
         last_report = time.time()
         running = True
@@ -392,9 +518,17 @@ def main():
               f"({'FUT' if recording else 'SZUNET'})")
 
         while running:
-            world.tick()
+            frame = world.tick()
             tick_count += 1
-            snapshot = world.get_snapshot()
+
+            # Minden tickben beolvassuk a szenzorokat - igy a queue-k nem
+            # nonek, es a kep is folyamatos. Menteni csak EVERY_N_TICK-enkent
+            # mentunk, lentebb.
+            got_data = ego.collect(frame)
+            if not got_data and not ego.just_spawned:
+                skipped += 1
+            if got_data:
+                ego.just_spawned = False
 
             for event in pygame.event.get():
                 controller.handle_event(event)
@@ -423,9 +557,13 @@ def main():
             if not autopilot:
                 throttle, brake, steer = controller.apply(ego.player, FIXED_DELTA)
 
-            has_pair = ego.rgb is not None and ego.xyz is not None
-            if recording and has_pair and tick_count % EVERY_N_TICK == 0:
-                name = frame_name(snapshot)
+            # A `got_data` a tick elejen keszult, a respawn viszont utana is
+            # johet (Backspace) - olyankor az ego adatai mar torolve vannak.
+            has_data = ego.rgb is not None and ego.xyz is not None
+            if recording and has_data and tick_count % EVERY_N_TICK == 0:
+                # A nev a szimulacios frame sorszama, tehat a png es az npy
+                # garantaltan ugyanahhoz a pillanathoz tartozik.
+                name = frame_name(ego.frame)
 
                 surface = pygame.surfarray.make_surface(ego.rgb.swapaxes(0, 1))
                 surface = pygame.transform.smoothscale(surface,
@@ -434,16 +572,42 @@ def main():
                 np.save(os.path.join(LIDAR_DIR, name + ".npy"), ego.xyz)
 
                 saved_this_run += 1
+
                 if MAX_FRAMES is not None and saved_this_run >= MAX_FRAMES:
                     print(f"\n[collect] elertuk a {MAX_FRAMES} frame-et, leallas")
                     running = False
 
             # --- rajzolas ---
-            # A range image-et a panelhez es az allapotsorhoz is hasznaljuk,
-            # ezert itt szamoljuk ki egyszer.
-            range_img = (xyz_to_range_image(ego.xyz) if ego.xyz is not None
-                         else np.full(RANGE_SIZE, -1, dtype=np.float32))
-            range_fill = 100.0 * (range_img >= 0).mean()
+            # Csak minden DRAW_EVERY. tickben: a kepernyo tartalma a mentett
+            # adatra nincs hatassal, a range image / BEV kiszamitasa viszont
+            # ritkitas nelkuli felhon (65536 pont) ~6 ms, a teljes rajzolas
+            # pedig ennek a tobbszorose. 4-es ertekkel a HUD 5 Hz-en frissul,
+            # ami szemnek boven eleg.
+            if recording and time.time() - last_report > 2.0:
+                last_report = time.time()
+                print(f"\r[collect] {existing + saved_this_run} frame | "
+                      f"{saved_this_run} most | {clock.get_fps():.1f} FPS | "
+                      f"{skipped} elveszett",
+                      end="", flush=True)
+
+            if tick_count % DRAW_EVERY:
+                clock.tick(SENSOR_HZ if REALTIME else 0)
+                continue
+
+            ego.drain_viewer()
+
+            # A range image csak akkor valtozik, ha uj lidaradat jott - a
+            # koztes tickekben ujraszamolni felesleges (65536 ponton ~6 ms).
+            # Respawn utan a panelek eltunnek, amig az uj auto adata meg nem
+            # jon (ezert nullazzuk oket, ha nincs felho).
+            if not has_data:
+                range_img = range_rgb = bev_rgb = None
+                range_fill = 0.0
+            elif got_data or range_rgb is None:
+                range_img = xyz_to_range_image(ego.xyz)
+                range_fill = 100.0 * (range_img >= 0).mean()
+                bev_rgb = xyz_to_bev_rgb(ego.xyz)
+                range_rgb = range_image_to_rgb(range_img)
 
             if ego.viewer_image is not None:
                 display.blit(pygame.surfarray.make_surface(
@@ -451,7 +615,9 @@ def main():
             else:
                 display.fill((0, 0, 0))
 
-            pw = 320
+            # A panelsav az ablak szelessegehez igazodik, hogy kisebb
+            # felbontason se nojon ki a kepernyorol.
+            pw = WINDOW_WIDTH // 6
             px = WINDOW_WIDTH - pw - 10
             py = 10
             border = (255, 60, 60) if recording else (90, 90, 90)
@@ -463,7 +629,7 @@ def main():
                              (px, ypos + height + 2))
                 return ypos + height + 24
 
-            if ego.rgb is not None:
+            if has_data:
                 # Le-, majd visszanagyitva: igy azt latod, ami a fajlba kerul.
                 small = pygame.transform.smoothscale(
                     pygame.surfarray.make_surface(ego.rgb.swapaxes(0, 1)),
@@ -471,19 +637,17 @@ def main():
                 py = draw_panel(small, f"mentett kamera ({SAVE_WIDTH}x{SAVE_HEIGHT})",
                                 int(pw * SAVE_HEIGHT / SAVE_WIDTH), py)
 
-            if ego.xyz is not None:
-                bev = xyz_to_bev_rgb(ego.xyz)
+            if has_data:
                 label = f"lidar BEV - MENTETT ({len(ego.xyz)} pont"
                 label += f", voxel {VOXEL_SIZE} m)" if VOXEL_SIZE > 0 else ")"
-                py = draw_panel(pygame.surfarray.make_surface(bev.swapaxes(0, 1)),
+                py = draw_panel(pygame.surfarray.make_surface(bev_rgb.swapaxes(0, 1)),
                                 label, pw, py)
 
                 # A range image: EZT kapna a halo. A ritkitas hatasa ITT
                 # latszik igazan - a BEV durvabb cellai elfedik a lyukakat.
                 # A 16:1 arany miatt fuggolegesen nyujtva rajzoljuk.
                 py = draw_panel(
-                    pygame.surfarray.make_surface(
-                        range_image_to_rgb(range_img).swapaxes(0, 1)),
+                    pygame.surfarray.make_surface(range_rgb.swapaxes(0, 1)),
                     f"range image - EZEN TANUL ({range_fill:.0f}% kitoltott)",
                     90, py)
 
@@ -498,6 +662,8 @@ def main():
                    if VOXEL_SIZE > 0 and ego.raw_points else ""),
                 f"Meret:        {0 if ego.xyz is None else len(ego.xyz) * 12 / 1e6:.2f} MB/frame",
                 f"Range kitolt: {range_fill:5.1f}%  (95% = ritkitas nelkul)",
+                f"Elveszett:    {skipped:5d} tick  (szenzor timeout - "
+                f"0 a normalis)",
                 f"Sebesseg:     {kmh:5.1f} km/h",
                 f"Vezetes:      {'autopilot' if autopilot else 'KEZI'}  (P = valt)",
                 f"Frekvencia:   {SENSOR_HZ:.0f} Hz (sync)",
@@ -517,13 +683,7 @@ def main():
                 display.blit(text, (12, 8 + i * 22))
 
             pygame.display.flip()
-            clock.tick()
-
-            if recording and time.time() - last_report > 2.0:
-                last_report = time.time()
-                print(f"\r[collect] {existing + saved_this_run} frame | "
-                      f"{saved_this_run} most | {clock.get_fps():.1f} FPS",
-                      end="", flush=True)
+            clock.tick(SENSOR_HZ if REALTIME else 0)
 
     except KeyboardInterrupt:
         print("\n[collect] leallitas (Ctrl+C)")
@@ -532,7 +692,11 @@ def main():
         meta = {
             "town": TOWN,
             "frames": count_existing(CAMERA_DIR, ".png"),
-            "fps": SENSOR_HZ,
+            # A MENTES frekvenciaja, nem a szenzore: minden EVERY_N_TICK-edik
+            # tickben mentunk.
+            "fps": SENSOR_HZ / EVERY_N_TICK,
+            "sensor_hz": SENSOR_HZ,
+            "every_n_tick": EVERY_N_TICK,
             "fixed_delta_seconds": FIXED_DELTA,
             "naming": "a fajlnev a szimulacios ido; az azonos nevu png es npy "
                       "egy pillanatban keszult",
