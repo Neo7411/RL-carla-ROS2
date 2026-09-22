@@ -26,38 +26,20 @@ LIDAR_DIR = os.path.join(OUT_DIR, "lidar")
 FIXED_DELTA = 0.05
 SENSOR_HZ = 1.0 / FIXED_DELTA
 
-# Nagyobban renderelunk, mint amit mentunk: a lekicsinyites atlagol, igy a
-# 160x80 tisztabb, mintha rogton ekkoraban renderelnenk.
 CAM_WIDTH, CAM_HEIGHT = 640, 320
 SAVE_WIDTH, SAVE_HEIGHT = 160, 80
 CAM_FOV = 110
 
-# Egyeznie kell a lidar_ae.py range image parametereivel.
+
 LIDAR_CHANNELS = 64
 LIDAR_RANGE = 50.0
 LIDAR_UPPER_FOV = 10.0
 LIDAR_LOWER_FOV = -25.0
-# Szinkron modban a rotation_frequency = tick frekvencia, kulonben egy tick
-# alatt nem pont egy teljes fordulat jon ossze.
+
 LIDAR_ROTATION_HZ = SENSOR_HZ
 LIDAR_POINTS_PER_SEC = int(64 * 1024 * LIDAR_ROTATION_HZ)
 
-# Voxel ritkitas: ekkora (meter) kockankent egy pont marad. 0 = kikapcsolva.
-#
-# KIKAPCSOLVA HAGYNI A HELYES: a szenzor pontosan 64*1024 sugarat lo, a range
-# image pedig pontosan 64*1024 cella - a sugarak tehat egy-az-egyben a
-# cellakra kepzodnek, es MINDEN ritkitas csak veszit belole. Merve (varosi
-# jelenetet modellezve):
-#
-#     voxel    pont/frame   range kitoltottseg   MB/frame
-#     0 (ki)        62878                95.6%      0.755
-#     0.05          59139                89.9%      0.710
-#     0.10          40323                61.4%      0.484
-#     0.35           9713                14.8%      0.117   <- a regi ertek
-#
-# A 95.6% a geometriai plafon: a sugarak ~4%-a az egbe megy vagy 50 m-en
-# tulra. A regi 0.35-os ertekkel a graph_ae range image-enek 85%-a URES volt,
-# ami a fo oka volt annak, hogy az a halo alig tanult.
+
 VOXEL_SIZE = 0
 
 # Csak megjelenites, nem kerul mentesre.
@@ -74,16 +56,8 @@ SENSOR_TRANSFORMS = {
                                  carla.Rotation(pitch=-15)),
 }
 
-# Felso korlat a palya spawn-pontjainak szama (Town04: ~370). Ha ennel tobbet
-# kersz, annyi lesz, amennyi elfer - a HUD kiirja a tenyleges darabszamot.
-#
-# A hybrid physics miatt a tavoli autok fizikaja kikapcsol, ezert a 250 nem
-# 12x annyiba kerul, mint a 20. A koltseg foleg a RENDERELES: ha a
-# "Valos FPS" nagyon leesik vagy az "Elveszett" tick nonni kezd, csokkentsd.
 NUM_TRAFFIC = 20
 
-# Ezen a sugaron (meter) belul valodi fizika, kivul egyszerusitett mozgas.
-# Nagyobb forgalomnal ez tartja kezelhetoen a terhelest.
 HYBRID_PHYSICS_RADIUS = 70.0
 EGO_SPEED_KMH = 90.0
 START_WITH_AUTOPILOT = True
@@ -91,29 +65,15 @@ START_WITH_AUTOPILOT = True
 START_RECORDING = False
 MAX_FRAMES = None
 
-# Csak minden N. tickben mentunk. 20 Hz-en az EVERY_N_TICK=1 egymastol 2.8 cm-re
-# levo mintakat ad 60 km/h-nal - ezek majdnem azonosak, es a keveres utan a
-# szomszedjaik a VAL halmazba kerulnek, amitol a val loss hamisan jo lesz.
-# A 4-es ertek ~0.2 s-onkent ment (60 km/h-nal ~3.3 m), ami mar erdemben mas
-# jelenet.
+
 EVERY_N_TICK = 4
 
-# Milyen surun rajzoljunk. Az 1 folyamatos kepet ad (20 Hz), a nagyobb ertek
-# gyorsabb gyujtest, de ugralo kepet - a mentett adatra nincs hatasa.
-# A mentett kamera/BEV panel csak EVERY_N_TICK-enkent frissul (akkor van uj
-# szenzoradat), a kulso nezet viszont minden rajzolasnal.
+
 DRAW_EVERY = 1
 
-# A szimulacio valos idoben fusson (0 = amilyen gyorsan csak lehet).
-# Enelkul a ciklus annyit porog, amennyit a gep bir - ami GPU-val gyorsabb a
-# valos idonel, es a vezetes irreal isan gyorsnak tunik. A mentett adatra
-# nincs hatasa (a fizika fixed_delta_seconds szerint lepked), csak arra, hogy
-# nezhetol-e, es hogy a kezi vezetes iranyithato-e.
+
 REALTIME = True
 
-# A kulso nezet kameraja EZT a felbontast rendereli minden tickben, es a
-# pygame ugyanekkora tombot masol at - a mentett adatra nincs hatasa, de a
-# gyujtes sebessegere igen. 1080p-rol 720p-re valtva ~2.2x kevesebb pixel.
 WINDOW_WIDTH, WINDOW_HEIGHT = 1920, 1080
 
 
