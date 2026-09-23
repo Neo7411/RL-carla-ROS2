@@ -216,6 +216,37 @@ def points_to_range_image(xyz, size=(44, 256), fov=(-0.9, -25.0),
     return process_scan(pcd2range(xyz, size, fov, depth_range), depth_scale)
 
 
+def range_to_points(range_img, fov=(-0.9, -25.0), depth_scale=5.68,
+                    depth_range=(1.0, 50.0)):
+    """A points_to_range_image inverze: (1,H,W) [-1,1] -> (N,3) XYZ.
+
+    Megjelenitesre: a range image lapos csik, felulnezetbe vetitve viszont
+    ranezesre ertelmezheto. A cellan beluli pozicio nem jon vissza (a cella
+    kozepet vesszuk), ez ~0.2 m hiba. Az ures cellak kiesnek.
+    """
+    r = np.asarray(range_img, dtype=np.float32)
+    if r.ndim == 3:
+        r = r[0]
+    h, w = r.shape
+
+    fov_down = fov[1] / 180.0 * np.pi
+    fov_range = abs(fov_down) + abs(fov[0] / 180.0 * np.pi)
+
+    # process_scan inverze: [-1,1] -> meter
+    depth = np.exp2((r + 1.0) * 0.5 * depth_scale) - 1.0
+    rows, cols = np.nonzero(depth > depth_range[0])
+
+    # pcd2range inverze: cellaindex -> szog (+0.5 = a cella kozepe)
+    yaw = (2.0 * (cols + 0.5) / w - 1.0) * np.pi
+    pitch = (1.0 - (rows + 0.5) / h) * fov_range - abs(fov_down)
+
+    # gombi -> Descartes (a minusz a pcd2range yaw-elojelet forditja vissza)
+    dep = depth[rows, cols]
+    xy = dep * np.cos(pitch)
+    return np.stack([xy * np.cos(-yaw), xy * np.sin(-yaw),
+                     dep * np.sin(pitch)], axis=1).astype(np.float32)
+
+
 # =============================================================================
 # 2. EPITOKOCKAK
 # =============================================================================

@@ -137,8 +137,13 @@ class CarlaRouteEnv(gym.Env):
                                      transform=sensor_transforms["spectator"],
                                      attach_to=self.vehicle, on_recv_image=lambda e: self._set_viewer_image(e))
             if self.activate_lidar:
-                self.lidar = Lidar(self.world, transform=sensor_transforms["lidar"],
-                                   attach_to=self.vehicle, on_recv_image=lambda e: self._set_lidar_data(e))
+                # Ket kimenet, ket celra: a BEV kep CSAK a HUD-hoz kell (ezert
+                # render nelkul be sem kerjuk), a nyers pontfelho pedig a
+                # range image-en keresztul a halonak megy.
+                self.lidar = Lidar(
+                    self.world, transform=sensor_transforms["lidar"],
+                    attach_to=self.vehicle,
+                    on_recv_points=lambda p: self._set_lidar_points(p))
         except Exception as e:
             raise e
         # Reset env to set initial state
@@ -159,7 +164,9 @@ class CarlaRouteEnv(gym.Env):
         self.observation = self.observation_buffer = None  # Last received observation
         self.ae_reconstruction = None  # AE rekonstrukcio a HUD-hoz (encode_state_fn tolti)
         self.viewer_image = self.viewer_image_buffer = None  # Last received image to show in the viewer
-        self.lidar_data = self.lidar_data_buffer = None
+        self.lidar_points = self.lidar_points_buffer = None
+        # BEV a HUD-hoz: amit a halo kap / amit visszaad (encode_state_fn tolti)
+        self.lidar_bev_input = self.lidar_bev_recon = None
         self.step_count = 0
 
         # Init metrics
@@ -375,28 +382,41 @@ class CarlaRouteEnv(gym.Env):
             self.viewer_image = self._draw_path(self.camera, self.viewer_image)
             self.display.blit(pygame.surfarray.make_surface(self.viewer_image.swapaxes(0, 1)), (0, 0))
 
-        # Superimpose current observation into top-right corner
-        obs_h, obs_w = self.observation.shape[:2]
-        pos_observation = (self.display.get_size()[0] - obs_w - 10, 10)
-        self.display.blit(pygame.surfarray.make_surface(self.observation.swapaxes(0, 1)), pos_observation)
+        # Jobb oldali oszlop: amit az agent lat. Soronkent egy cim, alatta a
+        # kep(ek). A lidar ket kepe egy sorban: bemenet es rekonstrukcio.
+        PAD, GAP, TITLE = 10, 8, 18
+        rows = [("camera", [self.observation]),
+                ("camera AE recon", [self.ae_reconstruction]),
+                ("lidar BEV  (in / recon)", [self.lidar_bev_input, self.lidar_bev_recon])]
+        rows = [(t, [i for i in imgs if i is not None]) for t, imgs in rows]
+        rows = [(t, imgs) for t, imgs in rows if imgs]
 
-        # Alatta az AE rekonstrukcioja: ez mutatja, mit tart meg a latent,
-        # vagyis mit "lat" tenylegesen az agent.
-        if getattr(self, "ae_reconstruction", None) is not None:
-            pos_recon = (self.display.get_size()[0] - obs_w - 10, 10 + obs_h + 24)
-            self.display.blit(
-                pygame.surfarray.make_surface(self.ae_reconstruction.swapaxes(0, 1)),
-                pos_recon)
-            self.display.blit(
-                self.hud.font_mono.render("AE recon", True, (255, 255, 255)),
-                (pos_recon[0], pos_recon[1] - 18))
+        if rows:
+            # A panel szelessege a legszelesebb sorhoz igazodik, igy minden
+            # elem ugyanabba az oszlopba kerul.
+            panel_w = max(sum(i.shape[1] for i in imgs) + GAP * (len(imgs) - 1)
+                          for _, imgs in rows) + 2 * PAD
+            panel_h = sum(TITLE + max(i.shape[0] for i in imgs) for _, imgs in rows) \
+                + GAP * (len(rows) - 1) + 2 * PAD
+            panel_x = self.display.get_size()[0] - panel_w - PAD
 
-        if self.activate_lidar:
-            # A lidar magassag-kodolt float kepet ad - szinezni kell, mert a
-            # make_surface csak uint8 RGB-vel mukodik.
-            lidar_rgb = lidar_bev_to_rgb(self.lidar_data)
-            pos_lidar = (self.display.get_size()[0] - obs_w - 10, 100)
-            self.display.blit(pygame.surfarray.make_surface(lidar_rgb.swapaxes(0, 1)), pos_lidar)
+            # Felatlatszo hatter, mint a bal oldali HUD-sav - kulonben a
+            # vilagos kamerakepen a feher felirat olvashatatlan.
+            bg = pygame.Surface((panel_w, panel_h))
+            bg.set_alpha(100)
+            self.display.blit(bg, (panel_x, PAD))
+
+            y = 2 * PAD
+            for title, imgs in rows:
+                self.display.blit(
+                    self.hud.font_mono.render(title, True, (255, 255, 255)),
+                    (panel_x + PAD, y))
+                y += TITLE
+                x = panel_x + PAD
+                for img in imgs:
+                    self.display.blit(pygame.surfarray.make_surface(img.swapaxes(0, 1)), (x, y))
+                    x += img.shape[1] + GAP
+                y += max(i.shape[0] for i in imgs) + GAP
 
         # Render HUD
         self.hud.render(self.display, extra_info=self.extra_info)
@@ -437,7 +457,7 @@ class CarlaRouteEnv(gym.Env):
             self.viewer_image = self._get_viewer_image()
 
         if self.activate_lidar:
-            self.lidar_data = self._get_lidar_data()
+            self.lidar_points = self._get_lidar_points()
         _t2 = time.perf_counter()
 
         # Get vehicle transform
@@ -634,12 +654,12 @@ class CarlaRouteEnv(gym.Env):
         self.viewer_image_buffer = None
         return image
 
-    def _get_lidar_data(self):
-        while self.lidar_data_buffer is None:
+    def _get_lidar_points(self):
+        while self.lidar_points_buffer is None:
             time.sleep(0.001)
-        image = self.lidar_data_buffer.copy()
-        self.lidar_data_buffer = None
-        return image
+        points = self.lidar_points_buffer
+        self.lidar_points_buffer = None
+        return points
 
     def _on_collision(self, event):
         if get_actor_display_name(event.other_actor) != "Road":
@@ -662,5 +682,6 @@ class CarlaRouteEnv(gym.Env):
     def _set_viewer_image(self, image):
         self.viewer_image_buffer = image
 
-    def _set_lidar_data(self, image):
-        self.lidar_data_buffer = image
+
+    def _set_lidar_points(self, points):
+        self.lidar_points_buffer = points

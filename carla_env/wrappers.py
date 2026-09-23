@@ -169,55 +169,60 @@ class CarlaActorBase(object):
 # Lidar
 # ===============================================================================
 
-def lidar_bev_to_rgb(bev):
-    """
-    Magassag-kodolt BEV (H, W) float [0,1] -> (H, W, 3) uint8, megjelenitesre.
+def points_to_bev_rgb(xyz, size=140, lidar_range=30.0, z_ground=-2.3, z_max=4.0):
+    """(N,3) XYZ -> (size,size,3) uint8 felulnezeti kep. Szin = magassag.
 
-    Szinskala szurkearnyalat helyett: a magassag igy szabad szemmel is
-    leolvashato. Az ures cellak feketek maradnak, kulonben a "nincs itt semmi"
-    ugyanugy nezne ki, mint a talajszintu pont.
+    A hatotav 30 m es nem 50: a HUD-on igy 0.43 m/pixel, amin egy auto ~10
+    pixel. Teljes 50 m-en minden osszefolyna.
+
+    A z_ground alatti pontok kiesnek. A szenzor 2.4 m magasan van, tehat a
+    talaj -2.40 m-nel ul (a pontok fele!) - nelkule a kep csak koncentrikus
+    talajgyuruk lennenek, az akadalyok nem latszanak.
     """
-    rgb = np.zeros((bev.shape[0], bev.shape[1], 3), dtype=np.uint8)
-    occupied = bev > 0.0
-    # alacsony -> zold, kozepes -> sarga, magas -> piros
-    rgb[:, :, 0] = np.clip(bev * 2.0, 0, 1) * 255        # R no a magassaggal
-    rgb[:, :, 1] = np.clip(2.0 - bev * 2.0, 0, 1) * 255  # G csokken
-    rgb[~occupied] = 0
+    rgb = np.zeros((size, size, 3), dtype=np.uint8)
+    if xyz is None or len(xyz) == 0:
+        return rgb
+
+    xyz = xyz[xyz[:, 2] > z_ground]
+    if len(xyz) == 0:
+        return rgb
+
+    scale = size / (2.0 * float(lidar_range))
+    px = (-xyz[:, 0] * scale + 0.5 * size).astype(np.int32)  # elore = felfele
+    py = (xyz[:, 1] * scale + 0.5 * size).astype(np.int32)
+
+    inside = (px >= 0) & (px < size) & (py >= 0) & (py < size)
+    px, py = px[inside], py[inside]
+    z = np.clip((xyz[inside, 2] - z_ground) / (z_max - z_ground), 0.0, 1.0)
+
+    # egy cellaban a legmagasabb pont nyer, hogy az akadalyok ne tunjenek el
+    order = np.argsort(z)
+    px, py, z = px[order], py[order], z[order]
+
+    rgb[px, py, 0] = np.clip(z * 2.0, 0, 1) * 255
+    rgb[px, py, 1] = np.clip(2.0 - z * 2.0, 0, 1) * 255
     return rgb
 
 
 class Lidar(CarlaActorBase):
     """
-    Ray-cast lidar. Ket kimenete van, KULON celra:
-
-      on_recv_image  -> (H, W) float [0,1] felulnezeti (BEV) kep. Ez csak
-                        MEGJELENITES: az ember ezt tudja ertelmezni ranezesre.
-                        A pixel erteke az oda eso legmagasabb pont z-je.
+    Ray-cast lidar.
 
       on_recv_points -> (N, 3) nyers XYZ pontfelho a szenzor sajat
-                        koordinatarendszereben. EZ megy a halonak: ebbol keszul
-                        a range image (feature_extractions/lidar).
+                        koordinatarendszereben. Ebbol keszul a range image
+                        (feature_extractions/lidar), ami a halo bemenete.
 
-    Miert nem a BEV megy a halonak: a BEV felulnezet, ahol az uttest nagy resze
-    ures - meressel a kep csak ~3%-ban kitoltott, es a graf-encoder Stemje utan
-    a pontok mindossze 11%-a hordoz informaciot. A range image ezzel szemben a
-    szenzor SAJAT nezopontjat orzi meg (64 elevacio x 1024 azimut), ahol
-    gyakorlatilag minden sugarnak van merese: ~96% kitoltottseg, a Stem utan
-    97% tartalmas pont. A graf-encodernek pont ilyen suru bemenet kell.
+    Miert range image es nem BEV: a BEV felulnezet, ahol az uttest nagy resze
+    ures - meressel a kep csak ~3%-ban kitoltott. A range image a szenzor SAJAT
+    nezopontjat orzi meg, ahol gyakorlatilag minden sugarnak van merese (~96%
+    kitoltottseg). A graf-encodernek ilyen suru bemenet kell. A HUD BEV-je a
+    range image-bol szamolodik VISSZA - lasd points_to_bev_rgb.
     """
 
-    def __init__(self, world, width=256, height=256, transform=carla.Transform(), on_recv_image=None,
+    def __init__(self, world, transform=carla.Transform(),
                  attach_to=None, on_recv_points=None):
-        self._width = width
-        self._height = height
-        self.on_recv_image = on_recv_image
         self.on_recv_points = on_recv_points
         self.range = 50
-        # A magassag-kodolas hatarai meterben, a szenzorhoz kepest. A szenzor
-        # z=2.4-en van, tehat a talaj kb. -2.4. A felso hatar 4 m: e folott mar
-        # csak epuletek es fak vannak, azokat egy szintre vonjuk ossze.
-        self._z_min = -3.0
-        self._z_max = 4.0
 
         # Setup lidar blueprint
         #
@@ -274,39 +279,6 @@ class Lidar(CarlaActorBase):
             xyz = points[:, :3].copy()
             xyz[:, 1] = -xyz[:, 1]
             self.on_recv_points(xyz)
-
-        if not callable(self.on_recv_image):
-            return
-
-        # Meterbol pixelbe. A kep kozepe (0, 0) = az ego auto.
-        #
-        # NINCS np.fabs(): a regi kod abszolutertekkel szamolt, ami a kep egy
-        # negyedebe gyurte az egesz jelenetet - az autotol balra es jobbra, il-
-        # letve elore es hatra eso pontok egymasra tukrozodtek. 110 fokos,
-        # elore nezo lidarnal ez meg nem tunt fel, 360 foknal viszont az auto
-        # mogotti forgalom rahajtogatodna az elotte levore.
-        scale = min(self._width, self._height) / (2.0 * float(self.range))
-        px = points[:, 0] * scale + 0.5 * self._width
-        py = points[:, 1] * scale + 0.5 * self._height
-
-        # A hatotavon kivuli pontokat ELDOBJUK, nem levagjuk: a clip a kep
-        # szelere kenne oket egy hamis "fal" csikot rajzolva.
-        inside = (px >= 0) & (px < self._width) & (py >= 0) & (py < self._height)
-        px = px[inside].astype(np.int32)
-        py = py[inside].astype(np.int32)
-        pz = points[inside, 2]
-
-        # Magassag -> [0, 1]. A z_min alatti (talaj) es z_max feletti
-        # (epuletteto) ertekek a ket vegponton torlodnak ossze.
-        z_norm = np.clip((pz - self._z_min) / (self._z_max - self._z_min), 0.0, 1.0)
-
-        # Egy cellaba tobb pont is eshet - a LEGMAGASABBAT tartjuk meg. A
-        # maximum.at azert kell, mert a sima indexeles (img[py, px] = z) nem
-        # determinisztikus utkozesnel: az utolso ertek nyerne, nem a legnagyobb.
-        lidar_img = np.zeros((self._height, self._width), dtype=np.float32)
-        np.maximum.at(lidar_img, (py, px), z_norm)
-
-        self.on_recv_image(lidar_img)
 
 
 # ===============================================================================
