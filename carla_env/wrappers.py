@@ -1,4 +1,5 @@
 import carla
+import cv2
 import numpy as np
 import weakref
 
@@ -169,22 +170,95 @@ class CarlaActorBase(object):
 # Lidar
 # ===============================================================================
 
+def points_to_bev_rgb(xyz, size=140, lidar_range=30.0, z_ground=-2.3, z_max=4.0):
+    """(N,3) XYZ -> (size,size,3) uint8 felulnezeti kep. Szin = magassag.
+
+    A hatotav 30 m es nem 50: a HUD-on igy 0.43 m/pixel, amin egy auto ~10
+    pixel. Teljes 50 m-en minden osszefolyna.
+
+    A z_ground alatti pontok kiesnek. A szenzor 2.4 m magasan van, tehat a
+    talaj -2.40 m-nel ul (a pontok fele!) - nelkule a kep csak koncentrikus
+    talajgyuruk lennenek, az akadalyok nem latszanak.
+    """
+    rgb = np.zeros((size, size, 3), dtype=np.uint8)
+    if xyz is None or len(xyz) == 0:
+        return rgb
+
+    xyz = xyz[xyz[:, 2] > z_ground]
+    if len(xyz) == 0:
+        return rgb
+
+    scale = size / (2.0 * float(lidar_range))
+    px = (-xyz[:, 0] * scale + 0.5 * size).astype(np.int32)  # elore = felfele
+    py = (xyz[:, 1] * scale + 0.5 * size).astype(np.int32)
+
+    inside = (px >= 0) & (px < size) & (py >= 0) & (py < size)
+    px, py = px[inside], py[inside]
+    z = np.clip((xyz[inside, 2] - z_ground) / (z_max - z_ground), 0.0, 1.0)
+
+    # egy cellaban a legmagasabb pont nyer, hogy az akadalyok ne tunjenek el
+    order = np.argsort(z)
+    px, py, z = px[order], py[order], z[order]
+
+    rgb[px, py, 0] = np.clip(z * 2.0, 0, 1) * 255
+    rgb[px, py, 1] = np.clip(2.0 - z * 2.0, 0, 1) * 255
+    return rgb
+
+
 class Lidar(CarlaActorBase):
-    def __init__(self, world, width=120, height=120, transform=carla.Transform(), on_recv_image=None,
-                 attach_to=None):
-        self._width = width
-        self._height = height
-        self.on_recv_image = on_recv_image
-        self.range = 20
+    """
+    Ray-cast lidar.
+
+      on_recv_points -> (N, 3) nyers XYZ pontfelho a szenzor sajat
+                        koordinatarendszereben. Ebbol keszul a range image
+                        (feature_extractions/lidar), ami a halo bemenete.
+
+    Miert range image es nem BEV: a BEV felulnezet, ahol az uttest nagy resze
+    ures - meressel a kep csak ~3%-ban kitoltott. A range image a szenzor SAJAT
+    nezopontjat orzi meg, ahol gyakorlatilag minden sugarnak van merese (~96%
+    kitoltottseg). A graf-encodernek ilyen suru bemenet kell. A HUD BEV-je a
+    range image-bol szamolodik VISSZA - lasd points_to_bev_rgb.
+    """
+
+    def __init__(self, world, transform=carla.Transform(),
+                 attach_to=None, on_recv_points=None, rotation_frequency=20):
+        self.on_recv_points = on_recv_points
+        self.range = 50
+
         # Setup lidar blueprint
+        #
+        # 360 fokos, mert a range image azimut tengelye korbeer, es a halo
+        # CircularConv2d-je erre epul: az utolso oszlopot a legelsohoz padeli.
+        # Kisebb FOV-nal a halo a jelenet ket, egymassal NEM szomszedos szelet
+        # ragasztana ossze.
+        #
+        # points_per_second es rotation_frequency EGYUTT jar, es a
+        # rotation_frequency-nek a szimulacio fps-evel kell egyeznie
+        # (a CarlaRouteEnv igy adja at).
+        #
+        # Egy tick alatt a lidar rotation_frequency / fps fordulatot tesz, es
+        # points_per_second / fps sugarat lo ki. Fordulatonkent 64 x 1024
+        # sugar kell, tehat points_per_second = 64 * 1024 * rotation_frequency.
+        #
+        # A korabbi 40 Hz fps=20 mellett tickenkent KET fordulat volt: ugyanaz
+        # a 64 x 1024 irany ketszer. Ez dupla szerveroldali raycast, dupla
+        # adat es dupla pcd2range munka (+6 ms/step), es MAS eloszlas, mint a
+        # tanito adat: a ray_cast lidar a pontok 45%-at veletlenul eldobja
+        # (dropoff_general_rate), a dupla sugarbol pedig tobb marad. Merve:
+        #
+        #     40 Hz: 58.6k pont/tick, a range image 95.2%-a kitoltott
+        #     20 Hz: 30.5k pont/tick, 91.9%   (tanito adat: 28.4k, 90.2%)
+        #
+        # A tanito adat gyujtoje is igy all (collect_train_data.py:
+        # LIDAR_ROTATION_HZ = SENSOR_HZ).
         lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast')
-        lidar_bp.set_attribute('points_per_second', '50000')
+        lidar_bp.set_attribute('points_per_second', str(int(64 * 1024 * rotation_frequency)))
         lidar_bp.set_attribute('channels', '64')
         lidar_bp.set_attribute('range', str(self.range))
         lidar_bp.set_attribute('upper_fov', '10')
-        lidar_bp.set_attribute('horizontal_fov', '110')
-        lidar_bp.set_attribute('lower_fov', '-20')
-        lidar_bp.set_attribute('rotation_frequency', '30')
+        lidar_bp.set_attribute('horizontal_fov', '360')
+        lidar_bp.set_attribute('lower_fov', '-25')
+        lidar_bp.set_attribute('rotation_frequency', str(rotation_frequency))
 
         # Create and setup camera actor
         weak_self = weakref.ref(self)
@@ -199,31 +273,20 @@ class Lidar(CarlaActorBase):
         self = weak_self()
         if not self:
             return
-        if callable(self.on_recv_image):
-            lidar_range = 2.0 * float(self.range)
+        # A CARLA bufferje (x, y, z, intensity) negyesek sorozata.
+        points = np.frombuffer(raw.raw_data, dtype=np.dtype('f4'))
+        points = np.reshape(points, (int(points.shape[0] / 4), 4))
 
-            points = np.frombuffer(raw.raw_data, dtype=np.dtype('f4'))
-            points = np.reshape(points, (int(points.shape[0] / 4), 4))
-            lidar_data = np.array(points[:, :2])
-            lidar_data *= min(self._width, self._height) / lidar_range
-            lidar_data += (0.5 * self._width, 0.5 * self._height)
-            lidar_data = np.fabs(lidar_data)  # pylint: disable=E1111
-            lidar_data = lidar_data.astype(np.int32)
-            lidar_data = np.reshape(lidar_data, (-1, 2))
-            lidar_img_size = (self._width, self._height, 3)
-            lidar_img = np.zeros((lidar_img_size), dtype=np.uint8)
-
-            lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-            self.on_recv_image(lidar_img)
-        """
-        if callable(self.on_recv_image):
-            lidar_data.convert(self.color_converter)
-            array = np.frombuffer(lidar_data.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (lidar_data.height, lidar_data.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-            self.on_recv_image(array)
-            """
+        if callable(self.on_recv_points):
+            # A copy() kell: a szerver ujrahasznositja a buffert, tehat
+            # masolas nelkul a tartalom barmikor felulirodhat alattunk.
+            #
+            # A CARLA y tengelye balra pozitiv (bal kezes rendszer), a
+            # pcd2range gombi vetitese viszont jobb kezes rendszert var. Az y
+            # elojelvaltasa nelkul a range image vizszintesen tukrozve lenne.
+            xyz = points[:, :3].copy()
+            xyz[:, 1] = -xyz[:, 1]
+            self.on_recv_points(xyz, raw.frame)
 
 
 # ===============================================================================
@@ -342,9 +405,11 @@ class Camera(CarlaActorBase):
             image.convert(self.color_converter)
             array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
             array = np.reshape(array, (image.height, image.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-            self.on_recv_image(array)
+            # BGRA -> RGB egy lepesben, uj, folytonos tombbe. Ugyanaz, mint az
+            # array[:, :, :3][:, :, ::-1].copy(), de 1280x720-on 3 ms helyett
+            # ~0.03 ms, es ezen a szenzor-szalon fut, nem a step-ben.
+            array = cv2.cvtColor(array, cv2.COLOR_BGRA2RGB)
+            self.on_recv_image(array, image.frame)
 
     def destroy(self):
         super().destroy()
@@ -410,7 +475,8 @@ class World():
         for actor in list(self.actor_list):
             actor.tick()
 
-        self.world.tick()
+        # A szimulalt frame sorszama - ehhez illesztjuk a szenzoradatot.
+        return self.world.tick()
 
     def destroy(self):
         print("Destroying all spawned actors")

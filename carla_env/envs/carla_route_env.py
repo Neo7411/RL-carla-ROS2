@@ -1,7 +1,3 @@
-import os
-import subprocess
-import sys
-import glob
 import time
 import gymnasium as gym
 import pygame
@@ -9,7 +5,8 @@ import cv2
 from pygame.locals import *
 
 from carla_env.tools.hud import HUD
-from carla_env.navigation.planner import RoadOption, compute_route_waypoints
+from carla_env.navigation.planner import (RoadOption, compute_route_waypoints,
+                                          build_route_planner, path_has_lane_change)
 from carla_env.wrappers import *
 
 import carla
@@ -102,6 +99,10 @@ class CarlaRouteEnv(gym.Env):
             self.world.apply_settings(settings)
             self.client.reload_world(False)  # reload map keeping the world settings
 
+            # A route planner grafjat egyszer epitjuk fel. Korabban minden
+            # route-probalkozas ujraepitette, es reset kozben a sim allt.
+            self._grp = build_route_planner(self.world.map, resolution=1.0)
+
             # self.world.set_weather(carla.WeatherParameters.MidRainyNoon)
 
             # Create vehicle and attach camera to it
@@ -133,16 +134,24 @@ class CarlaRouteEnv(gym.Env):
                 })
             self.dashcam = Camera(self.world, out_width, out_height,
                                   transform=sensor_transforms["dashboard"],
-                                  attach_to=self.vehicle, on_recv_image=lambda e: self._set_observation_image(e),
+                                  attach_to=self.vehicle,
+                                  on_recv_image=lambda e, f: self._set_observation_image(e, f),
                                   **seg_settings)
 
             if self.activate_spectator:
                 self.camera = Camera(self.world, width, height,
                                      transform=sensor_transforms["spectator"],
-                                     attach_to=self.vehicle, on_recv_image=lambda e: self._set_viewer_image(e))
+                                     attach_to=self.vehicle,
+                                     on_recv_image=lambda e, f: self._set_viewer_image(e, f))
             if self.activate_lidar:
-                self.lidar = Lidar(self.world, transform=sensor_transforms["lidar"],
-                                   attach_to=self.vehicle, on_recv_image=lambda e: self._set_lidar_data(e))
+                # Ket kimenet, ket celra: a BEV kep CSAK a HUD-hoz kell (ezert
+                # render nelkul be sem kerjuk), a nyers pontfelho pedig a
+                # range image-en keresztul a halonak megy.
+                self.lidar = Lidar(
+                    self.world, transform=sensor_transforms["lidar"],
+                    attach_to=self.vehicle,
+                    on_recv_points=lambda p, f: self._set_lidar_points(p, f),
+                    rotation_frequency=self.fps)
         except Exception as e:
             raise e
         # Reset env to set initial state
@@ -163,7 +172,12 @@ class CarlaRouteEnv(gym.Env):
         self.observation = self.observation_buffer = None  # Last received observation
         self.ae_reconstruction = None  # AE rekonstrukcio a HUD-hoz (encode_state_fn tolti)
         self.viewer_image = self.viewer_image_buffer = None  # Last received image to show in the viewer
-        self.lidar_data = self.lidar_data_buffer = None
+        self.lidar_points = self.lidar_points_buffer = None
+        # BEV a HUD-hoz: amit a halo kap / amit visszaad (encode_state_fn tolti)
+        self.lidar_bev_input = self.lidar_bev_recon = None
+        # Hol vagyunk: uttesten vagyunk-e, es jo iranyba nezunk-e (a reward hasznalja)
+        self.on_driving_lane = True
+        self.wrong_way = False
         self.step_count = 0
 
         # Init metrics
@@ -175,10 +189,10 @@ class CarlaRouteEnv(gym.Env):
         self.routes_completed = 0.0
         self.obstacle_ahead = 0.0
         self.world.tick()
-        # Return initial observation
-        time.sleep(0.2)
+        # Return initial observation. (Alvas nem kell: szinkron modban a
+        # szerver ugysem lep a tick nelkul, a szenzoradatot pedig a step
+        # frame szerint varja meg.)
         obs, _, _, _, info = self.step(None)
-        time.sleep(0.2)
         return obs, info
 
     # ------------------------------------------------------------------ route
@@ -198,8 +212,12 @@ class CarlaRouteEnv(gym.Env):
         A max_tries azert ilyen bo: Town04 tobbsavos autopalya, ott a random
         spawn-parok ~83%-a savvaltasos, es a megmarado route-oknak is csak a
         tizede esik a hossz-ablakba. 30 probabol ez rendszeresen elbukott
-        ("Nem sikerult ervenyes route-ot generalni"). Merve ~2.6 s epizodonkent,
-        ami epizodonkent egyszer fut - megeri.
+        ("Nem sikerult ervenyes route-ot generalni").
+
+        Gyorsitas: a planner egyszer epul (self._grp), es a savvaltasos
+        parokat mar a graf-uton kiszurjuk, a draga trace_route elott (a
+        route-ok ugyanazok). Merve (Town04, 400-800 m): reset ~0.1 s,
+        korabban ~1.6 s, amig a sim allt.
 
         Visszaad: (start_wp, end_wp, route_waypoints)
         """
@@ -210,7 +228,12 @@ class CarlaRouteEnv(gym.Env):
             a, b = np.random.choice(len(spawn_points), 2, replace=False)
             start = self.world.map.get_waypoint(spawn_points[a].location)
             end = self.world.map.get_waypoint(spawn_points[b].location)
-            route = compute_route_waypoints(self.world.map, start, end, resolution=1.0)
+
+            # Savvaltasos par eldobasa MEG a trace_route elott (lasd lent).
+            if path_has_lane_change(self._grp, start.transform.location, end.transform.location):
+                continue
+
+            route = compute_route_waypoints(self.world.map, start, end, resolution=1.0, grp=self._grp)
 
             # Ervenytelen / degeneralt route (start == end, vagy nincs osszekottetes)
             if len(route) <= 1:
@@ -251,7 +274,7 @@ class CarlaRouteEnv(gym.Env):
             self.start_wp, self.end_wp = [self.world.map.get_waypoint(sp.location)
                                           for sp in spawn_points_list]
             self.route_waypoints = compute_route_waypoints(
-                self.world.map, self.start_wp, self.end_wp, resolution=1.0)
+                self.world.map, self.start_wp, self.end_wp, resolution=1.0, grp=self._grp)
         else:
             self.start_wp, self.end_wp, self.route_waypoints = self._sample_route()
 
@@ -271,13 +294,13 @@ class CarlaRouteEnv(gym.Env):
             wp0.transform.location + carla.Location(z=0.5),  # ne essen az aszfaltba
             wp0.transform.rotation)                          # a route iranyaba nezzen
         self.vehicle.set_transform(spawn_tf)
-
-        time.sleep(0.2)
         self.vehicle.set_simulate_physics(True)
 
-        # A teleport tavolsaga ne szamitson bele a megtett utba.
+        # A teleport tavolsaga ne szamitson bele a megtett utba. A cel-
+        # transzformot vesszuk, mert szinkron modban a get_transform() a
+        # kovetkezo tickig meg a teleport ELOTTI helyet adja.
         if hasattr(self, "previous_location"):
-            self.previous_location = self.vehicle.get_transform().location
+            self.previous_location = spawn_tf.location
 
     # -------------------------------------------------------------- akadaly
 
@@ -377,28 +400,43 @@ class CarlaRouteEnv(gym.Env):
         if self.activate_spectator:
             # Blit image from spectator camera
             self.viewer_image = self._draw_path(self.camera, self.viewer_image)
-            self.display.blit(pygame.surfarray.make_surface(self.viewer_image.swapaxes(0, 1)), (0, 0))
+            self._blit_rgb(self.viewer_image, (0, 0))
 
-        # Superimpose current observation into top-right corner
-        obs_h, obs_w = self.observation.shape[:2]
-        pos_observation = (self.display.get_size()[0] - obs_w - 10, 10)
-        self.display.blit(pygame.surfarray.make_surface(self.observation.swapaxes(0, 1)), pos_observation)
+        # Jobb oldali oszlop: amit az agent lat. Soronkent egy cim, alatta a
+        # kep(ek). A lidar ket kepe egy sorban: bemenet es rekonstrukcio.
+        PAD, GAP, TITLE = 10, 8, 18
+        rows = [("camera", [self.observation]),
+                ("camera AE recon", [self.ae_reconstruction]),
+                ("lidar BEV  (in / recon)", [self.lidar_bev_input, self.lidar_bev_recon])]
+        rows = [(t, [i for i in imgs if i is not None]) for t, imgs in rows]
+        rows = [(t, imgs) for t, imgs in rows if imgs]
 
-        # Alatta az AE rekonstrukcioja: ez mutatja, mit tart meg a latent,
-        # vagyis mit "lat" tenylegesen az agent.
-        if getattr(self, "ae_reconstruction", None) is not None:
-            pos_recon = (self.display.get_size()[0] - obs_w - 10, 10 + obs_h + 24)
-            self.display.blit(
-                pygame.surfarray.make_surface(self.ae_reconstruction.swapaxes(0, 1)),
-                pos_recon)
-            self.display.blit(
-                self.hud.font_mono.render("AE recon", True, (255, 255, 255)),
-                (pos_recon[0], pos_recon[1] - 18))
+        if rows:
+            # A panel szelessege a legszelesebb sorhoz igazodik, igy minden
+            # elem ugyanabba az oszlopba kerul.
+            panel_w = max(sum(i.shape[1] for i in imgs) + GAP * (len(imgs) - 1)
+                          for _, imgs in rows) + 2 * PAD
+            panel_h = sum(TITLE + max(i.shape[0] for i in imgs) for _, imgs in rows) \
+                + GAP * (len(rows) - 1) + 2 * PAD
+            panel_x = self.display.get_size()[0] - panel_w - PAD
 
-        if self.activate_lidar:
-            lidar_h, lidar_w = self.lidar_data.shape[:2]
-            pos_lidar = (self.display.get_size()[0] - obs_w - 10, 100)
-            self.display.blit(pygame.surfarray.make_surface(self.lidar_data.swapaxes(0, 1)), pos_lidar)
+            # Felatlatszo hatter, mint a bal oldali HUD-sav - kulonben a
+            # vilagos kamerakepen a feher felirat olvashatatlan.
+            bg = pygame.Surface((panel_w, panel_h))
+            bg.set_alpha(100)
+            self.display.blit(bg, (panel_x, PAD))
+
+            y = 2 * PAD
+            for title, imgs in rows:
+                self.display.blit(
+                    self.hud.font_mono.render(title, True, (255, 255, 255)),
+                    (panel_x + PAD, y))
+                y += TITLE
+                x = panel_x + PAD
+                for img in imgs:
+                    self._blit_rgb(img, (x, y))
+                    x += img.shape[1] + GAP
+                y += max(i.shape[0] for i in imgs) + GAP
 
         # Render HUD
         self.hud.render(self.display, extra_info=self.extra_info)
@@ -406,6 +444,17 @@ class CarlaRouteEnv(gym.Env):
 
         # Render to screen
         pygame.display.flip()
+
+    def _blit_rgb(self, img, pos):
+        """(H, W, 3) uint8 RGB kep kirajzolasa masolas nelkul.
+
+        A make_surface(img.swapaxes(0, 1)) atrendezve lemasolta a kepet
+        (1280x720-on 1.5 ms); a frombuffer kozvetlenul a tomb memoriajat
+        olvassa. Ehhez folytonos tomb kell - a kamerakep mar az, a kis
+        panelkepeknel az ascontiguousarray olcso.
+        """
+        img = np.ascontiguousarray(img)
+        self.display.blit(pygame.image.frombuffer(img, (img.shape[1], img.shape[0]), "RGB"), pos)
 
     def step(self, action):
         if self.closed:
@@ -430,16 +479,15 @@ class CarlaRouteEnv(gym.Env):
                                                           self.action_smoothing)
         # Tick game
         _t0 = time.perf_counter()
-        self.world.tick()
+        frame = self.world.tick()
         _t1 = time.perf_counter()
 
-        # Get most recent observation and viewer image
-        self.observation = self._get_observation()
-        if self.activate_spectator:
-            self.viewer_image = self._get_viewer_image()
+        # Az EBBEN a tickben keszult observation. A spectator kepet csak a
+        # kodolas utan varjuk meg (lent), mert az agensnek nem kell.
+        self.observation = self._get_observation(frame)
 
         if self.activate_lidar:
-            self.lidar_data = self._get_lidar_data()
+            self.lidar_points = self._get_lidar_points(frame)
         _t2 = time.perf_counter()
 
         # Get vehicle transform
@@ -493,6 +541,34 @@ class CarlaRouteEnv(gym.Env):
         self.distance_from_center = (1.0 - w) * route_dev + w * min(route_dev, lane_dev)
         self.center_lane_deviation += self.distance_from_center
 
+        # === Hol vagyunk fizikailag? ===
+        # A reward ezt hasznalja terminal-feltetelnek a puszta tavolsag helyett:
+        # a szaggatott vonal atlepese (masik sav) NEM hiba, a fure/jardara
+        # hajtas es a szembejovo sav viszont igen.
+        #
+        # project_to_road=False: csak akkor ad waypointot, ha a pont TENYLEG
+        # uttesten van. True-val a legkozelebbi savra vetitene, es a fu is
+        # "uton" lenne.
+        drv = self.world.map.get_waypoint(transform.location, project_to_road=False,
+                                          lane_type=carla.LaneType.Driving)
+        self.on_driving_lane = drv is not None
+
+        # Szembemenes. NEM a lekerdezett sav iranyahoz merunk, hanem a ROUTE-ehoz:
+        # kereszetezodesben a get_waypoint barmelyik keresztezo savot visszaadhatja,
+        # aminek az iranya merőleges vagy ellentetes - abbol hamis "Wrong way" lett,
+        # pedig szabalyosan hajtottunk at.
+        #
+        # Kereszetezodesben egyaltalan nem vizsgaljuk: ott a kanyarodas kozben a
+        # jarmu iranya jogosan ter el a route-etol.
+        self.wrong_way = False
+        in_junction = drv.is_junction if drv is not None else False
+        if not in_junction:
+            route_fwd = self.current_waypoint.transform.get_forward_vector()
+            veh = transform.get_forward_vector()
+            # skalaris szorzat < -0.7  ->  tobb mint 135 fok elteres, vagyis
+            # tenyleg visszafele haladunk, nem csak kanyarodunk.
+            self.wrong_way = (route_fwd.x * veh.x + route_fwd.y * veh.y) < -0.7
+
         # Calculate distance traveled
         if action is not None:
             self.distance_traveled += self.previous_location.distance(transform.location)
@@ -515,6 +591,12 @@ class CarlaRouteEnv(gym.Env):
         encoded_state = self.encode_state_fn(self)
         self.step_count += 1
 
+        # A 1280x720-as spectator kep a szerveren ~12 ms-mal a dashcam utan
+        # er ide. Ha a kodolas elott varnank ra, ez az ido hozzaadodna a
+        # step-hez; igy a kodolas alatt erkezik meg.
+        if self.activate_spectator:
+            self.viewer_image = self._get_viewer_image(frame)
+
         # DEBUG: Draw path
         # self._draw_path_server(life_time=1.0, skip=8)
 
@@ -528,8 +610,8 @@ class CarlaRouteEnv(gym.Env):
 
         # === IDOMERES ===
         # tick   = a CARLA szerver mennyit dolgozott (szerveroldali terheles)
-        # obs    = mennyit vartunk a kamerakepekre (szenzor atvitel)
-        # render = a pygame oldal (blit, draw_path, flip)
+        # obs    = mennyit vartunk a dashcam kepre es a lidarra
+        # render = reward, kodolas, spectator kep, pygame (blit, draw_path, flip)
         # Csak a 80 ms folotti stepeket logolja, hogy ne arassza el a konzolt.
         _t3 = time.perf_counter()
         if (_t3 - _t0) > 0.08:
@@ -619,29 +701,40 @@ class CarlaRouteEnv(gym.Env):
             image = cv2.circle(image, (int(np.int32(x)), int(np.int32(y))), radius=3, color=color, thickness=-1)
         return image
 
-    # A ket busy-wait ciklus helyett rovid alvas. Az ures 'while: pass' 100%
-    # CPU-t eszik egy magon, es pont azokert a magokert versenyez, amelyeken a
-    # CARLA kliens szalai a kepet szallitanak - vagyis lassitja azt, amire var.
-    def _get_observation(self):
-        while self.observation_buffer is None:
-            time.sleep(0.001)
-        obs = self.observation_buffer.copy()
-        self.observation_buffer = None
-        return obs
+    def _wait_for_frame(self, buffer_name, frame, timeout=2.0):
+        """A `frame` tickhez tartozo szenzoradat. A buffer (frame, adat) part tart.
 
-    def _get_viewer_image(self):
-        while self.viewer_image_buffer is None:
-            time.sleep(0.001)
-        image = self.viewer_image_buffer.copy()
-        self.viewer_image_buffer = None
-        return image
+        Szinkron modban a world.tick() visszater, mielott a szenzorok adata
+        megerkezne - a callbackek kulon szalon, kesve jonnek. A regi getter a
+        bufferben talalt elso adatot vitte, ami merve a kameraknal MINDIG az
+        elozo tick kepe volt, a lidarnal ~60%-ban. Az obs igy egy tickkel
+        kesett a sebesseghez/waypointokhoz kepest, es a kamera meg a lidar
+        gyakran mas pillanatot mutatott.
 
-    def _get_lidar_data(self):
-        while self.lidar_data_buffer is None:
+        Busy-wait helyett rovid alvas: az ures ciklus 100% CPU-t eszik, es
+        pont a CARLA kliens szalaival versenyez, amik az adatot szallitjak.
+        """
+        deadline = time.perf_counter() + timeout
+        while True:
+            item = getattr(self, buffer_name)
+            if item is not None and item[0] >= frame:
+                return item[1]
+            if item is not None and time.perf_counter() > deadline:
+                # Ne akassza meg a tanitast: a legutolso adattal megyunk tovabb.
+                print("[WARN] {}: {} s alatt nem jott adat a {}. frame-hez, "
+                      "a {}. frame-et hasznalom".format(buffer_name, timeout, frame, item[0]))
+                return item[1]
             time.sleep(0.001)
-        image = self.lidar_data_buffer.copy()
-        self.lidar_data_buffer = None
-        return image
+
+    # Masolas nem kell: a Camera callback minden kephez uj tombot ad.
+    def _get_observation(self, frame):
+        return self._wait_for_frame("observation_buffer", frame)
+
+    def _get_viewer_image(self, frame):
+        return self._wait_for_frame("viewer_image_buffer", frame)
+
+    def _get_lidar_points(self, frame):
+        return self._wait_for_frame("lidar_points_buffer", frame)
 
     def _on_collision(self, event):
         if get_actor_display_name(event.other_actor) != "Road":
@@ -658,11 +751,11 @@ class CarlaRouteEnv(gym.Env):
         if self.activate_render:
             self.hud.notification("Crossed line %s" % " and ".join(text))
 
-    def _set_observation_image(self, image):
-        self.observation_buffer = image
+    def _set_observation_image(self, image, frame):
+        self.observation_buffer = (frame, image)
 
-    def _set_viewer_image(self, image):
-        self.viewer_image_buffer = image
+    def _set_viewer_image(self, image, frame):
+        self.viewer_image_buffer = (frame, image)
 
-    def _set_lidar_data(self, image):
-        self.lidar_data_buffer = image
+    def _set_lidar_points(self, points, frame):
+        self.lidar_points_buffer = (frame, points)

@@ -9,7 +9,24 @@ from carla_env.navigation.global_route_planner import GlobalRoutePlanner
 from carla_env.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 from carla_env.tools.misc import vector
 
-def compute_route_waypoints(world_map, start_waypoint, end_waypoint, resolution=1.0, plan=None):
+def build_route_planner(world_map, resolution=1.0):
+    """GlobalRoutePlanner a teljes terkepre. A setup() a topologiabol grafot
+    epit - ezt egyszer kell megcsinalni, nem route-onkent."""
+    grp = GlobalRoutePlanner(GlobalRoutePlannerDAO(world_map, resolution))
+    grp.setup()
+    return grp
+
+
+def path_has_lane_change(grp, origin, destination):
+    """Olcso elozetes szures: van-e savvaltas el a graf-uton (A*, waypointok
+    generalasa nelkul). Ha van, a trace_route kimeneteben is lesz CHANGELANE
+    opcio, tehat a draga trace_route kihagyhato."""
+    path = grp._path_search(origin, destination)
+    return any(grp._graph.edges[u, v]['type'].name.startswith("CHANGELANE")
+               for u, v in zip(path, path[1:]))
+
+
+def compute_route_waypoints(world_map, start_waypoint, end_waypoint, resolution=1.0, plan=None, grp=None):
     """
         Returns a list of (waypoint, RoadOption)-tuples that describes a route
         starting at start_waypoint, ending at end_waypoint.
@@ -28,14 +45,16 @@ def compute_route_waypoints(world_map, start_waypoint, end_waypoint, resolution=
             to make the route go straight, then left, then right.)
             If plan is None, we use the GlobalRoutePlanner to find a path between
             start_waypoint and end_waypoint.
+        grp (GlobalRoutePlanner or None):
+            Kesz planner (build_route_planner). Ha None, minden hivas ujat
+            epit, ami route-onkent ~80 ms felesleges munka.
     """
 
     if plan is None:
         # Setting up global router
-        dao = GlobalRoutePlannerDAO(world_map, resolution)
-        grp = GlobalRoutePlanner(dao)
-        grp.setup()
-        
+        if grp is None:
+            grp = build_route_planner(world_map, resolution)
+
         # Obtain route plan
         route = grp.trace_route(
             start_waypoint.transform.location,
