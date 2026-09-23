@@ -82,12 +82,17 @@ ALGORITHM = dict(
         use_sde=True,
         sde_sample_freq=8,
         policy_kwargs=dict(
-            # exp(-1) = 0.37 szoras. A korabbi -3 exp(-3) = 0.05-ot adott, ami
-            # a +-1-es akciotartomanyban gyakorlatilag determinisztikus: 4864
-            # gradiens lepes alatt a train/std meg sem mozdult 0.0499-rol, es
-            # az agent a "lassan araszolok" lokalis optimumba tanult bele
-            # (a reward 14 660 lepes alatt -7.9-rol -8.9-re ROMLOTT).
-            log_std_init=-1,
+            # exp(-1.5) = 0.22 szoras.
+            #
+            # A -3 (exp = 0.05) a +-1-es akciotartomanyban gyakorlatilag
+            # determinisztikus volt: 4864 gradiens lepes alatt a train/std meg
+            # sem mozdult 0.0499-rol, es az agent a "lassan araszolok" lokalis
+            # optimumba tanult bele (a reward -7.9-rol -8.9-re ROMLOTT).
+            #
+            # A -1 (0.37) viszont a masik veglet: a kormanyt lathatoan rangatta.
+            # A -1.5 a kozeput - 4.5x tobb exploracio, mint az eredeti, de a
+            # zaj fele akkora, mint a -1-nel.
+            log_std_init=-1.5,
             net_arch=[500, 300],
             # Sajat extractor az SB3 CombinedExtractora helyett: az a lidar
             # latenst (16,11,32 = 5632 dim) egyszeruen lelapitana, es a policy

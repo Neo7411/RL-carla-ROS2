@@ -5,7 +5,8 @@ EARLY_STOP = True             # korai epizod-vege engedelyezve?
 MAX_SPEED = 100.0              # ezen felul terminal [km/h]
 TARGET_SPEED = 80.0           # ideal sebesseg [km/h]
 SPEED_WEIGHT = 1.5            # a sebesseg sulya (1.0 = nincs sulyozas)
-MAX_DISTANCE = 2.0            # max eltres a sav kozeptol [m]
+MAX_DISTANCE = 2.0            # a centering_factor skalaja [m] (NEM terminal-hatar)
+MAX_DISTANCE_HARD = 6.0       # ezen tul terminal akkor is, ha meg uttesten all [m]
 MAX_STD_CENTER_LANE = 0.35    # max szoras a kozeptol valo tavolsagban [m]
 MAX_ANGLE_CENTER_LANE = 90    # max szogeltres [fok]
 PENALTY_REWARD = -10          # terminal buntetes
@@ -37,8 +38,27 @@ def reward_fn(env):
             env.terminal_state = True
             terminal_reason = "Vehicle stopped"
 
-        # Lesodrodott a sav kozepetol.
-        elif env.distance_from_center > MAX_DISTANCE:
+        # Lehajtott az uttestrol (fu, jarda, arok). A szaggatott vonal atlepese
+        # NEM ez: amig barmelyik Driving savon all, az uttesten van.
+        #
+        # Korabban a feltetel env.distance_from_center > 2.0 volt. A CARLA sav
+        # ~3.5 m szeles, tehat a savhatar 1.75 m-nel van - a 2.0 m-es hatar
+        # gyakorlatilag a szaggatott vonal atlepeset buntette -10-zel, miközben
+        # a centering_factor ott mar ugyis 0.12-re esett. Az agensnek igy a
+        # savvaltas dupla buntetes volt, pedig fizikailag semmi baj nem tortent.
+        elif not env.on_driving_lane:
+            env.terminal_state = True
+            terminal_reason = "Off-road"
+
+        # Szembemenes a forgalommal - ez valodi hiba, uttesten is.
+        elif env.wrong_way:
+            env.terminal_state = True
+            terminal_reason = "Wrong way"
+
+        # Vegso biztonsagi halo: az uttest sajat magaban nagy lehet
+        # (kereszetezodes, parkolo), ezert a route-tol valo nagyon nagy
+        # eltavolodas akkor is terminal, ha technikailag uton vagyunk.
+        elif env.distance_from_center > MAX_DISTANCE_HARD:
             env.terminal_state = True
             terminal_reason = "Off-track"
 
@@ -74,7 +94,14 @@ def reward_fn(env):
     speed_factor = float(np.clip(speed_factor, 0.0, 1.0))
 
     # b) Sav-kozepen tartas: minel kozelebb a kozephez, annal jobb.
-    centering_factor = max(1.0 - env.distance_from_center / MAX_DISTANCE, 0.0)
+    #
+    # A PADLO azert kell, mert a jutalom SZORZAT: nulla centering_factor
+    # mellett a sebesseg es minden mas tenyezo is ertelmetlen (0-val szorzunk).
+    # A savhataron (1.75 m) a faktor 0.12 volt, vagyis az agens gyakorlatilag
+    # semmit nem kapott azert, hogy tovabbhajt - inkabb megallt. A 0.25-os
+    # padlo megtartja a savkozep preferenciajat (1.0 vs 0.25 = 4x kulonbseg),
+    # de a savvaltas utan is marad ertelme gyorsan haladni.
+    centering_factor = max(1.0 - env.distance_from_center / MAX_DISTANCE, 0.25)
 
     # c) Szogeltres: az auto iranya mennyire egyezik a kovetkezo waypoint iranyaval.
     angle = env.vehicle.get_angle(env.current_waypoint)

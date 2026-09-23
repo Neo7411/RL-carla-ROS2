@@ -1,39 +1,3 @@
-"""
-Kozos feature extractor az SAC MultiInputPolicy-hoz.
-
-A MIERT: az SB3 alapertelmezett CombinedExtractora a nem-kep bemeneteket
-egyszeruen LELAPITJA es egymas utan fuzi. Nalunk ez katasztrofa lenne:
-
-    lidar_latent   (16, 11, 32)  ->  5632 dim
-    cam_latent     (128,)        ->   128 dim
-    vehicle        (4,)          ->     4 dim
-    waypoints      (15, 2)       ->    30 dim
-    maneuver       Discrete(4)   ->     4 dim  (az SB3 one-hot-olja)
-
-vagyis a policy bemenetenek 99.3%-a a lidar lenne, es a kormanyzas szem-
-pontjabol legfontosabb 38 szam (sebesseg, szog, waypointok) eltunne benne.
-A halo elvileg megtanulhatna lesulyozni, de a gyakorlatban a gradiens a nagy
-blokkot koveti, es a kis jelek sose kapnak eselyt.
-
-EZ AZ OSZTALY ezt harom lepesben oldja meg:
-
- 1. A lidar terbeli jellemzoterkepet egy KIS CNN dolgozza fel egy
-    fusion_dim hosszu vektorra. Az AE sulyai fagyottak, ez a CNN viszont
-    tanul - vagyis a JUTALOMRA optimalizal, es a terbeli szerkezetet meg a
-    lapitas elott hasznalja ki.
-
- 2. A kamera latenst egy Linear reteg viszi ugyanarra a fusion_dim-re,
-    majd a ket agat OSSZEADJUK - egy kozos "szenzor-vektor" lesz beloluk,
-    ami NEM no a modalitasok szamaval. LayerNorm zarja, hogy a ket ag
-    skalaja ne csuszhasson el egymastol.
-
- 3. A kis jeleket (vehicle, waypoints, maneuver) egy sajat kis MLP emeli
-    state_dim-re, hogy szamossagban is kepesek legyenek versenyezni a
-    szenzor-vektorral.
-
-A vegeredmeny: [fusion_dim szenzor | state_dim allapot], ezt kapja a
-net_arch (500, 300) MLP.
-"""
 
 import gymnasium as gym
 import numpy as np
@@ -51,28 +15,6 @@ LIDAR_KEY = "lidar_latent"
 
 
 class CarlaFusionExtractor(BaseFeaturesExtractor):
-    """
-    Dict observation -> egyetlen (B, features_dim) vektor.
-
-    Agak:
-        lidar_latent (C,H,W) --CNN----> fusion_dim  \\
-                                                     +-> LayerNorm -> fusion_dim
-        cam_latent   (D,)    --Linear-> fusion_dim  //
-
-        minden mas obs      --flatten-> MLP -------> state_dim
-
-        features = concat(szenzor, allapot)  ->  (fusion_dim + state_dim)
-
-    Parameterek
-    -----------
-    fusion_dim : a kozos szenzor-vektor hossza.
-    state_dim : a kis jelek (vehicle, waypoints, maneuver) agnak kimenete.
-    cnn_base_channels : a lidar CNN SAJAT, tanult szelessege. A harom lepcso
-        base, 2*base, 4*base csatornat hasznal (16 -> 32 -> 64). NEM a latens
-        csatornaszama: az (z_channels=16) az observation space-bol jon.
-    fusion_mode : "add" (elemenkenti osszeadas, ez az alapertelmezes) vagy
-        "concat" (egymas melle fuzes, majd egy Linear vissza fusion_dim-re).
-    """
 
     def __init__(
         self,

@@ -167,6 +167,9 @@ class CarlaRouteEnv(gym.Env):
         self.lidar_points = self.lidar_points_buffer = None
         # BEV a HUD-hoz: amit a halo kap / amit visszaad (encode_state_fn tolti)
         self.lidar_bev_input = self.lidar_bev_recon = None
+        # Hol vagyunk: uttesten vagyunk-e, es jo iranyba nezunk-e (a reward hasznalja)
+        self.on_driving_lane = True
+        self.wrong_way = False
         self.step_count = 0
 
         # Init metrics
@@ -510,6 +513,34 @@ class CarlaRouteEnv(gym.Env):
         w = self.obstacle_ahead
         self.distance_from_center = (1.0 - w) * route_dev + w * min(route_dev, lane_dev)
         self.center_lane_deviation += self.distance_from_center
+
+        # === Hol vagyunk fizikailag? ===
+        # A reward ezt hasznalja terminal-feltetelnek a puszta tavolsag helyett:
+        # a szaggatott vonal atlepese (masik sav) NEM hiba, a fure/jardara
+        # hajtas es a szembejovo sav viszont igen.
+        #
+        # project_to_road=False: csak akkor ad waypointot, ha a pont TENYLEG
+        # uttesten van. True-val a legkozelebbi savra vetitene, es a fu is
+        # "uton" lenne.
+        drv = self.world.map.get_waypoint(transform.location, project_to_road=False,
+                                          lane_type=carla.LaneType.Driving)
+        self.on_driving_lane = drv is not None
+
+        # Szembemenes. NEM a lekerdezett sav iranyahoz merunk, hanem a ROUTE-ehoz:
+        # kereszetezodesben a get_waypoint barmelyik keresztezo savot visszaadhatja,
+        # aminek az iranya merőleges vagy ellentetes - abbol hamis "Wrong way" lett,
+        # pedig szabalyosan hajtottunk at.
+        #
+        # Kereszetezodesben egyaltalan nem vizsgaljuk: ott a kanyarodas kozben a
+        # jarmu iranya jogosan ter el a route-etol.
+        self.wrong_way = False
+        in_junction = drv.is_junction if drv is not None else False
+        if not in_junction:
+            route_fwd = self.current_waypoint.transform.get_forward_vector()
+            veh = transform.get_forward_vector()
+            # skalaris szorzat < -0.7  ->  tobb mint 135 fok elteres, vagyis
+            # tenyleg visszafele haladunk, nem csak kanyarodunk.
+            self.wrong_way = (route_fwd.x * veh.x + route_fwd.y * veh.y) < -0.7
 
         # Calculate distance traveled
         if action is not None:
