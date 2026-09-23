@@ -1,4 +1,5 @@
 import carla
+import cv2
 import numpy as np
 import weakref
 
@@ -220,7 +221,7 @@ class Lidar(CarlaActorBase):
     """
 
     def __init__(self, world, transform=carla.Transform(),
-                 attach_to=None, on_recv_points=None):
+                 attach_to=None, on_recv_points=None, rotation_frequency=20):
         self.on_recv_points = on_recv_points
         self.range = 50
 
@@ -231,26 +232,33 @@ class Lidar(CarlaActorBase):
         # Kisebb FOV-nal a halo a jelenet ket, egymassal NEM szomszedos szelet
         # ragasztana ossze.
         #
-        # points_per_second es rotation_frequency EGYUTT jar!
+        # points_per_second es rotation_frequency EGYUTT jar, es a
+        # rotation_frequency-nek a szimulacio fps-evel kell egyeznie
+        # (a CarlaRouteEnv igy adja at).
         #
-        # A points_per_second a teljes pontkibocsatas, ami elosztodik a
-        # fordulatok kozott. Egy teljes 64x1024-es range image-hez
-        # fordulatonkent 65536 pont kell, tehat:
+        # Egy tick alatt a lidar rotation_frequency / fps fordulatot tesz, es
+        # points_per_second / fps sugarat lo ki. Fordulatonkent 64 x 1024
+        # sugar kell, tehat points_per_second = 64 * 1024 * rotation_frequency.
         #
-        #     points_per_second = 64 * 1024 * rotation_frequency
-        #     40 Hz -> 64 * 1024 * 40 = 2621440
+        # A korabbi 40 Hz fps=20 mellett tickenkent KET fordulat volt: ugyanaz
+        # a 64 x 1024 irany ketszer. Ez dupla szerveroldali raycast, dupla
+        # adat es dupla pcd2range munka (+6 ms/step), es MAS eloszlas, mint a
+        # tanito adat: a ray_cast lidar a pontok 45%-at veletlenul eldobja
+        # (dropoff_general_rate), a dupla sugarbol pedig tobb marad. Merve:
         #
-        # Ha csak a frekvenciat emeled a pontszam nelkul, a range image
-        # aranyosan kilyukad (40 Hz-en 1310720 ponttal a fele uresen maradna),
-        # es a halo a lyukakat tanulna meg.
+        #     40 Hz: 58.6k pont/tick, a range image 95.2%-a kitoltott
+        #     20 Hz: 30.5k pont/tick, 91.9%   (tanito adat: 28.4k, 90.2%)
+        #
+        # A tanito adat gyujtoje is igy all (collect_train_data.py:
+        # LIDAR_ROTATION_HZ = SENSOR_HZ).
         lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast')
-        lidar_bp.set_attribute('points_per_second', '2621440')
+        lidar_bp.set_attribute('points_per_second', str(int(64 * 1024 * rotation_frequency)))
         lidar_bp.set_attribute('channels', '64')
         lidar_bp.set_attribute('range', str(self.range))
         lidar_bp.set_attribute('upper_fov', '10')
         lidar_bp.set_attribute('horizontal_fov', '360')
         lidar_bp.set_attribute('lower_fov', '-25')
-        lidar_bp.set_attribute('rotation_frequency', '40')
+        lidar_bp.set_attribute('rotation_frequency', str(rotation_frequency))
 
         # Create and setup camera actor
         weak_self = weakref.ref(self)
@@ -278,7 +286,7 @@ class Lidar(CarlaActorBase):
             # elojelvaltasa nelkul a range image vizszintesen tukrozve lenne.
             xyz = points[:, :3].copy()
             xyz[:, 1] = -xyz[:, 1]
-            self.on_recv_points(xyz)
+            self.on_recv_points(xyz, raw.frame)
 
 
 # ===============================================================================
@@ -397,9 +405,11 @@ class Camera(CarlaActorBase):
             image.convert(self.color_converter)
             array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
             array = np.reshape(array, (image.height, image.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-            self.on_recv_image(array)
+            # BGRA -> RGB egy lepesben, uj, folytonos tombbe. Ugyanaz, mint az
+            # array[:, :, :3][:, :, ::-1].copy(), de 1280x720-on 3 ms helyett
+            # ~0.03 ms, es ezen a szenzor-szalon fut, nem a step-ben.
+            array = cv2.cvtColor(array, cv2.COLOR_BGRA2RGB)
+            self.on_recv_image(array, image.frame)
 
     def destroy(self):
         super().destroy()
@@ -465,7 +475,8 @@ class World():
         for actor in list(self.actor_list):
             actor.tick()
 
-        self.world.tick()
+        # A szimulalt frame sorszama - ehhez illesztjuk a szenzoradatot.
+        return self.world.tick()
 
     def destroy(self):
         print("Destroying all spawned actors")

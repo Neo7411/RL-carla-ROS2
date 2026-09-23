@@ -2,6 +2,7 @@
 import gymnasium as gym
 import numpy as np
 import torch as th
+import torch.nn.functional as F
 from torch import nn
 
 from stable_baselines3.common.preprocessing import get_flattened_obs_dim
@@ -12,6 +13,26 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 # againak megy - igy ha kesobb uj meres kerul az obs-be, nem kell itt nyulni.
 CAMERA_KEY = "cam_latent"
 LIDAR_KEY = "lidar_latent"
+
+
+class AzimuthConv2d(nn.Conv2d):
+    """3x3 konvolucio, ami csak VIZSZINTESEN (azimut) padel korkorosen.
+
+    Az azimut korbeer: a 0. es az utolso oszlop fizikailag szomszedos (az
+    auto mogotti irany). Az elevacio viszont nem: a legfelso sor a horizont,
+    a legalso a talaj az auto mellett. A padding_mode="circular" mindket
+    tengelyen korbeert, es ezt a ket sort hamisan szomszedda tette.
+
+    Ugyanazt adja, mint a graph_ae.CircularConv2d, de egyetlen pad muvelettel
+    (a fuggoleges nulla-paddinget a konvolucio maga vegzi) - merve ~11%-kal
+    gyorsabb forward+backward batch 256-on.
+    """
+
+    def __init__(self, c_in, c_out, stride):
+        super().__init__(c_in, c_out, 3, stride=stride, padding=(1, 0))
+
+    def forward(self, x):
+        return self._conv_forward(F.pad(x, (1, 1, 0, 0), mode="circular"), self.weight, self.bias)
 
 
 class CarlaFusionExtractor(BaseFeaturesExtractor):
@@ -26,26 +47,12 @@ class CarlaFusionExtractor(BaseFeaturesExtractor):
     ):
         if fusion_mode not in ("add", "concat"):
             raise ValueError(f"fusion_mode must be 'add' or 'concat', got {fusion_mode!r}")
-
-        # A features_dim-et csak a retegek felepitese utan tudjuk, de az
-        # nn.Module.__init__-nek elobb le kell futnia - ezert a dummy 1.
         super().__init__(observation_space, features_dim=1)
 
         spaces = observation_space.spaces
         self.fusion_mode = fusion_mode
 
-        # --- lidar ag -------------------------------------------------------
-        # A bemenet a graf-AE encoderenek kimenete, (16, 11, 32): 11 sor
-        # (fuggoleges szog) es 32 oszlop (azimut). Ez NEM kep a szo szokasos
-        # ertelmeben - a ket tengely merteke kulonbozik -, ezert:
-        #
-        #   * padding_mode="circular": az azimut korkoros, a 0. es a 31.
-        #     oszlop fizikailag szomszedos. Zero padding hamis "falat" tenne
-        #     a jarmu mogotti iranyba.
-        #   * Az elso lepcso csak vizszintesen ritkit (stride (1,2)), mert
-        #     fuggolegesen eleve csak 11 sor van.
-        #   * GroupNorm es nem BatchNorm: az RL batch korrelalt (egy
-        #     rolloutbol jon), a rollout kozbeni batch=1 pedig elhasalna.
+
         lidar_space = spaces[LIDAR_KEY]
         if len(lidar_space.shape) != 3:
             raise ValueError(
@@ -58,17 +65,17 @@ class CarlaFusionExtractor(BaseFeaturesExtractor):
 
         lidar_conv = nn.Sequential(
             # (16, 11, 32) -> (c, 11, 16)
-            nn.Conv2d(c_in, c, 3, stride=(1, 2), padding=1, padding_mode="circular"),
+            AzimuthConv2d(c_in, c, stride=(1, 2)),
             nn.GroupNorm(min(8, c), c),
             nn.ReLU(inplace=True),
 
             # (c, 11, 16) -> (2c, 6, 8)
-            nn.Conv2d(c, c * 2, 3, stride=(2, 2), padding=1, padding_mode="circular"),
+            AzimuthConv2d(c, c * 2, stride=(2, 2)),
             nn.GroupNorm(min(8, c * 2), c * 2),
             nn.ReLU(inplace=True),
 
             # (2c, 6, 8) -> (4c, 3, 4)
-            nn.Conv2d(c * 2, c * 4, 3, stride=(2, 2), padding=1, padding_mode="circular"),
+            AzimuthConv2d(c * 2, c * 4, stride=(2, 2)),
             nn.GroupNorm(min(8, c * 4), c * 4),
             nn.ReLU(inplace=True),
 
@@ -92,10 +99,13 @@ class CarlaFusionExtractor(BaseFeaturesExtractor):
         # nincs mit projektalni, mert a ket ag mar azonos hosszu.
         self.fusion_proj = (nn.Linear(fusion_dim * 2, fusion_dim)
                             if fusion_mode == "concat" else nn.Identity())
-        # A LayerNorm a fuzio UTAN all: ez rogziti a szenzor-vektor skalajat,
-        # igy a ket ag nem tudja egymast tulharsogni azzal, hogy nagyobb
-        # aktivaciokat tanul. A lidar latensnek nincs garantalt korlatja (a
-        # graf-encoder vegen nincs tanh), ezert itt kell rendet tenni.
+        # A LayerNorm a fuzio UTAN all: ez rogziti a szenzor-vektor teljes
+        # skalajat (a lidar latensnek nincs garantalt korlatja, a graf-encoder
+        # vegen nincs tanh). A ket ag EGYMASHOZ valo aranyat nem allitja be:
+        # inicializalaskor a kamera-ag ~2.4x jobban mozgatja a vektort (merve,
+        # valodi obs-on), mert a lidar bemenet mintarol mintara kevesbe
+        # valtozik. Agankenti LayerNorm-mal is csak 2.0x lett - ezt a
+        # sulyozast a halo tanulja meg.
         self.fusion_norm = nn.LayerNorm(fusion_dim)
 
         # --- a tobbi (kis) jel ----------------------------------------------
@@ -106,27 +116,20 @@ class CarlaFusionExtractor(BaseFeaturesExtractor):
         # ugyanugy, ahogy az SB3 preprocess_obs valoban at is alakitja.
         raw_state_dim = sum(get_flattened_obs_dim(spaces[k]) for k in self.state_keys)
 
-        # A jelek NAGYSAGRENDJE nagyon kulonbozo: a maneuver one-hot 0..1, a
-        # waypointok +-50 m, a sebesseg 0..120. Merve: maneuver std 0.43,
-        # waypoints std 28.8 - 66x kulonbseg UGYANABBAN a Linear retegben. A
-        # maneuver jele igy elveszett (0.0002 hatas az akciora).
-        # Ezert minden bemenetet a SAJAT Box-hatarai alapjan [-1,1]-re viszunk.
-        # A hatarok a configbol jonnek, nem tanult statisztikabol, tehat ez
-        # determinisztikus es nem csuszik el futas kozben.
         centers, scales = [], []
         for k in self.state_keys:
             sp = spaces[k]
             if isinstance(sp, gym.spaces.Box):
                 lo = np.broadcast_to(sp.low, sp.shape).ravel().astype(np.float32)
                 hi = np.broadcast_to(sp.high, sp.shape).ravel().astype(np.float32)
-                c = (hi + lo) / 2.0
-                s = np.maximum((hi - lo) / 2.0, 1e-6)   # 0 szelessegu tengely ellen
+                center = (hi + lo) / 2.0
+                scale = np.maximum((hi - lo) / 2.0, 1e-6)   # 0 szelessegu tengely ellen
             else:
                 # Discrete -> one-hot, az mar 0..1, nem kell skalazni
-                c = np.zeros(get_flattened_obs_dim(sp), dtype=np.float32)
-                s = np.ones(get_flattened_obs_dim(sp), dtype=np.float32)
-            centers.append(c)
-            scales.append(s)
+                center = np.zeros(get_flattened_obs_dim(sp), dtype=np.float32)
+                scale = np.ones(get_flattened_obs_dim(sp), dtype=np.float32)
+            centers.append(center)
+            scales.append(scale)
         # buffer es nem parameter: nem tanuljuk, de a .to(device) viszi magaval
         self.register_buffer("state_center", th.as_tensor(np.concatenate(centers)))
         self.register_buffer("state_scale", th.as_tensor(np.concatenate(scales)))

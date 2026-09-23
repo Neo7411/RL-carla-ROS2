@@ -128,48 +128,52 @@ def load_lidar_ae(cfg, device):
 # =============================================================================
 def create_encode_state_fn(cam_ae, lidar_ae, cfg, device):
     ri_params = cfg["lidar"]["range_image"]
+    bev_params = dict(fov=ri_params["fov"], depth_scale=ri_params["depth_scale"],
+                      depth_range=ri_params["depth_range"])
 
     @torch.no_grad()
     def encode_state(env):
         # dict for current CARLA state
         encoded_state = {}
 
+        # SORREND: elobb minden bemenet a GPU-ra, aztan minden halo elindul,
+        # es csak a vegen olvasunk vissza. Minden .cpu() szinkronizal - ha
+        # minden halo utan visszaolvasunk, a CPU es a GPU felvaltva var
+        # egymasra. Merve: 14.5 -> 8.4 ms/step, a latensek bitre azonosak.
+
         # Nyers RGB kep -> AE latent. A normalizalas ugyanaz, mint a
-        # tanitasban: uint8/255 es (H,W,C) -> (C,H,W).
-        # ascontiguousarray: a CARLA kamera BGR->RGB fordulata (wrappers.py
-        # array[:, :, ::-1]) negativ stride-ot hagy, amit a from_numpy nem vesz at.
+        # tanitasban: uint8/255 es (H,W,C) -> (C,H,W). A /255 azert fut a
+        # CPU-n: a GPU-s osztas 1 ULP-vel mas eredmenyt ad, es a latens is
+        # elmozdulna (~6e-5).
         image = np.ascontiguousarray(env.observation, dtype=np.uint8)
         x = torch.from_numpy(image).permute(2, 0, 1).float().div_(255.0)
         x = x.unsqueeze(0).to(device)                # (1, 3, 80, 160)
-        z = cam_ae.encode(x)
-        encoded_state['cam_latent'] = z[0].cpu().numpy().astype(np.float32)
-
-        # A rekonstrukcio csak a megjelenitesnek kell (env.render rakja ki a
-        # nyers kamerakep ala) - renderelés nelkul felesleges dekodolni.
-        if env.activate_render:
-            recon = cam_ae.decode(z)[0].clamp(0, 1)
-            env.ae_reconstruction = (recon * 255).byte().permute(1, 2, 0).cpu().numpy()
 
         # Nyers pontfelho -> range image -> TERBELI jellemzoterkep. A range
         # image parametereinek egyezniuk kell a tanitasiakkal, kulonben a
         # latens ertelmetlen - ezert jonnek a configbol.
         ri = points_to_range_image(env.lidar_points, **ri_params)
         xl = torch.from_numpy(ri).unsqueeze(0).to(device)   # (1, 1, H, W)
+
+        z = cam_ae.encode(x)
         zl = lidar_ae.encode(xl)
+
+        # A rekonstrukciok csak a megjelenitesnek kellenek (env.render rakja
+        # ki oket) - renderelés nelkul felesleges dekodolni.
+        if env.activate_render:
+            cam_recon = (cam_ae.decode(z)[0].clamp(0, 1) * 255).byte().permute(1, 2, 0).contiguous()
+            lidar_recon = lidar_ae.decode(zl)[0]
+            # BEV a HUD-hoz: amit a halo kap. CPU munka, a GPU kozben dolgozik.
+            env.lidar_bev_input = points_to_bev_rgb(range_to_points(ri, **bev_params))
+
+        encoded_state['cam_latent'] = z[0].cpu().numpy().astype(np.float32)
         encoded_state['lidar_latent'] = zl[0].cpu().numpy().astype(np.float32)
 
-        # BEV a HUD-hoz: amit a halo kap, es amit visszaad. A dekodolas csak
-        # a megjelenitesnek kell.
         if env.activate_render:
-            env.lidar_bev_input = points_to_bev_rgb(
-                range_to_points(ri, fov=ri_params["fov"],
-                                depth_scale=ri_params["depth_scale"],
-                                depth_range=ri_params["depth_range"]))
-            recon = lidar_ae.decode(zl)[0].cpu().numpy()
+            env.ae_reconstruction = cam_recon.cpu().numpy()
+            # ...es amit visszaad
             env.lidar_bev_recon = points_to_bev_rgb(
-                range_to_points(recon, fov=ri_params["fov"],
-                                depth_scale=ri_params["depth_scale"],
-                                depth_range=ri_params["depth_range"]))
+                range_to_points(lidar_recon.cpu().numpy(), **bev_params))
 
         vehicle_measures = []
 

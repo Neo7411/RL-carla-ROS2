@@ -76,8 +76,13 @@ ALGORITHM = dict(
         ent_coef="auto",
         gamma=0.98,
         tau=0.02,
-        train_freq=64,
-        gradient_steps=64,
+        # Minden env step utan 1 gradient lepes. A frissites/adat arany
+        # ugyanaz (1:1), mint a korabbi 64/64-nel, de az 64 lepest egyben
+        # futtatott: ~0.7 s-ig allt a sim minden 64. step utan (szinkron
+        # modban a vilag addig nem lep, de lathatoan akadt). Igy stepenkent
+        # ~11 ms, es a teljes ido kozel ugyanannyi.
+        train_freq=1,
+        gradient_steps=1,
         learning_starts=10000,
         use_sde=True,
         sde_sample_freq=8,

@@ -29,7 +29,9 @@ def main():
     # Az AE-ket a CARLA elott toltjuk be: ha egy checkpoint hibas, ne alljon fel
     # elotte a teljes szimulacio.
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+    print("="*60)
+    print(f"[INFO] Available device for torch is: {device}")
+    print("="*60)
     cam_ae = load_cam_ae(CONFIG["camera"], device)
     lidar_ae, lidar_latent_shape = load_lidar_ae(CONFIG["lidar"], device)
 

@@ -359,6 +359,12 @@ class GlobalRoutePlanner(object):
         from origin (carla.Location) to destination (carla.Location)
         """
 
+        # A _turn_decision allapotot tart route-on belul. Ujrahasznalt
+        # plannernel az elozo route-bol maradna itt ertek, ezert nullazzuk -
+        # igy a kimenet ugyanaz, mint egy frissen epitett planneree.
+        self._previous_decision = RoadOption.VOID
+        self._intersection_end_node = -1
+
         route_trace = []
         route = self._path_search(origin, destination)
         current_waypoint = self._dao.get_waypoint(origin)
