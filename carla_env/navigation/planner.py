@@ -138,7 +138,10 @@ def compute_route_waypoints(world_map, start_waypoint, end_waypoint, resolution=
         next_action = route[i][1]
         if next_action != action:
             if next_action != RoadOption.LANEFOLLOW:
-                for j in range(num_wp_to_extend_actions_with):
+                # min(.., i): ha a keresztezodes a route elso 5 pontjan belul
+                # kezdodik, a route[i-j-1] negativ indexszel a route VEGERE
+                # irt volna, es az utolso pontok hamis manovert kaptak.
+                for j in range(min(num_wp_to_extend_actions_with, i)):
                     route[i-j-1] = (route[i-j-1][0], route[i][1])
         action = next_action
 

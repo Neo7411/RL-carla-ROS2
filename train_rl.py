@@ -83,7 +83,7 @@ def main():
                 HParamCallback(CONFIG),
                 TensorboardCallback(1),
                 CheckpointCallback(
-                    save_freq=total_steps // train_cfg["num_checkpoints"],
+                    save_freq=train_cfg["checkpoint_freq"],
                     save_path=model_dir,
                     name_prefix="model",
                 ),
@@ -96,6 +96,13 @@ def main():
         print("Training interrupted — saving model...")
         model.save(os.path.join(model_dir, "model_interrupted"))
         print(f"Model saved to {model_dir}/model_interrupted")
+    except Exception:
+        # Barmilyen mas hiba (CARLA timeout, szenzorhiba, NaN) eseten is
+        # mentunk, kulonben az egesz futas elveszne. Utana tovabbdobjuk.
+        print("Training crashed — saving model...")
+        model.save(os.path.join(model_dir, "model_crashed"))
+        print(f"Model saved to {model_dir}/model_crashed")
+        raise
 
 
 if __name__ == '__main__':

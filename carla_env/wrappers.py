@@ -70,8 +70,9 @@ def angle_diff(v0, v1):
     cross_product = np.cross(v0_xy_u, v1_xy_u)
     if cross_product < 0:
         angle = -angle
-    if abs(angle) >= 2.3:
-        return 0
+    # Korabban |angle| >= 2.3 rad (132 fok) eseten 0-t adott vissza, vagyis
+    # "tokeletes iranyt": a reward angle_factor-a visszafele haladasert is
+    # 1.0 lett. A reward 90 fok felett amugy is 0-ra vag.
     return round(angle, 2)
 
 

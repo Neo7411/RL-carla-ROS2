@@ -463,14 +463,9 @@ class CarlaRouteEnv(gym.Env):
             raise Exception("CarlaEnv.step() called after the environment was closed." +
                             "Check for info[\"closed\"] == True in the learning loop.")
         # Take action
+        # (A route vegen mar nem itt teleportalunk uj route-ra: az epizod
+        # "truncated"-del er veget, es az uj route a reset()-ben jon - lasd lent.)
         if action is not None:
-            # Create new route on route completion
-            if self.current_waypoint_index >= len(self.route_waypoints) - 1:
-                if not self.eval:
-                    self.new_route()
-                else:
-                    self.success_state = True
-
             if self.action_space_type == "continuous":
                 steer, throttle = [float(a) for a in action]
             elif self.action_space_type == "discrete":
@@ -523,6 +518,7 @@ class CarlaRouteEnv(gym.Env):
             self.current_waypoint_index % len(self.route_waypoints)]
         self.routes_completed = self.num_routes_completed + (self.current_waypoint_index + 1) / len(
             self.route_waypoints)
+        route_done = self.current_waypoint_index >= len(self.route_waypoints) - 1
 
         # === akadaly-tudatos saveltere-meres ===
         self.obstacle_ahead = self._obstacle_ahead()
@@ -638,8 +634,17 @@ class CarlaRouteEnv(gym.Env):
             'route_length': len(self.route_waypoints),
             'obstacle_ahead': self.obstacle_ahead,
         }
-        done = self.terminal_state or self.success_state
-        return encoded_state, self.last_reward, done, False, info
+        # terminated: valodi epizod-vege (baleset, lesodrodas, ...) - utana
+        # nincs jovo, a critic nem bootstrapel.
+        # truncated: a route vege es a 30 km-es max_distance. Ez NEM kudarc:
+        # az SB3 ilyenkor a kovetkezo allapotbol tovabb bootstrapel, a reset()
+        # pedig uj route-ot sorsol. Korabban a route vegen az epizod kozepen
+        # teleportaltunk: a critic a route utolso allapotat egy masik helyen,
+        # allo autoval indulo allapotbol becsulte, a max_distance pedig
+        # terminalkent ment at.
+        terminated = self.terminal_state
+        truncated = (route_done or self.success_state) and not terminated
+        return encoded_state, self.last_reward, terminated, truncated, info
 
     def _draw_path_server(self, life_time=60.0, skip=0):
         """

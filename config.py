@@ -60,7 +60,9 @@ TRAIN = dict(
     log_dir=path("tensorboard"),
     total_steps=100_000_000,
     seed=100,
-    num_checkpoints=10,
+    # Ennyi env-lepesenkent ment. Korabban total_steps // 10 = 10M volt, igy
+    # egy valos futas alatt soha nem mentett.
+    checkpoint_freq=50_000,
     reload_model=False,
     reload_model_path=path("tensorboard", "SAC_1778506873_SAC"),
     reload_model_file="model_final.zip",
@@ -114,7 +116,8 @@ ALGORITHM = dict(
     ),
 )
 
-STATE = ["steer", "throttle", "speed", "waypoints", "angle_next_waypoint", "maneuver"]
+# Csak leiras a loghoz (config.json) - az obs-t a utils.py epiti.
+STATE = ["steer", "throttle", "speed", "maneuver", "route_preview"]
 
 
 # =============================================================================
