@@ -13,9 +13,6 @@ import carla
 from collections import deque
 import itertools
 
-# Az intersection_routes lista kikerult - helyette a _sample_route() general
-# dinamikusan, a min/max_route_length parameterek alapjan.
-eval_routes = itertools.cycle([(48, 21), (0, 72), (28, 83), (61, 39)])
 
 discrete_actions = {
     0: [-1, 1], 1: [0, 1], 2: [1, 1], 3: [0, 0],
@@ -43,7 +40,6 @@ class CarlaRouteEnv(gym.Env):
                  action_space_type="continuous",
                  activate_spectator=True,
                  activate_lidar=False,
-                 eval=False,
                  activate_render=True):
         self.town = town
         self.min_route_length = min_route_length
@@ -75,7 +71,6 @@ class CarlaRouteEnv(gym.Env):
         self.max_distance = 30000  # m
         self.activate_spectator = activate_spectator
         self.activate_lidar = activate_lidar
-        self.eval = eval
 
         # Akadaly-jelzes. 0.0 = szabad ut elottem, 1.0 = kozel van valami.
         self.obstacle_ahead = 0.0
@@ -114,8 +109,7 @@ class CarlaRouteEnv(gym.Env):
             if self.activate_render:
                 pygame.init()
                 pygame.font.init()
-                # HWSURFACE nelkul: modern rendszereken a szoftveres surface
-                # jellemzoen gyorsabb, es nem varja be a kepfrissitest.
+        
                 self.display = pygame.display.set_mode((width, height), pygame.DOUBLEBUF)
                 self.clock = pygame.time.Clock()
                 self.hud = HUD(width, height)
@@ -268,15 +262,7 @@ class CarlaRouteEnv(gym.Env):
         self.vehicle.control.throttle = float(0.0)
         self.vehicle.set_simulate_physics(False)
 
-        if self.eval:
-            # Eval modban fix, reprodukalhato utvonalak.
-            spawn_points_list = [self.world.map.get_spawn_points()[i] for i in next(eval_routes)]
-            self.start_wp, self.end_wp = [self.world.map.get_waypoint(sp.location)
-                                          for sp in spawn_points_list]
-            self.route_waypoints = compute_route_waypoints(
-                self.world.map, self.start_wp, self.end_wp, resolution=1.0, grp=self._grp)
-        else:
-            self.start_wp, self.end_wp, self.route_waypoints = self._sample_route()
+        self.start_wp, self.end_wp, self.route_waypoints = self._sample_route()
 
         self.distance_from_center_history = deque(maxlen=30)
 
@@ -465,12 +451,10 @@ class CarlaRouteEnv(gym.Env):
         # Take action
         # (A route vegen mar nem itt teleportalunk uj route-ra: az epizod
         # "truncated"-del er veget, es az uj route a reset()-ben jon - lasd lent.)
-        if action is not None:
-            if self.action_space_type == "continuous":
-                steer, throttle = [float(a) for a in action]
-            elif self.action_space_type == "discrete":
-                steer, throttle = discrete_actions[action]
 
+        # action=None: a reset() vegen futo step(None) - csak tick, akcio nelkul.
+        if action is not None:
+            steer, throttle = [float(a) for a in action]
             self.vehicle.control.steer = smooth_action(self.vehicle.control.steer, steer, self.action_smoothing)
             self.vehicle.control.throttle = smooth_action(self.vehicle.control.throttle, throttle,
                                                           self.action_smoothing)
@@ -483,8 +467,8 @@ class CarlaRouteEnv(gym.Env):
         # kodolas utan varjuk meg (lent), mert az agensnek nem kell.
         self.observation = self._get_observation(frame)
 
-        if self.activate_lidar:
-            self.lidar_points = self._get_lidar_points(frame)
+
+        self.lidar_points = self._get_lidar_points(frame)
         _t2 = time.perf_counter()
 
         # Get vehicle transform
@@ -580,7 +564,7 @@ class CarlaRouteEnv(gym.Env):
         self.speed_accum += self.vehicle.get_speed()
 
         # Terminal on max distance
-        if self.distance_traveled >= self.max_distance and not self.eval:
+        if self.distance_traveled >= self.max_distance:
             self.success_state = True
 
         self.distance_from_center_history.append(self.distance_from_center)
@@ -634,14 +618,6 @@ class CarlaRouteEnv(gym.Env):
             'route_length': len(self.route_waypoints),
             'obstacle_ahead': self.obstacle_ahead,
         }
-        # terminated: valodi epizod-vege (baleset, lesodrodas, ...) - utana
-        # nincs jovo, a critic nem bootstrapel.
-        # truncated: a route vege es a 30 km-es max_distance. Ez NEM kudarc:
-        # az SB3 ilyenkor a kovetkezo allapotbol tovabb bootstrapel, a reset()
-        # pedig uj route-ot sorsol. Korabban a route vegen az epizod kozepen
-        # teleportaltunk: a critic a route utolso allapotat egy masik helyen,
-        # allo autoval indulo allapotbol becsulte, a max_distance pedig
-        # terminalkent ment at.
         terminated = self.terminal_state
         truncated = (route_done or self.success_state) and not terminated
         return encoded_state, self.last_reward, terminated, truncated, info
@@ -672,14 +648,6 @@ class CarlaRouteEnv(gym.Env):
             life_time, False)
 
     def _draw_path(self, camera, image):
-        """
-            Draw a connected path from start of route to end using homography.
-
-        Optimalizalva: a K projekcios matrix egyszer szamolodik ki (nem minden
-        waypointra ujra), es a ciklus csak draw_path_lookahead waypointig megy.
-        A regi verzio 800 hosszu route-nal 800-szor futott le tickenkent, ami
-        fps=15-nel 12000 felesleges iteracio masodpercenkent.
-        """
         vehicle_vector = vector(self.vehicle.get_transform().location)
         # Get the world to camera matrix
         world_2_camera = np.array(camera.get_transform().get_inverse_matrix())

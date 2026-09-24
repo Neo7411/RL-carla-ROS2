@@ -13,7 +13,7 @@ from carla_env.envs.carla_route_env import CarlaRouteEnv
 from carla_env.reward import reward_fn
 from config import CONFIG
 from utils import (
-    HParamCallback, TensorboardCallback, write_json,
+    HParamCallback, TensorboardCallback, AttentionCallback, write_json,
     load_cam_ae, load_lidar_ae, create_encode_state_fn, create_observation_space,
 )
 
@@ -82,6 +82,8 @@ def main():
             callback=[
                 HParamCallback(CONFIG),
                 TensorboardCallback(1),
+                # Mire figyel a policy (kamera / lidar / waypoints / ...).
+                AttentionCallback(every=train_cfg["attention_freq"]),
                 CheckpointCallback(
                     save_freq=train_cfg["checkpoint_freq"],
                     save_path=model_dir,

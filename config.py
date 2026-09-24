@@ -16,15 +16,10 @@ def path(*parts):
 # FEATURE EXTRACTOROK
 # =============================================================================
 
-# A halo alakja (latent_dim, latent_scale, ...) a checkpoint hparams-abol jon,
-# nem innen - igy nem lehet elcsuszni a tanitott modelltol.
 CAMERA = dict(
     ckpt=path("feature_extractions", "camera", "camera_ae.ckpt"),
 )
 
-# A range_image parameterek a MI CARLA szenzorunkhoz vannak merve (lasd
-# graph_ae.points_to_range_image docstringjet) - ezeknek egyezniuk kell a
-# tanitaskor hasznaltakkal, kulonben a latens ertelmetlen.
 LIDAR = dict(
     ckpt=path("feature_extractions", "lidar", "graph_ae.ckpt"),
     range_image=dict(
@@ -63,6 +58,8 @@ TRAIN = dict(
     # Ennyi env-lepesenkent ment. Korabban total_steps // 10 = 10M volt, igy
     # egy valos futas alatt soha nem mentett.
     checkpoint_freq=50_000,
+    # Ennyi lepesenkent meri, mire figyel a policy (utils.AttentionCallback).
+    attention_freq=10_000,
     reload_model=False,
     reload_model_path=path("tensorboard", "SAC_1778506873_SAC"),
     reload_model_file="model_final.zip",
@@ -78,46 +75,24 @@ ALGORITHM = dict(
         ent_coef="auto",
         gamma=0.98,
         tau=0.02,
-        # Minden env step utan 1 gradient lepes. A frissites/adat arany
-        # ugyanaz (1:1), mint a korabbi 64/64-nel, de az 64 lepest egyben
-        # futtatott: ~0.7 s-ig allt a sim minden 64. step utan (szinkron
-        # modban a vilag addig nem lep, de lathatoan akadt). Igy stepenkent
-        # ~11 ms, es a teljes ido kozel ugyanannyi.
         train_freq=1,
         gradient_steps=1,
         learning_starts=10000,
         use_sde=True,
         sde_sample_freq=8,
         policy_kwargs=dict(
-            # exp(-1.5) = 0.22 szoras.
-            #
-            # A -3 (exp = 0.05) a +-1-es akciotartomanyban gyakorlatilag
-            # determinisztikus volt: 4864 gradiens lepes alatt a train/std meg
-            # sem mozdult 0.0499-rol, es az agent a "lassan araszolok" lokalis
-            # optimumba tanult bele (a reward -7.9-rol -8.9-re ROMLOTT).
-            #
-            # A -1 (0.37) viszont a masik veglet: a kormanyt lathatoan rangatta.
-            # A -1.5 a kozeput - 4.5x tobb exploracio, mint az eredeti, de a
-            # zaj fele akkora, mint a -1-nel.
             log_std_init=-1.5,
             net_arch=[500, 300],
-            # Sajat extractor az SB3 CombinedExtractora helyett: az a lidar
-            # latenst (16,11,32 = 5632 dim) egyszeruen lelapitana, es a policy
-            # bemenetenek 99%-a a lidar lenne - a sebesseg, a szog es a
-            # waypointok eltunnenek benne. Lasd fusion_extractor.py.
             features_extractor_class=CarlaFusionExtractor,
             features_extractor_kwargs=dict(
                 fusion_dim=256,         # a kozos kamera+lidar szenzor-vektor
-                state_dim=64,           # a vehicle/maneuver/route_preview ag kimenete
+                state_dim=64,           # a vehicle/waypoint/maneuver ag kimenete
                 cnn_base_channels=16,   # a lidar CNN sajat szelessege (nem a latense)
                 fusion_mode="add",      # "add" vagy "concat"
             ),
         ),
     ),
 )
-
-# Csak leiras a loghoz (config.json) - az obs-t a utils.py epiti.
-STATE = ["steer", "throttle", "speed", "maneuver", "route_preview"]
 
 
 # =============================================================================
@@ -130,6 +105,5 @@ CONFIG = dict(
     env=ENV,
     train=TRAIN,
     algorithm=ALGORITHM,
-    state=STATE,
     wrappers=[],
 )

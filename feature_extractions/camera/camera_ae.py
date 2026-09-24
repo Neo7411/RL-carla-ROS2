@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 class CameraAutoEncoder(L.LightningModule):
     def __init__(self, latent_dim: int = 128, base_channels: int = 32, lr: float = 1e-3,
-                 latent_scale: float = 4.0):
+                 latent_scale: float = 4.0, use_tanh: bool = True):
         super().__init__()
 
         self.save_hyperparameters()
@@ -90,7 +90,8 @@ class CameraAutoEncoder(L.LightningModule):
         latent_dim hosszu vektort, amit beteszunk az SAC observation-be.
 
         x     : (B, 3, 80, 160) float tensor, [0, 1] tartomanyban
-        return: (B, latent_dim), -latent_scale .. +latent_scale tartomanyban
+        return: (B, latent_dim), use_tanh eseten -latent_scale .. +latent_scale
+                tartomanyban, kulonben korlatlan
         """
         h = self.encoder(x)
         # flatten(1): a 0. dim (batch) marad, minden mast egy dimenzioba huz.
@@ -108,7 +109,14 @@ class CameraAutoEncoder(L.LightningModule):
         #
         # A regi VAE-nal ez azert nem volt gond, mert ott a KL-tag tartotta a
         # latentet +-4 korul. Itt nincs ilyen kenyszer, ezert kell explicit.
-        return self.hparams.latent_scale * torch.tanh(self.fc_encode(h))
+        #
+        # use_tanh=False: a nyers linearis kimenet. A tanh a telitett
+        # dimenziokban eldobja a finom kulonbsegeket; a skalat ilyenkor az RL
+        # feature extractor kamera-aganak LayerNorm-ja rogziti.
+        z = self.fc_encode(h)
+        if not self.hparams.get("use_tanh", True):
+            return z
+        return self.hparams.latent_scale * torch.tanh(z)
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         """

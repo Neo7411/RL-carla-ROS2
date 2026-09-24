@@ -89,10 +89,16 @@ class CarlaFusionExtractor(BaseFeaturesExtractor):
         self.lidar_cnn = nn.Sequential(lidar_conv, nn.Linear(flat_dim, fusion_dim))
 
         # --- kamera ag ------------------------------------------------------
-        # A kamera latens mar tanh-olt, fix skalaju vektor - egy Linear eleg
-        # ahhoz, hogy a lidar-ag terebe forgassa.
-        cam_dim = int(np.prod(spaces[CAMERA_KEY].shape))
+        # tanh-os AE-nel a latens fix skalaju vektor - egy Linear eleg ahhoz,
+        # hogy a lidar-ag terebe forgassa. tanh nelkul (a Box hatara inf) a
+        # skala korlatlan (a regi AE-nel -121..144 volt), es "add" fuzional
+        # elnyomna a lidart: ilyenkor elotte egy LayerNorm rogziti. A regi,
+        # tanh-os modellek architekturaja igy nem valtozik.
+        cam_space = spaces[CAMERA_KEY]
+        cam_dim = int(np.prod(cam_space.shape))
         self.cam_fc = nn.Linear(cam_dim, fusion_dim)
+        self.cam_norm = (nn.LayerNorm(cam_dim) if np.isinf(cam_space.high).any()
+                         else nn.Identity())
 
         # --- a ket ag osszevezetese ----------------------------------------
         # "concat" eseten egy Linear viszi vissza fusion_dim-re; "add" eseten
@@ -145,7 +151,7 @@ class CarlaFusionExtractor(BaseFeaturesExtractor):
 
     def forward(self, observations: dict[str, th.Tensor]) -> th.Tensor:
         lidar_feat = self.lidar_cnn(observations[LIDAR_KEY])
-        cam_feat = self.cam_fc(observations[CAMERA_KEY])
+        cam_feat = self.cam_fc(self.cam_norm(observations[CAMERA_KEY]))
 
         if self.fusion_mode == "add":
             sensor = lidar_feat + cam_feat

@@ -7,7 +7,7 @@ import torch
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.logger import HParam
 
-from carla_env.wrappers import points_to_bev_rgb
+from carla_env.wrappers import vector, get_displacement_vector, points_to_bev_rgb
 from feature_extractions.camera.camera_ae import CameraAutoEncoder
 from feature_extractions.lidar.graph_ae import (
     DDCONFIG, LidarAE, points_to_range_image, range_to_points,
@@ -76,6 +76,106 @@ class TensorboardCallback(BaseCallback):
         return True
 
 
+class AttentionCallback(BaseCallback):
+    """Mire figyel a policy? Permutacios fontossag tanitas kozben.
+
+    every lepesenkent vesz egy batch-et a replay bufferbol, es megnezi, mennyit
+    valtozik az actor determinisztikus akcioja, ha EGY bemenet-csoportot a
+    batch-en belul osszekeverunk (a tobbi marad a helyen). Amit a policy nem
+    hasznal, annal a valtozas ~0. Env-egysegben merunk: kormany -1..1, gaz 0..1.
+
+    TensorBoard:
+      attention/steer/<csoport>        atlagos |d kormany|
+      attention/steer_share/<csoport>  az egyedi csoportok kozti aranya [%]
+      attention/throttle/..., attention/throttle_share/...
+      attention/steer_sensors_vs_route (kamera+lidar) / (waypoints+szog+maneuver)
+                                       a kormanyon; 1 alatt: tobbet ad a route-ra
+
+    A mintavetel sajat RNG-vel megy: a globalis np.random-ot a route-sorsolas
+    (_sample_route) is hasznalja, azt nem akarjuk elallitani.
+    """
+
+    # csoport -> [(obs kulcs, oszlop vagy None = az egesz kulcs)]
+    # vehicle_measures oszlopai: 0 steer, 1 throttle, 2 speed, 3 szog a waypointhoz
+    SINGLE = {
+        "cam": [("cam_latent", None)],
+        "lidar": [("lidar_latent", None)],
+        "waypoints": [("waypoints", None)],
+        "angle": [("vehicle_measures", 3)],
+        "maneuver": [("maneuver", None)],
+        "speed": [("vehicle_measures", 2)],
+        "prev_action": [("vehicle_measures", 0), ("vehicle_measures", 1)],
+    }
+    COMBINED = {
+        "sensors": SINGLE["cam"] + SINGLE["lidar"],
+        "route": SINGLE["waypoints"] + SINGLE["angle"] + SINGLE["maneuver"],
+    }
+
+    def __init__(self, every=10_000, batch_size=2048, seed=0, verbose=1):
+        super().__init__(verbose)
+        self.every = every
+        self.batch_size = batch_size
+        self.rng = np.random.default_rng(seed)
+
+    def _sample_obs(self):
+        rb = self.model.replay_buffer
+        upper = rb.buffer_size if rb.full else rb.pos
+        if upper < 256:
+            return None
+        idx = self.rng.integers(0, upper, size=self.batch_size)
+        return {k: rb.to_torch(v[idx, 0]) for k, v in rb.observations.items()}
+
+    @torch.no_grad()
+    def _act(self, obs):
+        return self.model.actor(obs, deterministic=True)
+
+    @staticmethod
+    def _permuted(obs, parts, perm):
+        o = dict(obs)
+        for key, col in parts:
+            if col is None:
+                o[key] = obs[key][perm]
+            else:
+                if o[key] is obs[key]:
+                    o[key] = obs[key].clone()
+                o[key][:, col] = obs[key][perm, col]
+        return o
+
+    def _on_step(self) -> bool:
+        if self.num_timesteps % self.every != 0:
+            return True
+        obs = self._sample_obs()
+        if obs is None:
+            return True
+
+        # Az actor [-1, 1]-be squash-olt akciot ad; env-egysegre valtjuk.
+        space = self.model.action_space
+        scale = torch.as_tensor((space.high - space.low) / 2.0, device=self.model.device)
+        base = self._act(obs)
+        perm = torch.as_tensor(self.rng.permutation(len(base)), device=base.device)
+
+        diff = {}
+        for name, parts in {**self.SINGLE, **self.COMBINED}.items():
+            d = ((self._act(self._permuted(obs, parts, perm)) - base).abs() * scale).mean(0)
+            diff[name] = d.cpu().numpy()
+
+        total = sum(diff[n] for n in self.SINGLE) + 1e-9
+        for i, act in enumerate(("steer", "throttle")):
+            for name, d in diff.items():
+                self.logger.record(f"attention/{act}/{name}", float(d[i]))
+            for name in self.SINGLE:
+                self.logger.record(f"attention/{act}_share/{name}", float(100.0 * diff[name][i] / total[i]))
+        ratio = float(diff["sensors"][0] / (diff["route"][0] + 1e-9))
+        self.logger.record("attention/steer_sensors_vs_route", ratio)
+        self.logger.dump(self.num_timesteps)
+
+        if self.verbose:
+            shares = "  ".join(f"{n} {100.0 * diff[n][0] / total[0]:4.0f}%" for n in self.SINGLE)
+            print(f"[attention] {self.num_timesteps} | kormany: {shares} | "
+                  f"szenzor/route = {ratio:.2f}", flush=True)
+        return True
+
+
 def lr_schedule(initial_value: float, end_value: float, rate: float):
     def func(progress_remaining: float) -> float:
         if progress_remaining <= 0:
@@ -126,36 +226,6 @@ def load_lidar_ae(cfg, device):
 # =============================================================================
 # Observation
 # =============================================================================
-# Az obs: kamera- es lidar-latens (a szenzorfuzio bemenete), az auto sajat
-# allapota (steer, throttle, speed), a manover es a route_preview.
-#
-# A waypointok (15 pont az auto rendszereben) es a hozzajuk mert szog NINCS
-# benne: azokbol a policy ingyen megkapta, hol all a savban es milyen szogben,
-# es ezert a szenzorokra nem is nezett (merve: eval_ablation.py - az 1 m-rel
-# eltolt waypointokat 0.99-es aranyban kovette, szenzor nelkul ugyanugy
-# vezetett). Hogy hol van a savban, azt most a szenzorfuziobol kell kitalalnia.
-
-# Hany meterrel elore nezzuk a route iranyat.
-ROUTE_PREVIEW_M = (10, 20, 30, 40, 50)
-
-
-def route_preview(env):
-    """A route iranyvaltozasa [rad] ROUTE_PREVIEW_M meterrel elore, a route
-    SAJAT iranyahoz kepest az auto melletti pontban (+ = jobbra fordul).
-
-    Navigacios info, mint egy GPS "jobbkanyar jon 30 m mulva" jelzese - de
-    NEM fugg attol, hogy az auto hol all a savban es milyen szogben. A route
-    1 m-es felbontasu, igy az index-eltolas ~meter; a route vege utan
-    egyenesnek vesszuk.
-    """
-    r = env.route_waypoints
-    i = min(env.current_waypoint_index, len(r) - 1)
-    yaw0 = r[i][0].transform.rotation.yaw
-    out = [(r[min(i + m, len(r) - 1)][0].transform.rotation.yaw - yaw0 + 180.0) % 360.0 - 180.0
-           for m in ROUTE_PREVIEW_M]
-    return np.deg2rad(np.array(out, dtype=np.float32))
-
-
 def create_encode_state_fn(cam_ae, lidar_ae, cfg, device):
     ri_params = cfg["lidar"]["range_image"]
     bev_params = dict(fov=ri_params["fov"], depth_scale=ri_params["depth_scale"],
@@ -205,17 +275,38 @@ def create_encode_state_fn(cam_ae, lidar_ae, cfg, device):
             env.lidar_bev_recon = points_to_bev_rgb(
                 range_to_points(lidar_recon.cpu().numpy(), **bev_params))
 
-        # Az auto sajat allapota: kormany, gaz (az elozo, simitott akcio) es sebesseg.
-        encoded_state['vehicle_measures'] = [
-            env.vehicle.control.steer,
-            env.vehicle.control.throttle,
-            env.vehicle.get_speed(),
-        ]
+        vehicle_measures = []
 
-        # Navigacio: mit kell csinalni a kovetkezo keresztezodesben, es merre
-        # fordul elore a route.
+        # ask current vechile measures steer, throttle, speed, angle, waypoint
+        vehicle_measures.append(env.vehicle.control.steer)
+        vehicle_measures.append(env.vehicle.control.throttle)
+        vehicle_measures.append(env.vehicle.get_speed())
+        vehicle_measures.append(env.vehicle.get_angle(env.current_waypoint))
+
+        # Append to dict
+        encoded_state['vehicle_measures'] = vehicle_measures
+
+        # actual vehicle maneuver
         encoded_state['maneuver'] = env.current_road_maneuver.value
-        encoded_state['route_preview'] = route_preview(env)
+        next_waypoints_state = env.route_waypoints[env.current_waypoint_index: env.current_waypoint_index + 15]
+        waypoints = [vector(way[0].transform.location) for way in next_waypoints_state]
+        vehicle_location = vector(env.vehicle.get_location())
+        theta = np.deg2rad(env.vehicle.get_transform().rotation.yaw)
+        relative_waypoints = np.zeros((15, 2))
+        for i, w_location in enumerate(waypoints):
+            relative_waypoints[i] = get_displacement_vector(vehicle_location, w_location, theta)[:2]
+        if len(waypoints) < 15:
+            # A route vege utan az utolso szakasz iranyaban egyenesen tovabb.
+            # A szakaszt a route utolso ket pontjabol vesszuk, nem a maradek
+            # waypointokbol: ha mar csak 0-1 pont maradt, az [start-2] index
+            # a meg csupa nulla sort olvasta, es a kitoltes rossz iranyba ment.
+            start_index = len(waypoints)
+            a, b = (get_displacement_vector(vehicle_location, vector(env.route_waypoints[k][0].transform.location),
+                                            theta)[:2] for k in (-2, -1))
+            reference_vector = b - a
+            for i in range(start_index, 15):
+                relative_waypoints[i] = (relative_waypoints[i-1] if i > 0 else b) + reference_vector
+        encoded_state['waypoints'] = relative_waypoints
         return encoded_state
 
     return encode_state
@@ -229,7 +320,8 @@ def create_observation_space(cam_ae, lidar_latent_shape):
     # AE-vel kodolt kamerakep. Az encode() vegen tanh van (latent_scale=4.0),
     # ezert a latent garantaltan -4..4 - ugyanaz a nagysagrend, mint a tobbi
     # obs jele. Korlat nelkul -121..144 kozott mozgott, es elnyomta oket.
-    scale = cam_ae.hparams.latent_scale
+    # tanh nelkuli AE-nel (use_tanh=False) nincs korlat: inf, mint a lidarnal.
+    scale = cam_ae.hparams.latent_scale if cam_ae.hparams.get("use_tanh", True) else np.inf
     observation_space['cam_latent'] = gym.spaces.Box(
         low=-scale, high=scale,
         shape=(cam_ae.hparams.latent_dim, ), dtype=np.float32)
@@ -246,11 +338,10 @@ def create_observation_space(cam_ae, lidar_latent_shape):
     low.append(-1), high.append(1) # steer
     low.append(0), high.append(1) # throttle
     low.append(0), high.append(120) #Speed
+    low.append(-3.14), high.append(3.14) # next angle waypoint
     observation_space['vehicle_measures'] = gym.spaces.Box(low=np.array(low, dtype=np.float32), high=np.array(high, dtype=np.float32), dtype=np.float32)
 
-    observation_space['maneuver'] = gym.spaces.Discrete(4) # LANEFOLLOW, LEFT, RIGHT, STRAIGHT
-    # A route iranyvaltozasa 10..50 m-en elore [rad], lasd route_preview().
-    observation_space['route_preview'] = gym.spaces.Box(
-        low=-np.pi, high=np.pi, shape=(len(ROUTE_PREVIEW_M),), dtype=np.float32)
+    observation_space['maneuver'] = gym.spaces.Discrete(4) # manuever
+    observation_space['waypoints'] = gym.spaces.Box(low=-50, high=50, shape=(15, 2),dtype=np.float32) # waypoints
 
     return gym.spaces.Dict(observation_space)

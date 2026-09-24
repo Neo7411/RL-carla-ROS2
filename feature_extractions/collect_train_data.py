@@ -56,7 +56,7 @@ SENSOR_TRANSFORMS = {
                                  carla.Rotation(pitch=-15)),
 }
 
-NUM_TRAFFIC = 20
+NUM_TRAFFIC = 200
 
 HYBRID_PHYSICS_RADIUS = 70.0
 EGO_SPEED_KMH = 90.0
@@ -67,6 +67,26 @@ MAX_FRAMES = None
 
 
 EVERY_N_TICK = 4
+
+# === Sav-kozeptol eltero kepek (csak autopilot mellett) ===
+# Az autopilot mindig a sav kozepen, a sav iranyaban megy: a regi adatban
+# szinte nincs oldalra csuszott vagy ferde kep, ezert az AE latense alig
+# kodolja, hol all az auto a savban - pedig az RL policy-nek pont ez kell,
+# amikor lesodrodik. Ket forras:
+#   - a TM oldaleltolasa folyamatosan hullamzik (szinusz): az auto a savban
+#     jobbra-balra kanyarog, kozben ferden is all. Minden teljes hullam utan
+#     uj veletlen amplitudo (LANE_OFFSET_AMP) es periodus (LANE_OFFSET_PERIOD).
+#     90 km/h-n 1.5 m / 3 s ~7 fokos szoget ad.
+#   - PERTURB_EVERY-nkent par tizedmasodpercre mi kormanyzunk egy veletlen
+#     kiteressel, utana az autopilot visszahozza (DART-szeruen). 90 km/h-n a
+#     0.05-os kormany 0.4 s alatt ~12 fokot fordit.
+# WANDER = False: a regi, sav-kozepes autopilot.
+WANDER = True
+LANE_OFFSET_AMP = (0.5, 1.5)       # m
+LANE_OFFSET_PERIOD = (3.0, 8.0)    # s, egy teljes jobbra-balra hullam
+PERTURB_EVERY = (2.0, 5.0)         # s
+PERTURB_STEER = (0.02, 0.05)
+PERTURB_TICKS = (4, 8)             # 20 Hz-en 0.2-0.4 s
 
 
 DRAW_EVERY = 1
@@ -265,6 +285,66 @@ def set_autopilot(vehicle, tm, enabled):
     tm.distance_to_leading_vehicle(vehicle, 2.5)
 
 
+class LaneWander(object):
+    """Autopilot mellett: hullamzo oldaleltolas es idonkenti kiteres.
+    Lasd LANE_OFFSET_* es PERTURB_*."""
+
+    def __init__(self, tm):
+        self.tm = tm
+        self.reset(0.0)
+
+    def reset(self, t):
+        """Respawn vagy autopilot-valtas utan: tiszta lap."""
+        self.offset = 0.0
+        self.amp = 0.0
+        self.period = 1.0
+        self.wave_start_t = self.wave_end_t = t
+        self.next_perturb_t = t + random.uniform(*PERTURB_EVERY)
+        self.perturb_left = 0
+        self.perturb_steer = 0.0
+
+    @property
+    def perturbing(self):
+        return self.perturb_left > 0
+
+    def step(self, vehicle, t):
+        # Egy hullam 0-bol indul es 0-ban er veget, igy az uj amplitudora
+        # valtas nem ugrik. Az elojel is veletlen: balra vagy jobbra kezd.
+        # Kiteres alatt is halad, hogy utana ne egy regi ertekre alljon vissza.
+        if t >= self.wave_end_t:
+            self.amp = random.choice((-1.0, 1.0)) * random.uniform(*LANE_OFFSET_AMP)
+            self.period = random.uniform(*LANE_OFFSET_PERIOD)
+            self.wave_start_t = t
+            self.wave_end_t = t + self.period
+        self.offset = self.amp * np.sin(2.0 * np.pi * (t - self.wave_start_t) / self.period)
+
+        if self.perturb_left > 0:
+            self.perturb_left -= 1
+            if self.perturb_left == 0:
+                # Vissza az autopilotnak. A set_autopilot a TM beallitasait
+                # is ujra rakja, az eltolast biztonsagbol mi is.
+                set_autopilot(vehicle, self.tm, True)
+                self.tm.vehicle_lane_offset(vehicle, self.offset)
+            else:
+                ctrl = vehicle.get_control()
+                ctrl.steer = self.perturb_steer
+                vehicle.apply_control(ctrl)
+            return
+
+        self.tm.vehicle_lane_offset(vehicle, self.offset)
+
+        if t >= self.next_perturb_t:
+            # A gazt az autopilot utolso parancsabol tartjuk, csak a kormany
+            # a miénk.
+            ctrl = vehicle.get_control()
+            vehicle.set_autopilot(False, self.tm.get_port())
+            self.perturb_steer = random.choice((-1.0, 1.0)) * random.uniform(*PERTURB_STEER)
+            self.perturb_left = random.randint(*PERTURB_TICKS)
+            ctrl.steer = self.perturb_steer
+            vehicle.apply_control(ctrl)
+            self.next_perturb_t = t + random.uniform(*PERTURB_EVERY)
+
+
 class Ego(object):
     def __init__(self, world):
         self.world = world
@@ -424,6 +504,7 @@ def main():
     existing = count_existing(CAMERA_DIR, ".png")
     if existing:
         print(f"[collect] mar van {existing} frame - az uj melle kerul")
+    print(f"[collect] sav-eltolas {'BE' if WANDER else 'KI'}")
 
     pygame.init()
     pygame.font.init()
@@ -449,6 +530,7 @@ def main():
 
         tm = client.get_trafficmanager()
         tm.set_synchronous_mode(True)
+        wander = LaneWander(tm) if WANDER else None
 
         # Az ego megy le eloszor: a hybrid physics kore epul, es a forgalom
         # kulonben elfoglalna minden spawn pontot.
@@ -505,6 +587,8 @@ def main():
                     elif event.key == K_p:
                         autopilot = not autopilot
                         set_autopilot(ego.player, tm, autopilot)
+                        if wander is not None:
+                            wander.reset(tick_count * FIXED_DELTA)
                         print(f"\n[collect] autopilot {'BE' if autopilot else 'KI'}")
                     elif event.key == K_c:
                         reverse = pygame.key.get_mods() & KMOD_SHIFT
@@ -512,10 +596,14 @@ def main():
                     elif event.key == K_BACKSPACE:
                         ego.spawn()
                         set_autopilot(ego.player, tm, autopilot)
+                        if wander is not None:
+                            wander.reset(tick_count * FIXED_DELTA)
                         print("\n[collect] uj auto, uj pozicio")
 
             if not autopilot:
                 throttle, brake, steer = controller.apply(ego.player, FIXED_DELTA)
+            elif wander is not None:
+                wander.step(ego.player, tick_count * FIXED_DELTA)
 
             # A `got_data` a tick elejen keszult, a respawn viszont utana is
             # johet (Backspace) - olyankor az ego adatai mar torolve vannak.
@@ -626,6 +714,9 @@ def main():
                 f"0 a normalis)",
                 f"Sebesseg:     {kmh:5.1f} km/h",
                 f"Vezetes:      {'autopilot' if autopilot else 'KEZI'}  (P = valt)",
+                (f"Sav-eltolas:  {wander.offset:+.2f} m"
+                 + ("  KITERES" if wander.perturbing else "")
+                 if wander is not None and autopilot else "Sav-eltolas:  ki"),
                 f"Frekvencia:   {SENSOR_HZ:.0f} Hz (sync)",
                 f"Valos FPS:    {clock.get_fps():5.1f}",
             ]
@@ -682,6 +773,13 @@ def main():
                 # Mar megforditva: kozvetlenul atadhato a
                 # lidar_ae.points_to_range_image()-nek.
                 "y_axis_flipped": True,
+            },
+            "wander": None if not WANDER else {
+                "lane_offset_amp_m": LANE_OFFSET_AMP,
+                "lane_offset_period_s": LANE_OFFSET_PERIOD,
+                "perturb_every_s": PERTURB_EVERY,
+                "perturb_steer": PERTURB_STEER,
+                "perturb_ticks": PERTURB_TICKS,
             },
         }
         with open(os.path.join(OUT_DIR, "meta.json"), "w") as f:
