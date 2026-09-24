@@ -196,10 +196,16 @@ def create_encode_state_fn(cam_ae, lidar_ae, cfg, device):
         for i, w_location in enumerate(waypoints):
             relative_waypoints[i] = get_displacement_vector(vehicle_location, w_location, theta)[:2]
         if len(waypoints) < 15:
+            # A route vege utan az utolso szakasz iranyaban egyenesen tovabb.
+            # A szakaszt a route utolso ket pontjabol vesszuk, nem a maradek
+            # waypointokbol: ha mar csak 0-1 pont maradt, az [start-2] index
+            # a meg csupa nulla sort olvasta, es a kitoltes rossz iranyba ment.
             start_index = len(waypoints)
-            reference_vector = relative_waypoints[start_index-1] - relative_waypoints[start_index-2]
+            a, b = (get_displacement_vector(vehicle_location, vector(env.route_waypoints[k][0].transform.location),
+                                            theta)[:2] for k in (-2, -1))
+            reference_vector = b - a
             for i in range(start_index, 15):
-                relative_waypoints[i] = relative_waypoints[i-1] + reference_vector
+                relative_waypoints[i] = (relative_waypoints[i-1] if i > 0 else b) + reference_vector
         encoded_state['waypoints'] = relative_waypoints
         return encoded_state
 
