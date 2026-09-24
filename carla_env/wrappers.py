@@ -76,7 +76,13 @@ def angle_diff(v0, v1):
 
 
 def distance_to_line(A, B, p):
-    p[2] = 0
+    # Csak a vizszintes (x, y) sikban merunk. Korabban csak a p z-je nullazodott,
+    # az A-e es a B-e nem, igy a route MAGASSAGA is "oldaliranyu eltereskent"
+    # szamitott. Town04 hidjai 11 m-ig emelkednek: 6 m felett (reward.py
+    # MAX_DISTANCE_HARD) minden epizod Off-track-kel ert veget, sokszor mar a
+    # spawnnal (a tanitas epizodjainak ~17%-a), emelkedon pedig a
+    # centering_factor a padlora esett.
+    A, B, p = (np.array([v[0], v[1], 0.0]) for v in (A, B, p))
     num = np.linalg.norm(np.cross(B - A, A - p))
     denom = np.linalg.norm(B - A)
     if np.isclose(denom, 0):

@@ -12,7 +12,8 @@ MAX_ANGLE_CENTER_LANE = 90    # max szogeltres [fok]
 PENALTY_REWARD = -10          # terminal buntetes
 STOP_TIMEOUT = 5.0            # ennyi mp allas utan terminal [s]
 
-# Alacsony sebesseggel toltott ido szamlaloja (epizodonkent nullazodik).
+# Mennyi ideje all EGYHUZAMBAN az auto [s]. Elindulaskor es minden epizod
+# elejen nullazodik.
 _low_speed_timer = 0.0
 
 
@@ -29,12 +30,23 @@ def reward_fn(env):
     terminal_reason = "Running..."
     speed_kmh = env.vehicle.get_speed()
 
+    # A reset() vegen futo step(None) hivja elsokent (step_count meg 0) - itt
+    # kezdodik az uj epizod, az elozo allasideje ne orokolodjon at.
+    if env.step_count == 0:
+        _low_speed_timer = 0.0
+
     # --- 1) Epizod-vege feltetelek -----------------------------------------
     if EARLY_STOP and not env.terminal_state:
-        _low_speed_timer += 1.0 / env.fps
+        # Korabban a szamlalo MINDEN lepesben nott, es csak terminalkor
+        # nullazodott: az epizod elso 5 mp-e utan barmilyen pillanatnyi
+        # megallas (<1 km/h) azonnal terminalt. Most az egyhuzamban allva
+        # toltott idot meri.
+        _low_speed_timer = _low_speed_timer + 1.0 / env.fps if speed_kmh < 1.0 else 0.0
 
-        # Az auto beragadt: STOP_TIMEOUT-nal tovabb allt, mikozben mar elindult volna.
-        if _low_speed_timer > STOP_TIMEOUT and speed_kmh < 1.0 and env.current_waypoint_index >= 1:
+        # Az auto beragadt: STOP_TIMEOUT-nal tovabb allt egyhuzamban. Ez az
+        # epizod elejen is ervenyes - korabban az "index >= 1" feltetel miatt
+        # egy el sem indulo auto epizodja soha nem ert veget.
+        if _low_speed_timer > STOP_TIMEOUT:
             env.terminal_state = True
             terminal_reason = "Vehicle stopped"
 

@@ -350,7 +350,9 @@ class CarlaRouteEnv(gym.Env):
         return float(np.clip((self.obstacle_far - nearest) / span, 0.0, 1.0))
 
     def close(self):
-        if self.carla_process:
+        # A carla_process-t semmi nem allitja be (a szervert kivulrol inditjuk),
+        # a sima self.carla_process AttributeError-t dobott.
+        if getattr(self, "carla_process", None):
             self.carla_process.terminate()
         pygame.quit()
         if self.world is not None:
@@ -496,10 +498,14 @@ class CarlaRouteEnv(gym.Env):
         # Keep track of closest waypoint on the route
         self.prev_waypoint_index = self.current_waypoint_index
         waypoint_index = self.current_waypoint_index
-        for _ in range(len(self.route_waypoints)):
+        # Az index a route utolso pontjanal megall. Korabban "% len" volt itt:
+        # a route vegen a ciklus a route ELEJEN folytatta a vizsgalatot, es egy
+        # step alatt akar 2*len-ig futott (routes_completed ugrott, a
+        # current_waypoint pedig egy tavoli, route eleji pont lehetett).
+        for _ in range(len(self.route_waypoints) - 1 - waypoint_index):
             # Check if we passed the next waypoint along the route
             next_waypoint_index = waypoint_index + 1
-            wp, _ = self.route_waypoints[next_waypoint_index % len(self.route_waypoints)]
+            wp, _ = self.route_waypoints[next_waypoint_index]
             dot = np.dot(vector(wp.transform.get_forward_vector())[:2],
                          vector(transform.location - wp.transform.location)[:2])
             if dot > 0.0:  # Did we pass the waypoint?
