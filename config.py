@@ -106,7 +106,7 @@ ALGORITHM = dict(
             features_extractor_class=CarlaFusionExtractor,
             features_extractor_kwargs=dict(
                 fusion_dim=256,         # a kozos kamera+lidar szenzor-vektor
-                state_dim=64,           # a vehicle/waypoint/maneuver ag kimenete
+                state_dim=64,           # a vehicle/maneuver/route_preview ag kimenete
                 cnn_base_channels=16,   # a lidar CNN sajat szelessege (nem a latense)
                 fusion_mode="add",      # "add" vagy "concat"
             ),
