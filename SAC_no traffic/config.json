@@ -1,0 +1,8 @@
+{
+    "camera": "{'ckpt': '/home/xavier11/CARLA/RL/RL-carla-ROS2/feature_extractions/camera/camera_ae.ckpt'}",
+    "lidar": "{'ckpt': '/home/xavier11/CARLA/RL/RL-carla-ROS2/feature_extractions/lidar/graph_ae.ckpt', 'range_image': \"{'size': (44, 256), 'fov': (-0.9, -25.0), 'depth_range': (1.0, 50.0), 'depth_scale': 5.68}\"}",
+    "env": "{'town': 'Town04', 'host': 'localhost', 'port': '2000', 'obs_res': '(160, 80)', 'viewer_res': '(1280, 720)', 'fps': '20', 'max_route_length': '1200', 'min_route_length': '1000', 'action_smoothing': '0.75', 'action_space_type': 'continuous', 'activate_spectator': 'True', 'activate_render': 'True'}",
+    "train": "{'log_dir': '/home/xavier11/CARLA/RL/RL-carla-ROS2/tensorboard', 'total_steps': '100000000', 'seed': '100', 'checkpoint_freq': '50000', 'attention_freq': '10000', 'reload_model': 'False', 'reload_model_path': '/home/xavier11/CARLA/RL/RL-carla-ROS2/tensorboard/SAC_1778506873_SAC', 'reload_model_file': 'model_final.zip'}",
+    "algorithm": "{'name': 'SAC', 'device': 'cuda', 'params': \"{'learning_rate': <function lr_schedule.<locals>.func at 0x735f44616170>, 'buffer_size': 100000, 'batch_size': 256, 'ent_coef': 'auto', 'gamma': 0.98, 'tau': 0.02, 'train_freq': 1, 'gradient_steps': 1, 'learning_starts': 10000, 'use_sde': True, 'sde_sample_freq': 8, 'policy_kwargs': {'log_std_init': -1.5, 'net_arch': [500, 300], 'features_extractor_class': <class 'feature_extractions.fusion_extractor.CarlaFusionExtractor'>, 'features_extractor_kwargs': {'fusion_dim': 256, 'state_dim': 64, 'cnn_base_channels': 16, 'fusion_mode': 'add'}, 'use_sde': True}}\"}",
+    "wrappers": "[]"
+}

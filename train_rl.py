@@ -10,7 +10,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import configure
 
 from carla_env.envs.carla_route_env import CarlaRouteEnv
-from carla_env.reward import reward_fn
+import carla_env.reward as rewards
 from config import CONFIG
 from utils import (
     HParamCallback, TensorboardCallback, AttentionCallback, write_json,
@@ -47,7 +47,7 @@ def main():
         town=env_cfg["town"],
         max_route_length=env_cfg["max_route_length"],
         min_route_length=env_cfg["min_route_length"],
-        reward_fn=reward_fn,
+        reward_fn=getattr(rewards, env_cfg["reward_fn"]),
         observation_space=observation_space,
         encode_state_fn=encode_state_fn,
         fps=env_cfg["fps"],
@@ -56,6 +56,11 @@ def main():
         activate_spectator=env_cfg["activate_spectator"],
         activate_render=env_cfg["activate_render"],
         activate_lidar=True,
+        traffic_vehicles=env_cfg["traffic_vehicles"],
+        traffic_start_m=env_cfg["traffic_start_m"],
+        traffic_gap_m=env_cfg["traffic_gap_m"],
+        traffic_speed_kmh=env_cfg["traffic_speed_kmh"],
+        hybrid_radius=env_cfg["hybrid_radius"],
     )
 
     if train_cfg["reload_model"]:

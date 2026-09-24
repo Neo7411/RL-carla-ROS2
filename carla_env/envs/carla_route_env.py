@@ -14,9 +14,6 @@ from collections import deque
 import itertools
 
 
-discrete_actions = {
-    0: [-1, 1], 1: [0, 1], 2: [1, 1], 3: [0, 0],
-}
 
 
 class CarlaRouteEnv(gym.Env):
@@ -40,8 +37,23 @@ class CarlaRouteEnv(gym.Env):
                  action_space_type="continuous",
                  activate_spectator=True,
                  activate_lidar=False,
-                 activate_render=True):
+                 activate_render=True,
+                 # === forgalom (minden reset-ben uj, lasd _spawn_traffic) ===
+                 traffic_vehicles=0,             # max ennyi auto epizodonkent, 0 = nincs
+                 traffic_start_m=30.0,           # az ego elott ennyitol kezdve [m]
+                 traffic_gap_m=(20.0, 50.0),     # ket egymas utani auto kozt a route menten [m]
+                 traffic_speed_kmh=(30.0, 60.0),
+                 hybrid_radius=70.0,             # ezen belul fut valodi fizika [m]
+                 tm_port=8000):
         self.town = town
+        self.traffic_vehicles = traffic_vehicles
+        self.traffic_start_m = traffic_start_m
+        self.traffic_gap_m = traffic_gap_m
+        self.traffic_speed_kmh = traffic_speed_kmh
+        self.traffic_ids = []
+        self.tm = None
+        self.collision_with = None
+        self.route_dev = 0.0
         self.min_route_length = min_route_length
         self.max_route_length = max_route_length
         self.obstacle_near = obstacle_near
@@ -58,7 +70,7 @@ class CarlaRouteEnv(gym.Env):
         # Setup gym environment
         self.action_space_type = action_space_type
         if self.action_space_type == "continuous":
-            self.action_space = gym.spaces.Box(np.array([-1, 0], dtype=np.float32), np.array([1, 1], dtype=np.float32), dtype=np.float32)  # steer, throttle
+            self.action_space = gym.spaces.Box(np.array([-1, 0, 0], dtype=np.float32), np.array([1, 1, 1], dtype=np.float32), dtype=np.float32)  # steer, throttle, brake
         self.observation_space = observation_space
 
         self.fps = fps
@@ -98,6 +110,19 @@ class CarlaRouteEnv(gym.Env):
             # route-probalkozas ujraepitette, es reset kozben a sim allt.
             self._grp = build_route_planner(self.world.map, resolution=1.0)
 
+            # Forgalom: TrafficManager szinkron modban (a world.tick() lepteti),
+            # hybrid physics-szel. A hero (az ego) hybrid_radius-an kivul a
+            # forgalom fizika nelkul, teleporttal halad - igy a sok auto nem
+            # terheli a szervert.
+            if self.traffic_vehicles > 0:
+                self.tm = self.client.get_trafficmanager(tm_port)
+                self.tm.set_synchronous_mode(True)
+                self.tm.set_hybrid_physics_mode(True)
+                self.tm.set_hybrid_physics_radius(hybrid_radius)
+                self.tm.set_global_distance_to_leading_vehicle(2.5)
+                self._traffic_bps = [bp for bp in self.world.get_blueprint_library().filter("vehicle.*")
+                                     if int(bp.get_attribute("number_of_wheels")) == 4]
+
             # self.world.set_weather(carla.WeatherParameters.MidRainyNoon)
 
             # Create vehicle and attach camera to it
@@ -109,8 +134,9 @@ class CarlaRouteEnv(gym.Env):
             if self.activate_render:
                 pygame.init()
                 pygame.font.init()
-        
+                pygame.display.set_caption("CARLA RL Train HUD")
                 self.display = pygame.display.set_mode((width, height), pygame.DOUBLEBUF)
+
                 self.clock = pygame.time.Clock()
                 self.hud = HUD(width, height)
                 self.hud.set_vehicle(self.vehicle)
@@ -155,11 +181,17 @@ class CarlaRouteEnv(gym.Env):
         # Create new route
         self.num_routes_completed = -1
         self.episode_idx += 1
+        # Az elozo epizod forgalma a teleport ELOTT tunik el, kulonben az ego
+        # akar egy ott allo autoba erkezhetne.
+        self._destroy_traffic()
         self.new_route()
+        self._spawn_traffic()
 
         # Two different variables to differ between success episode and fail episode
         self.terminal_state = False  # Set to True when we want to end episode
         self.success_state = False  # Set to True when we want to end episode.
+        self.collision_with = None  # az elso utkozes masik szereplojenek type_id-je
+        self.route_dev = 0.0
 
         self.closed = False  # Set to True when ESC is pressed
         self.extra_info = []  # List of extra info shown on the HUD
@@ -260,6 +292,7 @@ class CarlaRouteEnv(gym.Env):
         # sebesseget/impulzust, es az auto kiloone vagy felborulna az uj helyen.
         self.vehicle.control.steer = float(0.0)
         self.vehicle.control.throttle = float(0.0)
+        self.vehicle.control.brake = float(0.0)
         self.vehicle.set_simulate_physics(False)
 
         self.start_wp, self.end_wp, self.route_waypoints = self._sample_route()
@@ -335,12 +368,71 @@ class CarlaRouteEnv(gym.Env):
         span = max(self.obstacle_far - self.obstacle_near, 1e-6)
         return float(np.clip((self.obstacle_far - nearest) / span, 0.0, 1.0))
 
+    # -------------------------------------------------------------- forgalom
+
+    def _traffic_slots(self):
+        """Hova keruljon forgalom: waypointok a route menten, az ego elott.
+
+        traffic_start_m-tol a route vegeig traffic_gap_m-enkent (veletlen) egy
+        auto, a route savjaban vagy egy azonos iranyu szomszed savban - igy
+        lepcsozetesen allnak, es van hol elmenni melluk. Keresztezodesbe nem
+        rakunk (ott a TM ugyis keresztbe allna). A np.random-ot hasznalja,
+        mint a route-sorsolas: ugyanaz a seed -> ugyanaz a forgalom.
+        """
+        slots = []
+        d = self.traffic_start_m
+        while len(slots) < self.traffic_vehicles and d < len(self.route_waypoints) - 1:
+            wp = self.route_waypoints[int(d)][0]
+            if not wp.is_junction:
+                lanes = [wp] + [n for n in (wp.get_left_lane(), wp.get_right_lane())
+                                if n is not None and n.lane_type == carla.LaneType.Driving
+                                and n.lane_id * wp.lane_id > 0]   # azonos irany
+                slots.append(lanes[np.random.randint(len(lanes))])
+            d += np.random.uniform(*self.traffic_gap_m)
+        return slots
+
+    def _spawn_traffic(self):
+        """Uj forgalom a most sorsolt route menten, az ego elott.
+
+        A forgalom lassabb az egonal (traffic_speed_kmh), nem valt savot es
+        nem all meg lampanal - az egonak kell kikerulnie oket.
+        """
+        if self.tm is None:
+            return
+        port = self.tm.get_port()
+        batch = []
+        for wp in self._traffic_slots():
+            bp = self._traffic_bps[np.random.randint(len(self._traffic_bps))]
+            if bp.has_attribute("color"):
+                colors = bp.get_attribute("color").recommended_values
+                bp.set_attribute("color", colors[np.random.randint(len(colors))])
+            bp.set_attribute("role_name", "traffic")
+            tf = carla.Transform(wp.transform.location + carla.Location(z=0.5), wp.transform.rotation)
+            batch.append(carla.command.SpawnActor(bp, tf).then(
+                carla.command.SetAutopilot(carla.command.FutureActor, True, port)))
+        # A True egy tick-et is lep: ekkor all be az ego teleportja is.
+        self.traffic_ids = [r.actor_id for r in self.client.apply_batch_sync(batch, True)
+                            if not r.error]
+        for actor in self.world.get_actors(self.traffic_ids):
+            self.tm.set_desired_speed(actor, float(np.random.uniform(*self.traffic_speed_kmh)))
+            self.tm.auto_lane_change(actor, False)
+            self.tm.ignore_lights_percentage(actor, 100)
+
+    def _destroy_traffic(self):
+        if self.traffic_ids:
+            self.client.apply_batch_sync(
+                [carla.command.DestroyActor(i) for i in self.traffic_ids], False)
+        self.traffic_ids = []
+
     def close(self):
         # A carla_process-t semmi nem allitja be (a szervert kivulrol inditjuk),
         # a sima self.carla_process AttributeError-t dobott.
         if getattr(self, "carla_process", None):
             self.carla_process.terminate()
         pygame.quit()
+        self._destroy_traffic()
+        if self.tm is not None:
+            self.tm.set_synchronous_mode(False)
         if self.world is not None:
             self.world.destroy()
         self.closed = True
@@ -454,10 +546,20 @@ class CarlaRouteEnv(gym.Env):
 
         # action=None: a reset() vegen futo step(None) - csak tick, akcio nelkul.
         if action is not None:
-            steer, throttle = [float(a) for a in action]
+            steer, throttle, brake = [float(a) for a in action]
+            # Fek holtsav: csak 0.7 folott fog, onnan 0..1-re skalazva. Nelkule
+            # a veletlen felfedezes es a betanitatlan policy is ~0.5-os fekkel
+            # ment (a ~0.5-os gaz mellett), es az auto el sem indult: 23.5k
+            # lepes, 225 epizod alatt egyszer sem mozdult meg.
+            brake = max(0.0, (brake - 0.7) / 0.3)
             self.vehicle.control.steer = smooth_action(self.vehicle.control.steer, steer, self.action_smoothing)
             self.vehicle.control.throttle = smooth_action(self.vehicle.control.throttle, throttle,
                                                           self.action_smoothing)
+            # A fek NEM simitott: a simitas miatt egy-egy fekezes utan lassan
+            # csengett le (x0.75 lepesenkent), es szinte mindig maradt bent egy
+            # kis fek. Elo meresben mar 0.03-as fek + 0.5-os gaz mellett is
+            # 0 km/h-n allt az auto. Igy fek nelkul pontosan 0, fekezve azonnal hat.
+            self.vehicle.control.brake = brake
         # Tick game
         _t0 = time.perf_counter()
         frame = self.world.tick()
@@ -511,6 +613,7 @@ class CarlaRouteEnv(gym.Env):
         route_dev = distance_to_line(vector(self.current_waypoint.transform.location),
                                      vector(self.next_waypoint.transform.location),
                                      vector(transform.location))
+        self.route_dev = route_dev   # a reward_traffic_fn-nek: kint vagyunk-e a route savjabol
 
         # (b) Eltres attol a savtol, amiben EPPEN vagyok. A get_waypoint() a
         #     legkozelebbi driving sav kozepvonalara vetit, tehat ez akkor is
@@ -718,6 +821,9 @@ class CarlaRouteEnv(gym.Env):
     def _on_collision(self, event):
         if get_actor_display_name(event.other_actor) != "Road":
             self.terminal_state = True
+            # A reward ebbol tudja, hogy jarmuvel (vehicle.*) vagy massal utkozott.
+            if self.collision_with is None:
+                self.collision_with = event.other_actor.type_id
         if self.activate_render:
             self.hud.notification("Collision with {}".format(get_actor_display_name(event.other_actor)))
 

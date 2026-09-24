@@ -40,12 +40,18 @@ ENV = dict(
     obs_res=(160, 80),
     viewer_res=(1280, 720),
     fps=20,
-    max_route_length=1200,
-    min_route_length=1000,
+    max_route_length=2500,
+    min_route_length=1500,
     action_smoothing=0.75,
     action_space_type="continuous",
     activate_spectator=True,
     activate_render=True,
+    reward_fn="reward_traffic_fn",
+    traffic_vehicles=50,
+    traffic_start_m=30.0,
+    traffic_gap_m=(12.0, 30.0),
+    traffic_speed_kmh=(30.0, 30.0),
+    hybrid_radius=70.0,
 )
 # =============================================================================
 # TANITAS
@@ -61,8 +67,8 @@ TRAIN = dict(
     # Ennyi lepesenkent meri, mire figyel a policy (utils.AttentionCallback).
     attention_freq=10_000,
     reload_model=False,
-    reload_model_path=path("tensorboard", "SAC_1778506873_SAC"),
-    reload_model_file="model_final.zip",
+    reload_model_path=path("tensorboard", "SAC"),
+    reload_model_file="model_interrupted.zip",
 )
 
 ALGORITHM = dict(
@@ -80,6 +86,11 @@ ALGORITHM = dict(
         learning_starts=10000,
         use_sde=True,
         sde_sample_freq=8,
+        # A learning_starts alatt se egyenletes veletlen akcio menjen, hanem a
+        # (betanitatlan) policy gSDE zajjal. Az egyenletes veletlen fek (a
+        # simitassal) vegig bent maradt, es az auto el sem indult; a policy
+        # ~0.5-os fek-akcioja a 0.7-es holtsav alatt van, igy nem fekez.
+        use_sde_at_warmup=True,
         policy_kwargs=dict(
             log_std_init=-1.5,
             net_arch=[500, 300],

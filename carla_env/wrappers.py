@@ -434,6 +434,9 @@ class Vehicle(CarlaActorBase):
         vehicle_bp = world.get_blueprint_library().find(vehicle_type)
         color = vehicle_bp.get_attribute("color").recommended_values[0]
         vehicle_bp.set_attribute("color", color)
+        # A TrafficManager hybrid physics modja a "hero" auto kore szamol
+        # fizikat: a sugaron kivuli forgalom olcso teleporttal halad.
+        vehicle_bp.set_attribute("role_name", "hero")
 
         # Create vehicle actor
         actor = world.spawn_actor(vehicle_bp, transform)
