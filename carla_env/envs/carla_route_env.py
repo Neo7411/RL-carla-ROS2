@@ -177,9 +177,15 @@ class CarlaRouteEnv(gym.Env):
                         balra / jobbra (az ego sajat iranyahoz kepest)
           left_marking, right_marking   a sajat savom felfestese, az EGO
                         menetiranyahoz kepest (a szembesavban megforditva)
-          front_id, front_dist          a sajat savomban elottem levo
-                        legkozelebbi auto lead_range-en belul, kulonben None
+          front_id, front_dist, front_speed   a sajat savomban elottem levo
+                        legkozelebbi auto lead_range-en belul (a sebessege
+                        km/h-ban), kulonben None
           left_free     a bal szomszed sav letezik, es -8..+20 m-en szabad
+          lanes         a szomszed savok az ego iranyabol: +1 bal, +2 ketto
+                        balra, -1 jobb, -2 ketto jobbra (ami nincs, az kimarad).
+                        broken: odaig minden vonal szaggatott; free: -8..+20
+                        m-en szabad (ide allhat be); cross: -8..+8 m-en szabad
+                        (at lehet vagni rajta a tulso savba)
           lon           minden forgalmi auto hosszanti tavolsaga [m], + = elottem
         """
         tr = self.vehicle.get_transform()
@@ -197,19 +203,33 @@ class CarlaRouteEnv(gym.Env):
         ego_along = wp_fwd.x * fwd.x + wp_fwd.y * fwd.y >= 0.0
         if ego_along:
             left_mark, right_mark = ego_wp.left_lane_marking, ego_wp.right_lane_marking
-            left_wp = ego_wp.get_left_lane()
         else:
             left_mark, right_mark = ego_wp.right_lane_marking, ego_wp.left_lane_marking
-            left_wp = ego_wp.get_right_lane()
-        if left_wp is not None and left_wp.lane_type != carla.LaneType.Driving:
-            left_wp = None
-        if left_wp is not None:
-            left_fwd = left_wp.transform.get_forward_vector()
-            left_along = left_fwd.x * fwd.x + left_fwd.y * fwd.y >= 0.0
+
+        # Szomszed savok, mindket oldalon ketto. Masodikat csak azonos iranyu
+        # savon lepunk; szembesavba csak egyet balra (elozes ketsavos uton).
+        lanes = {}
+        for side in (1, -1):
+            wp, marks = ego_wp, []
+            for n in (1, 2):
+                # a SAV iranyahoz kepest bal-e (a szembesavban forditva)
+                lane_left = (side > 0) == ego_along
+                marks.append(str((wp.left_lane_marking if lane_left else wp.right_lane_marking).type))
+                wp = wp.get_left_lane() if lane_left else wp.get_right_lane()
+                if wp is None or wp.lane_type != carla.LaneType.Driving:
+                    break
+                same_dir = wp.lane_id * ego_wp.lane_id > 0
+                if not same_dir and (side < 0 or n > 1):
+                    break
+                wf = wp.transform.get_forward_vector()
+                lanes[side * n] = dict(wp=wp, along=wf.x * fwd.x + wf.y * fwd.y >= 0.0,
+                                       broken=all(m == "Broken" for m in marks),
+                                       free=True, cross=True)
+                if not same_dir:
+                    break
 
         flags = {"front": False, "behind": False, "left": False, "right": False}
-        front_id, front_dist = None, None
-        left_free = left_wp is not None
+        front_id, front_dist, front_actor = None, None, None
         lon_by_id = {}
 
         for other in (self.world.get_actors(self.traffic_ids) if self.traffic_ids else []):
@@ -237,27 +257,42 @@ class CarlaRouteEnv(gym.Env):
                     wl, wf, wr = w.transform.location, w.transform.get_forward_vector(), w.transform.get_right_vector()
                     ddx, ddy = o.x - wl.x, o.y - wl.y
                     if abs(ddx * wr.x + ddy * wr.y) < half_lane and abs(ddx * wf.x + ddy * wf.y) < 6.0:
-                        front_id, front_dist = other.id, lon
-            # Bal sav foglaltsaga, ugyanigy (elore vagy hatra). A 0.75
-            # savszelesseg: a savhataron allo auto is foglal.
-            if left_free and -8.0 <= lon <= 20.0:
-                if lon > 0.1:
-                    pts = left_wp.next(lon) if left_along else left_wp.previous(lon)
-                elif lon < -0.1:
-                    pts = left_wp.previous(-lon) if left_along else left_wp.next(-lon)
-                else:
-                    pts = [left_wp]
-                for w in pts:
-                    wl, wf, wr = w.transform.location, w.transform.get_forward_vector(), w.transform.get_right_vector()
-                    ddx, ddy = o.x - wl.x, o.y - wl.y
-                    if abs(ddx * wr.x + ddy * wr.y) < 0.75 * w.lane_width and abs(ddx * wf.x + ddy * wf.y) < 6.0:
-                        left_free = False
+                        front_id, front_dist, front_actor = other.id, lon, other
+            # Szomszed savok foglaltsaga, ugyanigy (elore vagy hatra). A 0.75
+            # savszelesseg: a savhataron allo auto mindket savot foglalja.
+            if -8.0 <= lon <= 20.0:
+                for lane in lanes.values():
+                    if not (lane["free"] or (lane["cross"] and lon <= 8.0)):
+                        continue
+                    lane_wp = lane["wp"]
+                    if lon > 0.1:
+                        pts = lane_wp.next(lon) if lane["along"] else lane_wp.previous(lon)
+                    elif lon < -0.1:
+                        pts = lane_wp.previous(-lon) if lane["along"] else lane_wp.next(-lon)
+                    else:
+                        pts = [lane_wp]
+                    for w in pts:
+                        wl, wf, wr = w.transform.location, w.transform.get_forward_vector(), w.transform.get_right_vector()
+                        ddx, ddy = o.x - wl.x, o.y - wl.y
+                        if abs(ddx * wr.x + ddy * wr.y) < 0.75 * w.lane_width and abs(ddx * wf.x + ddy * wf.y) < 6.0:
+                            lane["free"] = False
+                            lane["cross"] = lane["cross"] and lon > 8.0
+
+        # Csak a lead autoe kell (a reward_fn kovetesi jutalma ehhez meri az
+        # ego sebesseget) - a tobbiet nem kerdezzuk le.
+        front_speed = None
+        if front_actor is not None:
+            v = front_actor.get_velocity()
+            front_speed = 3.6 * np.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)
 
         return {"vehicles": flags,
                 "left_marking": str(left_mark.type), "right_marking": str(right_mark.type),
                 "lane_width": ego_wp.lane_width,
-                "front_id": front_id, "front_dist": front_dist,
-                "left_free": left_free, "lon": lon_by_id}
+                "front_id": front_id, "front_dist": front_dist, "front_speed": front_speed,
+                "left_free": lanes[1]["free"] if 1 in lanes else False,
+                "lanes": {k: dict(broken=v["broken"], free=v["free"], cross=v["cross"])
+                          for k, v in lanes.items()},
+                "lon": lon_by_id}
 
     def reset(self, seed=None, options=None):
         # Create new route

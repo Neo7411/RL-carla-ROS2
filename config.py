@@ -67,7 +67,7 @@ TRAIN = dict(
     # Ennyi lepesenkent meri, mire figyel a policy (utils.AttentionCallback).
     attention_freq=10_000,
     reload_model=True,
-    reload_model_path=path("tensorboard", "SAC_HALF1"),
+    reload_model_path=path("tensorboard", "SAC_HALF"),
     reload_model_file="model_interrupted.zip",
 )
 

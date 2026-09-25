@@ -30,6 +30,7 @@ def main():
     # Az AE-ket a CARLA elott toltjuk be: ha egy checkpoint hibas, ne alljon fel
     # elotte a teljes szimulacio.
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cpu')
     print("="*60)
     print(f"[INFO] Available device for torch is: {device}")
     print("="*60)
@@ -72,7 +73,7 @@ def main():
     else:
         model = SAC('MultiInputPolicy', env=env, verbose=1, seed=train_cfg["seed"],
                     tensorboard_log=log_dir, device=algo_cfg["device"],
-                    **algo_cfg["params"])00
+                    **algo_cfg["params"])
         print(f"[INFO] Initing new RL agent")
 
     model_suffix = f"{int(time.time())}_{algo_cfg['name']}"
