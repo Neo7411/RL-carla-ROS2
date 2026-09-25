@@ -72,7 +72,7 @@ def main():
     else:
         model = SAC('MultiInputPolicy', env=env, verbose=1, seed=train_cfg["seed"],
                     tensorboard_log=log_dir, device=algo_cfg["device"],
-                    **algo_cfg["params"])
+                    **algo_cfg["params"])00
         print(f"[INFO] Initing new RL agent")
 
     model_suffix = f"{int(time.time())}_{algo_cfg['name']}"
