@@ -48,7 +48,7 @@ ENV = dict(
     activate_render=True,
     reward_fn="reward_fn",
     traffic_vehicles=50,
-    traffic_start_m=30.0,
+    traffic_start_m=20.0,
     traffic_gap_m=(12.0, 30.0),
     traffic_speed_kmh=(25.0, 25.0),
     hybrid_radius=70.0,
@@ -67,7 +67,7 @@ TRAIN = dict(
     # Ennyi lepesenkent meri, mire figyel a policy (utils.AttentionCallback).
     attention_freq=10_000,
     reload_model=True,
-    reload_model_path=path("tensorboard", "SAC"),
+    reload_model_path=path("tensorboard", "SAC_HALF1"),
     reload_model_file="model_interrupted.zip",
 )
 

@@ -169,39 +169,95 @@ class CarlaRouteEnv(gym.Env):
         # Reset env to set initial state
         self.reset()
     
-    def get_vehicle_surroundings(self, radius=10.0):
+    def get_vehicle_surroundings(self, radius=10.0, lead_range=40.0):
+        """A forgalom az egohoz kepest. A step() hivja lepesenkent egyszer
+        (self.surroundings), a HUD es a reward_fn is azt olvassa.
 
+          vehicles      a HUD jelzoi: van-e auto radius-on belul elol / hatul /
+                        balra / jobbra (az ego sajat iranyahoz kepest)
+          left_marking, right_marking   a sajat savom felfestese, az EGO
+                        menetiranyahoz kepest (a szembesavban megforditva)
+          front_id, front_dist          a sajat savomban elottem levo
+                        legkozelebbi auto lead_range-en belul, kulonben None
+          left_free     a bal szomszed sav letezik, es -8..+20 m-en szabad
+          lon           minden forgalmi auto hosszanti tavolsaga [m], + = elottem
+        """
         tr = self.vehicle.get_transform()
         loc = tr.location
         fwd = tr.get_forward_vector()
         right = tr.get_right_vector()
 
-        ego_wp = self.map.get_waypoint(loc, project_to_road=True, lane_type=carla.LaneType.Any)
-        half_lane = (ego_wp.lane_width / 2.0) if ego_wp else 1.75
+        ego_wp = self.map.get_waypoint(loc)
+        half_lane = ego_wp.lane_width / 2.0
+
+        # A CARLA a bal/jobb oldalt es a next()-et a SAV iranyahoz adja. Ha a
+        # szembesavban megyek (elozes ketsavos uton), a sav bal oldala nekem a
+        # jobb, a next() pedig hatrafele visz.
+        wp_fwd = ego_wp.transform.get_forward_vector()
+        ego_along = wp_fwd.x * fwd.x + wp_fwd.y * fwd.y >= 0.0
+        if ego_along:
+            left_mark, right_mark = ego_wp.left_lane_marking, ego_wp.right_lane_marking
+            left_wp = ego_wp.get_left_lane()
+        else:
+            left_mark, right_mark = ego_wp.right_lane_marking, ego_wp.left_lane_marking
+            left_wp = ego_wp.get_right_lane()
+        if left_wp is not None and left_wp.lane_type != carla.LaneType.Driving:
+            left_wp = None
+        if left_wp is not None:
+            left_fwd = left_wp.transform.get_forward_vector()
+            left_along = left_fwd.x * fwd.x + left_fwd.y * fwd.y >= 0.0
 
         flags = {"front": False, "behind": False, "left": False, "right": False}
+        front_id, front_dist = None, None
+        left_free = left_wp is not None
+        lon_by_id = {}
 
-        for other in self.world.get_actors().filter("vehicle.*"):
-            if other.id == self.vehicle.id:
-                continue
+        for other in (self.world.get_actors(self.traffic_ids) if self.traffic_ids else []):
             o = other.get_location()
-            if loc.distance(o) > radius:
-                continue
-
             dx, dy = o.x - loc.x, o.y - loc.y
             lon = dx * fwd.x + dy * fwd.y      # + előre, - hátra
             lat = dx * right.x + dy * right.y  # + jobbra, - balra
+            lon_by_id[other.id] = lon
 
-            if abs(lat) < half_lane:           # a saját sávomban van
-                flags["front" if lon > 0 else "behind"] = True
-            else:
-                flags["right" if lat > 0 else "left"] = True
+            if loc.distance(o) <= radius:
+                if abs(lat) < half_lane:       # a saját sávomban van
+                    flags["front" if lon > 0 else "behind"] = True
+                else:
+                    flags["right" if lat > 0 else "left"] = True
 
-        # --- Bal és jobb oldali felfestés (szaggatott / folytonos) ---
-        left_marking = str(ego_wp.left_lane_marking.type) if ego_wp else None
-        right_marking = str(ego_wp.right_lane_marking.type) if ego_wp else None
+            # Sajat sav: a savomat lon meterrel elore kovetve az auto a sav
+            # kozepetol OLDALIRANYBAN fel savszelessegen belul van-e. Az ego
+            # iranyahoz mert lat kanyarban 40 m-en mar meteres hibat ad, a sav
+            # kovetese nem. Hosszanti iranyban 6 m tures: kanyarban a lon
+            # (egyenes vetulet) rovidebb, mint a sav menti ut, a pont az auto
+            # moge esik - merve 30-40 m-en 3.5 m-rel, es a sima tavolsaggal
+            # a sajat savban elottem levo autok 75%-a kimaradt.
+            if 0.1 < lon < lead_range and (front_dist is None or lon < front_dist):
+                for w in (ego_wp.next(lon) if ego_along else ego_wp.previous(lon)):
+                    wl, wf, wr = w.transform.location, w.transform.get_forward_vector(), w.transform.get_right_vector()
+                    ddx, ddy = o.x - wl.x, o.y - wl.y
+                    if abs(ddx * wr.x + ddy * wr.y) < half_lane and abs(ddx * wf.x + ddy * wf.y) < 6.0:
+                        front_id, front_dist = other.id, lon
+            # Bal sav foglaltsaga, ugyanigy (elore vagy hatra). A 0.75
+            # savszelesseg: a savhataron allo auto is foglal.
+            if left_free and -8.0 <= lon <= 20.0:
+                if lon > 0.1:
+                    pts = left_wp.next(lon) if left_along else left_wp.previous(lon)
+                elif lon < -0.1:
+                    pts = left_wp.previous(-lon) if left_along else left_wp.next(-lon)
+                else:
+                    pts = [left_wp]
+                for w in pts:
+                    wl, wf, wr = w.transform.location, w.transform.get_forward_vector(), w.transform.get_right_vector()
+                    ddx, ddy = o.x - wl.x, o.y - wl.y
+                    if abs(ddx * wr.x + ddy * wr.y) < 0.75 * w.lane_width and abs(ddx * wf.x + ddy * wf.y) < 6.0:
+                        left_free = False
 
-        return {"vehicles": flags, "left_marking": left_marking, "right_marking": right_marking}
+        return {"vehicles": flags,
+                "left_marking": str(left_mark.type), "right_marking": str(right_mark.type),
+                "lane_width": ego_wp.lane_width,
+                "front_id": front_id, "front_dist": front_dist,
+                "left_free": left_free, "lon": lon_by_id}
 
     def reset(self, seed=None, options=None):
         # Create new route
@@ -235,6 +291,10 @@ class CarlaRouteEnv(gym.Env):
         self.center_lane_deviation = 0.0
         self.speed_accum = 0.0
         self.routes_completed = 0.0
+        # Elozes-metrikak a TensorBoardhoz (a reward_fn noveli oket)
+        self.overtakes = 0             # kesz elozesek szama
+        self.overtake_reward = 0.0     # elozes kozben kapott jutalom + bonusz
+        self.blocked_time = 0.0        # ennyi ideig kovetett, mert nem elozhetett [s]
         self.world.tick()
         # Return initial observation. (Alvas nem kell: szinkron modban a
         # szerver ugysem lep a tick nelkul, a szenzoradatot pedig a step
@@ -443,19 +503,22 @@ class CarlaRouteEnv(gym.Env):
             "Total reward:        % 7.2f" % self.total_reward,
         ])
 
-        # Kornyezet: jarmu 10 m-en belul (a HUD a (cimke, bool) part
+        # Kornyezet: jarmu 30 m-en belul (a HUD a (cimke, bool) part
         # jelolonegyzetkent rajzolja, teli = van ott auto), es a sav felfestese.
-        surr = self.get_vehicle_surroundings()
+        # A step() szamolja, ugyanazt latja a reward_fn is.
+        surr = self.surroundings
         veh = surr["vehicles"]
         self.extra_info.extend([
             "",
-            "Vehicles within 10 m:",
+            "Vehicles within 30 m:",
             ("Front:", veh["front"]),
             ("Behind:", veh["behind"]),
             ("Left:", veh["left"]),
             ("Right:", veh["right"]),
             "Left line:  % 16s" % surr["left_marking"],
             "Right line: % 16s" % surr["right_marking"],
+            "Lead car:   %s" % ("% 14.1f m" % surr["front_dist"] if surr["front_id"] is not None else "             -"),
+            ("Left lane free:", surr["left_free"]),
         ])
         if self.activate_spectator:
             # Blit image from spectator camera
@@ -598,6 +661,9 @@ class CarlaRouteEnv(gym.Env):
 
         self.distance_from_center_history.append(self.distance_from_center)
 
+        # Forgalom az egohoz kepest - lepesenkent egyszer, a reward es a HUD is ezt olvassa
+        self.surroundings = self.get_vehicle_surroundings(radius=30.0)
+
         # Call external reward fn
         self.last_reward = self.reward_fn(self)
         self.total_reward += self.last_reward
@@ -645,6 +711,9 @@ class CarlaRouteEnv(gym.Env):
             'avg_speed': (self.speed_accum / self.step_count),
             'mean_reward': (self.total_reward / self.step_count),
             'route_length': len(self.route_waypoints),
+            'overtakes': self.overtakes,
+            'overtake_reward': self.overtake_reward,
+            'blocked_time': self.blocked_time,
         }
         terminated = self.terminal_state
         truncated = (route_done or self.success_state) and not terminated

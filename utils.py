@@ -72,6 +72,11 @@ class TensorboardCallback(BaseCallback):
             self.logger.record("custom/total_distance", self.locals['infos'][0]['total_distance'])
             self.logger.record("custom/avg_speed", self.locals['infos'][0]['avg_speed'])
             self.logger.record("custom/mean_reward", self.locals['infos'][0]['mean_reward'])
+            # Elozes: kesz elozesek szama, az elozes kozben kapott jutalom
+            # (bonusszal), es mennyi ideig kovetett, mert nem elozhetett [s]
+            self.logger.record("custom/overtakes", self.locals['infos'][0]['overtakes'])
+            self.logger.record("custom/overtake_reward", self.locals['infos'][0]['overtake_reward'])
+            self.logger.record("custom/blocked_time", self.locals['infos'][0]['blocked_time'])
             self.logger.dump(self.num_timesteps)
         return True
 
