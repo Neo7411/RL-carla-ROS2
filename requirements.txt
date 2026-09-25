@@ -8,3 +8,4 @@ Pillow
 pygame
 networkx
 tensorboard>=2.8.0
+carla==0.9.16
