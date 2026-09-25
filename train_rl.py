@@ -68,10 +68,12 @@ def main():
                                      train_cfg["reload_model_file"])
         model = SAC.load(rl_model_path, env=env, device=algo_cfg["device"],
                          tensorboard_log=log_dir, verbose=1)
+        print(f"[INFO] Reloading model: {train_cfg['reload_model_path']}")
     else:
         model = SAC('MultiInputPolicy', env=env, verbose=1, seed=train_cfg["seed"],
                     tensorboard_log=log_dir, device=algo_cfg["device"],
                     **algo_cfg["params"])
+        print(f"[INFO] Initing new RL agent")
 
     model_suffix = f"{int(time.time())}_{algo_cfg['name']}"
     model_name = f'{model.__class__.__name__}_{model_suffix}'

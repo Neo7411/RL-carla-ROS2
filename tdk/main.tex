@@ -1,14 +1,196 @@
-\documentclass{article}
+% !TEX program = pdflatex
+% Fordítás:  latexmk -pdf main.tex   (a biber-t a latexmk magától lefuttatja)
+\documentclass[a4paper,12pt,oneside]{article}
+
+% ---------------------------------------------------------------------
+% Nyelv és betűkészlet
+% ---------------------------------------------------------------------
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[magyar]{babel}
+\usepackage{amsmath}
+\usepackage{mathptmx}   % Times stílusú matematikai betűk
+\usepackage{tgtermes}   % TeX Gyre Termes: Times New Roman-klón, ő/ű is
+\usepackage{microtype}
 
-\title{Megerősítéses tanulás alapú ágens a CARLA szimulátorban}
-\author{Angi Dávid \and Mészáros László}
-\date{}  % ha nem kell dátum a címbe
+% ---------------------------------------------------------------------
+% Formai követelmények (TDK 2.2)
+% ---------------------------------------------------------------------
+% A4, margók: bal 3 cm, jobb 2 cm, felső 3 cm, alsó 3 cm
+\usepackage[a4paper,left=3cm,right=2cm,top=3cm,bottom=3cm]{geometry}
+
+% 1,5-es sorköz
+\usepackage{setspace}
+\onehalfspacing
+
+% Fejezetcímek: 16 pt (fejezet), 14 pt (alfejezet), 12 pt (alalfejezet)
+\usepackage{titlesec}
+\titleformat{\section}
+  {\normalfont\fontsize{16}{20}\selectfont\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}
+  {\normalfont\fontsize{14}{18}\selectfont\bfseries}{\thesubsection.}{0.6em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries}{\thesubsubsection.}{0.6em}{}
+\titlespacing*{\section}{0pt}{3.0ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{2.5ex plus 1ex minus .2ex}{1.0ex plus .2ex}
+
+% ---------------------------------------------------------------------
+% Ábrák, táblázatok, hivatkozások
+% ---------------------------------------------------------------------
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{csquotes}
+\usepackage[backend=biber,style=numeric-comp,sorting=none]{biblatex}
+\addbibresource{refs.bib}
+
+\usepackage[hidelinks]{hyperref}   % nyomtatásban nem látszó linkek
+
+% ---------------------------------------------------------------------
+% A dolgozat címe (a címlapon és a PDF adataiban is ez szerepel)
+% ---------------------------------------------------------------------
+\newcommand{\dolgozatcim}{Autonóm járművezetés megerősítéses tanulással\\a CARLA szimulátorban}
+\newcommand{\dolgozatalcim}{Kamera- és LiDAR-autoenkóderre épülő\\Soft Actor-Critic ágens}
+
+\hypersetup{
+  pdftitle   = {Autonóm járművezetés megerősítéses tanulással a CARLA szimulátorban},
+  pdfauthor  = {Angi Dávid},
+  pdfsubject = {TDK dolgozat},
+}
 
 \begin{document}
-\maketitle
 
-Hello World!
+% =====================================================================
+% Címlap
+% =====================================================================
+\begin{titlepage}
+  \singlespacing
+  \centering
+
+  % Egyetem, kar, tanszék -- a lap tetején, középen
+  {\fontsize{14}{18}\selectfont\bfseries Debreceni Egyetem\par}
+  \vspace{4pt}
+  {\large Informatikai Kar\par}
+  {\large Adattudomány és Vizualizáció Tanszék\par}
+  \vspace{10pt}
+  \rule{\textwidth}{0.6pt}
+
+  % A pályamunka címe -- a felső harmadban, középen
+  \vspace{0.06\textheight}
+  {\fontsize{16}{22}\selectfont\bfseries \dolgozatcim\par}
+  \vspace{14pt}
+  {\fontsize{14}{18}\selectfont \dolgozatalcim\par}
+  \vspace{22pt}
+  {\normalsize\scshape Tudományos Diákköri Dolgozat\par}
+
+  \vspace{\stretch{3}}
+
+  % Témavezető (bal) és szerző (jobb) -- az alsó harmadban
+  \begin{minipage}[t]{0.48\textwidth}
+    \raggedright
+    {\bfseries Témavezető:}\\[6pt]
+    Mészáros László\\
+    egyetemi adjunktus % TODO: pontos beosztás
+  \end{minipage}%
+  \hfill
+  \begin{minipage}[t]{0.48\textwidth}
+    \raggedleft
+    {\bfseries Készítette:}\\[6pt]
+    Angi Dávid\\
+    programtervező informatikus BSc % TODO: szak, évfolyam
+  \end{minipage}
+
+  \vspace{\stretch{1}}
+
+  % Benyújtás helye és éve -- a lap alján, középen
+  \rule{\textwidth}{0.6pt}\\[8pt]
+  {\large Debrecen, 2026\par}
+\end{titlepage}
+\setcounter{page}{2}
+
+% =====================================================================
+% Tartalomjegyzék
+% =====================================================================
+\tableofcontents
+\newpage
+
+% =====================================================================
+% Törzsszöveg
+% =====================================================================
+\section{Bevezetés}
+\label{sec:bevezetes}
+
+Az autonóm járművezetés egyik ígéretes megközelítése a megerősítéses
+tanulás (reinforcement learning, RL)~\cite{sutton2018rl}, amelyben az ágens
+a környezettel való interakció során, jutalomjelek alapján tanulja meg a
+vezetési stratégiát~\cite{kiran2022survey,kendall2019learning}. A valós
+járművön történő tanítás költséges és veszélyes, ezért a kísérleteket a
+nyílt forráskódú CARLA szimulátorban~\cite{dosovitskiy2017carla} végezzük.
+
+% TODO: motiváció, célkitűzés, a dolgozat felépítése
+
+\section{Kapcsolódó munkák}
+\label{sec:kapcsolodo}
+
+% TODO: RL alapú vezetés, látens reprezentációk, a kiinduló CARLA-SB3 környezet
+Munkánk kiindulópontja a CARLA-SB3 tanítási környezet~\cite{mate2023carlasb3},
+amely egy variációs autoenkóder látens terével tanít SAC ágenst. Hasonló,
+látens térben tanuló megközelítést mutat be \textcite{chen2022interpretable}.
+
+\section{Elméleti háttér}
+\label{sec:elmelet}
+
+\subsection{Megerősítéses tanulás}
+% TODO: MDP, politika, értékfüggvény
+
+\subsection{Soft Actor-Critic}
+% TODO: maximum entrópiás RL, SAC~\cite{haarnoja2018sac}
+Az ágenst a Soft Actor-Critic algoritmussal~\cite{haarnoja2018sac} tanítjuk,
+a Stable-Baselines3 könyvtár~\cite{raffin2021sb3} implementációját használva.
+
+\subsection{Autoenkóderek}
+% TODO: dimenziócsökkentés autoenkóderrel~\cite{hinton2006reducing}
+A nagy dimenziós szenzoradatokat autoenkóderrel~\cite{hinton2006reducing}
+tömörítjük kis dimenziós látens vektorrá.
+
+\section{A javasolt rendszer}
+\label{sec:rendszer}
+
+\subsection{Szimulációs környezet}
+% TODO: CARLA, Town04, útvonaltervezés (GlobalRoutePlanner)
+
+\subsection{Érzékelés és látens reprezentáció}
+% TODO: kamera-autoenkóder, LiDAR range-image gráf-autoenkóder
+
+\subsection{Megfigyelési és akciótér}
+% TODO: látens vektorok, irányszög, manőver; kormány és gáz
+
+\subsection{Jutalomfüggvény}
+% TODO: sebesség, célba érés, ütközés elkerülése
+
+\subsection{Tanítási beállítások}
+% TODO: SAC hiperparaméterek (táblázat)
+
+\section{Kísérletek és eredmények}
+\label{sec:eredmenyek}
+
+\subsection{Kísérleti beállítások}
+% TODO
+
+\subsection{Eredmények}
+% TODO: tanulási görbék, összehasonlítás a kiinduló környezettel
+
+\subsection{Ablációs vizsgálat}
+% TODO
+
+\section{Összegzés és további munka}
+\label{sec:osszegzes}
+
+% TODO: eredmények összefoglalása, forgalom (NPC járművek) hozzáadása
+
+% =====================================================================
+% Irodalomjegyzék
+% =====================================================================
+\newpage
+\printbibliography[heading=bibintoc,title={Irodalomjegyzék}]
+
 \end{document}

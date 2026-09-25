@@ -24,9 +24,6 @@ class CarlaRouteEnv(gym.Env):
                  # === dinamikus route hossz ===
                  min_route_length=150,   # waypoint = meter (resolution=1.0 miatt)
                  max_route_length=400,
-                 # === akadaly-erzekeles hatarai ===
-                 obstacle_near=15.0,     # ettol kozelebb: teljes savvalto szabadsag
-                 obstacle_far=30.0,      # ennel tavolabb: nincs kedvezmeny
                  # === render optimalizacio ===
                  draw_path_lookahead=60,  # hany waypointot vetitsunk a kepre
                  reward_fn=None,
@@ -53,11 +50,8 @@ class CarlaRouteEnv(gym.Env):
         self.traffic_ids = []
         self.tm = None
         self.collision_with = None
-        self.route_dev = 0.0
         self.min_route_length = min_route_length
         self.max_route_length = max_route_length
-        self.obstacle_near = obstacle_near
-        self.obstacle_far = obstacle_far
         self.draw_path_lookahead = draw_path_lookahead
 
         width, height = viewer_res
@@ -70,7 +64,7 @@ class CarlaRouteEnv(gym.Env):
         # Setup gym environment
         self.action_space_type = action_space_type
         if self.action_space_type == "continuous":
-            self.action_space = gym.spaces.Box(np.array([-1, 0, 0], dtype=np.float32), np.array([1, 1, 1], dtype=np.float32), dtype=np.float32)  # steer, throttle, brake
+            self.action_space = gym.spaces.Box(np.array([-1, 0], dtype=np.float32), np.array([1, 1], dtype=np.float32), dtype=np.float32)  # steer, throttle
         self.observation_space = observation_space
 
         self.fps = fps
@@ -84,9 +78,6 @@ class CarlaRouteEnv(gym.Env):
         self.activate_spectator = activate_spectator
         self.activate_lidar = activate_lidar
 
-        # Akadaly-jelzes. 0.0 = szabad ut elottem, 1.0 = kozel van valami.
-        self.obstacle_ahead = 0.0
-
         # A spectator kamera projekcios matrixa. A kameraparameterek nem
         # valtoznak futas kozben, ezert eleg egyszer kiszamolni - a regi kod
         # minden waypointra ujraepitette ugyanezt a 3x3 matrixot.
@@ -99,6 +90,7 @@ class CarlaRouteEnv(gym.Env):
             self.client.set_timeout(60.0)
             # Create world wrapper
             self.world = World(self.client, self.town)
+            self.map = self.world.get_map()
 
             settings = self.world.get_settings()
             settings.fixed_delta_seconds = 1 / self.fps
@@ -176,6 +168,40 @@ class CarlaRouteEnv(gym.Env):
             raise e
         # Reset env to set initial state
         self.reset()
+    
+    def get_vehicle_surroundings(self, radius=10.0):
+
+        tr = self.vehicle.get_transform()
+        loc = tr.location
+        fwd = tr.get_forward_vector()
+        right = tr.get_right_vector()
+
+        ego_wp = self.map.get_waypoint(loc, project_to_road=True, lane_type=carla.LaneType.Any)
+        half_lane = (ego_wp.lane_width / 2.0) if ego_wp else 1.75
+
+        flags = {"front": False, "behind": False, "left": False, "right": False}
+
+        for other in self.world.get_actors().filter("vehicle.*"):
+            if other.id == self.vehicle.id:
+                continue
+            o = other.get_location()
+            if loc.distance(o) > radius:
+                continue
+
+            dx, dy = o.x - loc.x, o.y - loc.y
+            lon = dx * fwd.x + dy * fwd.y      # + előre, - hátra
+            lat = dx * right.x + dy * right.y  # + jobbra, - balra
+
+            if abs(lat) < half_lane:           # a saját sávomban van
+                flags["front" if lon > 0 else "behind"] = True
+            else:
+                flags["right" if lat > 0 else "left"] = True
+
+        # --- Bal és jobb oldali felfestés (szaggatott / folytonos) ---
+        left_marking = str(ego_wp.left_lane_marking.type) if ego_wp else None
+        right_marking = str(ego_wp.right_lane_marking.type) if ego_wp else None
+
+        return {"vehicles": flags, "left_marking": left_marking, "right_marking": right_marking}
 
     def reset(self, seed=None, options=None):
         # Create new route
@@ -191,7 +217,6 @@ class CarlaRouteEnv(gym.Env):
         self.terminal_state = False  # Set to True when we want to end episode
         self.success_state = False  # Set to True when we want to end episode.
         self.collision_with = None  # az elso utkozes masik szereplojenek type_id-je
-        self.route_dev = 0.0
 
         self.closed = False  # Set to True when ESC is pressed
         self.extra_info = []  # List of extra info shown on the HUD
@@ -201,9 +226,6 @@ class CarlaRouteEnv(gym.Env):
         self.lidar_points = self.lidar_points_buffer = None
         # BEV a HUD-hoz: amit a halo kap / amit visszaad (encode_state_fn tolti)
         self.lidar_bev_input = self.lidar_bev_recon = None
-        # Hol vagyunk: uttesten vagyunk-e, es jo iranyba nezunk-e (a reward hasznalja)
-        self.on_driving_lane = True
-        self.wrong_way = False
         self.step_count = 0
 
         # Init metrics
@@ -213,7 +235,6 @@ class CarlaRouteEnv(gym.Env):
         self.center_lane_deviation = 0.0
         self.speed_accum = 0.0
         self.routes_completed = 0.0
-        self.obstacle_ahead = 0.0
         self.world.tick()
         # Return initial observation. (Alvas nem kell: szinkron modban a
         # szerver ugysem lep a tick nelkul, a szenzoradatot pedig a step
@@ -222,14 +243,6 @@ class CarlaRouteEnv(gym.Env):
         return obs, info
 
     # ------------------------------------------------------------------ route
-
-    def _actor_id(self):
-        """A Vehicle wrapper hol .actor.id-t, hol .id-t ad. Mindkettot kezeljuk,
-        kulonben a sajat autonkat is akadalykent latnank."""
-        v = self.vehicle
-        if hasattr(v, "actor") and hasattr(v.actor, "id"):
-            return v.actor.id
-        return v.id
 
     def _sample_route(self, max_tries=2000):
         """Random spawn-part huz, amig a route hossza a [min, max] ablakba nem esik.
@@ -320,53 +333,6 @@ class CarlaRouteEnv(gym.Env):
         # kovetkezo tickig meg a teleport ELOTTI helyet adja.
         if hasattr(self, "previous_location"):
             self.previous_location = spawn_tf.location
-
-    # -------------------------------------------------------------- akadaly
-
-    def _obstacle_ahead(self):
-        """Folytonos akadaly-jelzes a sajat savomban, elottem.
-
-        0.0 = nincs semmi obstacle_far meteren belul
-        1.0 = van valami obstacle_near-en belul
-        koztuk linearis atmenet
-
-        Miert folytonos es nem bool: SAC-nal egy kemeny kuszob azt jelentene,
-        hogy ket szinte azonos observation ket kulonbozo rewardot kap. A critic
-        ezt nem tudja megjosolni -> magas TD error, instabil tanulas.
-        """
-        me = self.vehicle.get_transform()
-        my_wp = self.world.map.get_waypoint(me.location)
-        fwd = me.get_forward_vector()
-        my_id = self._actor_id()
-
-        nearest = None
-        for actor in self.world.get_actors().filter("vehicle.*"):
-            if actor.id == my_id:
-                continue
-
-            loc = actor.get_transform().location
-            d = me.location.distance(loc)
-            if d > self.obstacle_far:
-                continue
-
-            # Elottem van-e? (skalarszorzat elojele a haladasi iranyra)
-            to_actor = loc - me.location
-            if fwd.x * to_actor.x + fwd.y * to_actor.y <= 0.0:
-                continue
-
-            # Ugyanabban a savban van-e? A road_id + lane_id par azonositja
-            # egyertelmuen a savot; a puszta tavolsag nem lenne eleg, mert a
-            # szomszed savban levo auto is lehet 10 m-re.
-            wp = self.world.map.get_waypoint(loc)
-            if wp is None or wp.road_id != my_wp.road_id or wp.lane_id != my_wp.lane_id:
-                continue
-
-            nearest = d if nearest is None else min(nearest, d)
-
-        if nearest is None:
-            return 0.0
-        span = max(self.obstacle_far - self.obstacle_near, 1e-6)
-        return float(np.clip((self.obstacle_far - nearest) / span, 0.0, 1.0))
 
     # -------------------------------------------------------------- forgalom
 
@@ -469,13 +435,27 @@ class CarlaRouteEnv(gym.Env):
             "",
             "Maneuver:        % 11s" % maneuver,
             "Route length:      % 7d m" % len(self.route_waypoints),
-            "Obstacle ahead:      % 7.2f" % self.obstacle_ahead,
             "Routes completed:    % 7.2f" % self.routes_completed,
             "Distance traveled: % 7d m" % self.distance_traveled,
             "Center deviance:   % 7.2f m" % self.distance_from_center,
             "Avg center dev:    % 7.2f m" % (self.center_lane_deviation / self.step_count),
             "Avg speed:      % 7.2f km/h" % (self.speed_accum / self.step_count),
             "Total reward:        % 7.2f" % self.total_reward,
+        ])
+
+        # Kornyezet: jarmu 10 m-en belul (a HUD a (cimke, bool) part
+        # jelolonegyzetkent rajzolja, teli = van ott auto), es a sav felfestese.
+        surr = self.get_vehicle_surroundings()
+        veh = surr["vehicles"]
+        self.extra_info.extend([
+            "",
+            "Vehicles within 10 m:",
+            ("Front:", veh["front"]),
+            ("Behind:", veh["behind"]),
+            ("Left:", veh["left"]),
+            ("Right:", veh["right"]),
+            "Left line:  % 16s" % surr["left_marking"],
+            "Right line: % 16s" % surr["right_marking"],
         ])
         if self.activate_spectator:
             # Blit image from spectator camera
@@ -546,20 +526,12 @@ class CarlaRouteEnv(gym.Env):
 
         # action=None: a reset() vegen futo step(None) - csak tick, akcio nelkul.
         if action is not None:
-            steer, throttle, brake = [float(a) for a in action]
-            # Fek holtsav: csak 0.7 folott fog, onnan 0..1-re skalazva. Nelkule
-            # a veletlen felfedezes es a betanitatlan policy is ~0.5-os fekkel
-            # ment (a ~0.5-os gaz mellett), es az auto el sem indult: 23.5k
-            # lepes, 225 epizod alatt egyszer sem mozdult meg.
-            brake = max(0.0, (brake - 0.7) / 0.3)
+            # Nincs fek-akcio: a fek (control.brake) mindig 0, lassitani a
+            # gaz elvetelevel lehet.
+            steer, throttle = [float(a) for a in action]
             self.vehicle.control.steer = smooth_action(self.vehicle.control.steer, steer, self.action_smoothing)
             self.vehicle.control.throttle = smooth_action(self.vehicle.control.throttle, throttle,
                                                           self.action_smoothing)
-            # A fek NEM simitott: a simitas miatt egy-egy fekezes utan lassan
-            # csengett le (x0.75 lepesenkent), es szinte mindig maradt bent egy
-            # kis fek. Elo meresben mar 0.03-as fek + 0.5-os gaz mellett is
-            # 0 km/h-n allt az auto. Igy fek nelkul pontosan 0, fekezve azonnal hat.
-            self.vehicle.control.brake = brake
         # Tick game
         _t0 = time.perf_counter()
         frame = self.world.tick()
@@ -606,57 +578,11 @@ class CarlaRouteEnv(gym.Env):
             self.route_waypoints)
         route_done = self.current_waypoint_index >= len(self.route_waypoints) - 1
 
-        # === akadaly-tudatos saveltere-meres ===
-        self.obstacle_ahead = self._obstacle_ahead()
-
-        # (a) Eltres a ROUTE savjatol - ez az eredeti metrika.
-        route_dev = distance_to_line(vector(self.current_waypoint.transform.location),
-                                     vector(self.next_waypoint.transform.location),
-                                     vector(transform.location))
-        self.route_dev = route_dev   # a reward_traffic_fn-nek: kint vagyunk-e a route savjabol
-
-        # (b) Eltres attol a savtol, amiben EPPEN vagyok. A get_waypoint() a
-        #     legkozelebbi driving sav kozepvonalara vetit, tehat ez akkor is
-        #     kicsi, ha atmentem a szomszed savba - felteve hogy ott a sav
-        #     kozepen vagyok.
-        lane_wp = self.world.map.get_waypoint(transform.location)
-        lane_dev = (transform.location.distance(lane_wp.transform.location)
-                    if lane_wp is not None else route_dev)
-
-        # Sulyozott keveres. w = 0 -> pontosan az eredeti viselkedes.
-        # w = 1 -> barmelyik sav kozepvonalan lenni rendben van (min()), tehat
-        # a savvaltas nem buntetodik, de a savon beluli kanyargas igen.
-        w = self.obstacle_ahead
-        self.distance_from_center = (1.0 - w) * route_dev + w * min(route_dev, lane_dev)
+        # Calculate deviation from center of the lane
+        self.distance_from_center = distance_to_line(vector(self.current_waypoint.transform.location),
+                                                     vector(self.next_waypoint.transform.location),
+                                                     vector(transform.location))
         self.center_lane_deviation += self.distance_from_center
-
-        # === Hol vagyunk fizikailag? ===
-        # A reward ezt hasznalja terminal-feltetelnek a puszta tavolsag helyett:
-        # a szaggatott vonal atlepese (masik sav) NEM hiba, a fure/jardara
-        # hajtas es a szembejovo sav viszont igen.
-        #
-        # project_to_road=False: csak akkor ad waypointot, ha a pont TENYLEG
-        # uttesten van. True-val a legkozelebbi savra vetitene, es a fu is
-        # "uton" lenne.
-        drv = self.world.map.get_waypoint(transform.location, project_to_road=False,
-                                          lane_type=carla.LaneType.Driving)
-        self.on_driving_lane = drv is not None
-
-        # Szembemenes. NEM a lekerdezett sav iranyahoz merunk, hanem a ROUTE-ehoz:
-        # kereszetezodesben a get_waypoint barmelyik keresztezo savot visszaadhatja,
-        # aminek az iranya merőleges vagy ellentetes - abbol hamis "Wrong way" lett,
-        # pedig szabalyosan hajtottunk at.
-        #
-        # Kereszetezodesben egyaltalan nem vizsgaljuk: ott a kanyarodas kozben a
-        # jarmu iranya jogosan ter el a route-etol.
-        self.wrong_way = False
-        in_junction = drv.is_junction if drv is not None else False
-        if not in_junction:
-            route_fwd = self.current_waypoint.transform.get_forward_vector()
-            veh = transform.get_forward_vector()
-            # skalaris szorzat < -0.7  ->  tobb mint 135 fok elteres, vagyis
-            # tenyleg visszafele haladunk, nem csak kanyarodunk.
-            self.wrong_way = (route_fwd.x * veh.x + route_fwd.y * veh.y) < -0.7
 
         # Calculate distance traveled
         if action is not None:
@@ -719,7 +645,6 @@ class CarlaRouteEnv(gym.Env):
             'avg_speed': (self.speed_accum / self.step_count),
             'mean_reward': (self.total_reward / self.step_count),
             'route_length': len(self.route_waypoints),
-            'obstacle_ahead': self.obstacle_ahead,
         }
         terminated = self.terminal_state
         truncated = (route_done or self.success_state) and not terminated
@@ -844,3 +769,4 @@ class CarlaRouteEnv(gym.Env):
 
     def _set_lidar_points(self, points, frame):
         self.lidar_points_buffer = (frame, points)
+        

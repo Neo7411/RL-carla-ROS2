@@ -82,14 +82,13 @@ class AttentionCallback(BaseCallback):
     every lepesenkent vesz egy batch-et a replay bufferbol, es megnezi, mennyit
     valtozik az actor determinisztikus akcioja, ha EGY bemenet-csoportot a
     batch-en belul osszekeverunk (a tobbi marad a helyen). Amit a policy nem
-    hasznal, annal a valtozas ~0. Env-egysegben merunk: kormany -1..1, gaz 0..1,
-    fek 0..1.
+    hasznal, annal a valtozas ~0. Env-egysegben merunk: kormany -1..1, gaz 0..1.
 
     TensorBoard:
       attention/steer/<csoport>        atlagos |d kormany|
       attention/steer_share/<csoport>  az egyedi csoportok kozti aranya [%]
       attention/throttle/..., attention/throttle_share/...
-      attention/steer_sensors_vs_route (kamera+lidar) / (waypoints+szog+maneuver)
+      attention/steer_sensors_vs_route (kamera+lidar) / (waypoints+next_angle+maneuver)
                                        a kormanyon; 1 alatt: tobbet ad a route-ra
 
     A mintavetel sajat RNG-vel megy: a globalis np.random-ot a route-sorsolas
@@ -97,19 +96,19 @@ class AttentionCallback(BaseCallback):
     """
 
     # csoport -> [(obs kulcs, oszlop vagy None = az egesz kulcs)]
-    # vehicle_measures oszlopai: 0 steer, 1 throttle, 2 speed, 3 szog a waypointhoz, 4 brake
+    # vehicle_measures oszlopai: 0 steer, 1 throttle, 2 speed, 3 szog a waypointhoz
     SINGLE = {
         "cam": [("cam_latent", None)],
         "lidar": [("lidar_latent", None)],
         "waypoints": [("waypoints", None)],
-        "angle": [("vehicle_measures", 3)],
+        "next_angle": [("vehicle_measures", 3)],
         "maneuver": [("maneuver", None)],
         "speed": [("vehicle_measures", 2)],
-        "prev_action": [("vehicle_measures", 0), ("vehicle_measures", 1), ("vehicle_measures", 4)],
+        "prev_action": [("vehicle_measures", 0), ("vehicle_measures", 1)],
     }
     COMBINED = {
         "sensors": SINGLE["cam"] + SINGLE["lidar"],
-        "route": SINGLE["waypoints"] + SINGLE["angle"] + SINGLE["maneuver"],
+        "route": SINGLE["waypoints"] + SINGLE["next_angle"] + SINGLE["maneuver"],
     }
 
     def __init__(self, every=10_000, batch_size=2048, seed=0, verbose=1):
@@ -278,13 +277,11 @@ def create_encode_state_fn(cam_ae, lidar_ae, cfg, device):
 
         vehicle_measures = []
 
-        # ask current vechile measures steer, throttle, speed, angle, brake
+        # ask current vechile measures steer, throttle, speed, angle
         vehicle_measures.append(env.vehicle.control.steer)
         vehicle_measures.append(env.vehicle.control.throttle)
         vehicle_measures.append(env.vehicle.get_speed())
-        vehicle_measures.append(env.vehicle.get_angle(env.current_waypoint))
-        # A fek a vegere kerul, hogy a tobbi oszlop indexe ne valtozzon.
-        vehicle_measures.append(env.vehicle.control.brake)
+        vehicle_measures.append(env.vehicle.get_angle(env.current_waypoint))  # next angle waypoint
 
         # Append to dict
         encoded_state['vehicle_measures'] = vehicle_measures
@@ -342,7 +339,6 @@ def create_observation_space(cam_ae, lidar_latent_shape):
     low.append(0), high.append(1) # throttle
     low.append(0), high.append(120) #Speed
     low.append(-3.14), high.append(3.14) # next angle waypoint
-    low.append(0), high.append(1) # brake
     observation_space['vehicle_measures'] = gym.spaces.Box(low=np.array(low, dtype=np.float32), high=np.array(high, dtype=np.float32), dtype=np.float32)
 
     observation_space['maneuver'] = gym.spaces.Discrete(4) # manuever
