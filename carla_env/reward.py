@@ -1,21 +1,25 @@
+import carla
 import numpy as np
 
 # --- Beallitasok (itt szerkesztheto minden) --------------------------------
 EARLY_STOP = True             # korai epizod-vege engedelyezve?
 MAX_SPEED = 60.0              # ezen felul terminal [km/h]
 TARGET_SPEED = 50.0           # ideal sebesseg [km/h]
-SPEED_WEIGHT = 1.5            # a sebesseg sulya (1.0 = nincs sulyozas)
-MAX_DISTANCE = 2.0            # max eltres a sav kozeptol [m]
+SPEED_WEIGHT = 1.9            # a sebesseg sulya (1.0 = nincs sulyozas)
+MAX_DISTANCE = 2.0            # max eltres a sav kozeptol arra, amerre nincs azonos iranyu sav [m]
+
+# Savelhagyas (csak reward_fn). Terminal csak a lathato szabalysertes: ezeken a
+# felfestes-tipusokon atlepni (a vegyes Solid/Broken-t nem, mert nem tudjuk,
+# melyik oldala szaggatott). Szaggatotton at engedely (elozes) nelkul: nem
+# terminal, csak OFF_LANE_PENALTY / lepes, amig vissza nem er.
+SOLID_MARKS = ("Solid", "SolidSolid", "Curb", "Grass")
+OFF_LANE_PENALTY = -0.1       # / lepes, mint a kullogas (LAG_PENALTY)
 MAX_STD_CENTER_LANE = 0.35    # max szoras a kozeptol valo tavolsagban [m]
 MAX_ANGLE_CENTER_LANE = 90    # max szogeltres [fok]
 PENALTY_REWARD = -10          # terminal buntetes
 STOP_TIMEOUT = 5.0            # ennyi mp allas utan terminal [s]
 
-# --- Forgalom, elozes (csak reward_fn) -------------------------------------
-# Elozni barmelyik oldalra, 1 vagy 2 savot lehet, ha odaig szaggatott es a
-# cel sav szabad. Sorrend: bal 1, bal 2, jobb 1, jobb 2 - jobbra csak akkor,
-# ha balra nem lehet; 2 savot csak akkor, ha a kozbulso foglalt, de a
-# -8..+8 m-en szabad (at lehet vagni rajta).
+
 FOLLOW_GAP_S = 2.0            # kovetesi tavolsag, ha nem elozhet [s]
 OVERTAKE_START_M = 1.0        # ennyivel a route-tol a cel sav fele: kiallt elozni [m]
 OVERTAKE_MIN = 0.3            # elozes kozben a minimalis jutalom / lepes...
@@ -35,7 +39,17 @@ LINGER_DECAY_S = 4.0          # ennyi ido alatt csokken a jutalom...
 LINGER_MIN = 0.3              # ...ennyiszeresere (0.9 -> 0.27, kevesebb, mint a kovetes)
 
 # Kovetes, ha nem elozhet (Blocked): ne legyen jobb a beragadas, mint az elozes.
-BLOCKED_MAX = 0.6             # (elozes 50 km/h-val: 0.9, szabad sav: 1.0)
+# Az elozessel nem versenyez: ha elozhetne, az mar kullogas (LAG_PENALTY).
+BLOCKED_MAX = 0.8             # (elozes 50 km/h-val: 0.9, szabad sav: 1.0)
+# A kovetesi ido (headway) jutalma lognormal (Zhu et al. 2020, TR-C 117:
+# NGSIM-re illesztve sigma=0.4365, csucs 1.26 s-nal), de a csucs FOLLOW_GAP_S-en
+# (fek nincs), 1-re normalva: 1 s 0.28, 1.5 s 0.8, 2 s 1.0, 3 s 0.65, 4 s 0.28 -
+# a tul nagy lemaradas is kevesebbet er.
+HEADWAY_SIGMA = 0.4365
+# Ha kozeledik a leadhez: TTC_WEIGHT * log(TTC / TTC_MAX_S) (Zhu et al. 2020),
+# 3 s: -0.26, 1 s: -0.58. Csak Blocked-ban - az elozes elotti felzarkozast nem.
+TTC_MAX_S = 7.0
+TTC_WEIGHT = 0.3
 
 # Kullogas: elozhetne (van hova kiallni), megis kozel a lead mogott megy, es
 # nem gyorsabb nala. Ilyenkor kovetesi jutalom helyett buntetes jar.
@@ -59,6 +73,7 @@ _overtaken_ids = set()    # akiert mar jart bonusz
 _smooth_hold = 0          # visszasorolas utan ennyi lepesig nincs cikkcakk-buntetes
 _overtake_t = 0.0         # miota eloz [s]
 _passed_t = None          # az _overtake_t, amikor a _target_id mogem kerult
+_lane_idx = 0             # melyik savban van az ego kozepe (a route savhoz, + balra)
 
 
 def reward_fn_og(env):
@@ -120,10 +135,14 @@ def reward_fn(env):
     """Sav-kozep tartas + elozes. A forgalmat az env.surroundings adja
     (get_vehicle_surroundings, lepesenkent egyszer).
 
-      - Nincs elottem senki: mint a reward_fn_og, 2 m-en tul Off-track.
+      - Savelhagyas: folytonos vonal atlepese terminal (Solid line). Arra,
+        amerre nincs azonos iranyu sav, 2 m-en tul Off-track. Szaggatotton at
+        engedely nelkul (nem elozes) nem terminal, csak OFF_LANE_PENALTY /
+        lepes, amig vissza nem er. Csak az atlepes pillanata szamit: aki
+        szaggatotton kiallt, azt a kesobb folytonosra valto vonal nem oli meg.
+      - Nincs elottem senki: mint a reward_fn_og.
       - Elottem van valaki, es van hova kiallni (lasd fent a sorrendet):
-        kiallhat, a sav elhagyasa a cel sav fele csak ekkor nem Off-track,
-        es a hatar a cel savig tagul. Elozes kozben
+        kiallhat, a cel savban elozesi jutalmat kap. Elozes kozben
         OVERTAKE_MIN + OVERTAKE_SPEED * sebesseg - kevesebb, mint a sajat
         savban, de tobb, mint lassan kovetni. A savhataron LANE_LINE_FACTOR-
         szoros, a megelozes utan (vagy OVERTAKE_MAX_S utan) pedig csokken,
@@ -135,7 +154,7 @@ def reward_fn(env):
         merjuk, legfeljebb BLOCKED_MAX.
     """
     global _low_speed_timer, _overtaking, _to_lane, _target_id, _passed, _return_ok
-    global _overtaken_ids, _smooth_hold, _overtake_t, _passed_t
+    global _overtaken_ids, _smooth_hold, _overtake_t, _passed_t, _lane_idx
 
     terminal_reason = "Running..."
     speed_kmh = env.vehicle.get_speed()
@@ -146,6 +165,7 @@ def reward_fn(env):
         _overtaken_ids = set()
         _smooth_hold = 0
         _overtake_t, _passed_t = 0.0, None
+        _lane_idx = 0
 
     # Elojeles tavolsag a route-tol [m]: + = balra, - = jobbra. A nagysaga a
     # distance_from_center, az elojele a route waypoint jobb vektorabol.
@@ -156,6 +176,32 @@ def reward_fn(env):
     offset = env.distance_from_center if side < 0.0 else -env.distance_from_center
 
     lane_w = surr["lane_width"]
+
+    # A route sav melletti azonos iranyu savok, oldalankent max 2: sav (+1/+2
+    # balra, -1/-2 jobbra) -> a felfestes tipusa kozte es a route fele eso
+    # szomszedja kozott. Ami nincs (vagy szembesav), az kimarad.
+    route_wp = env.current_waypoint
+    marks = {}
+    for s in (1, -1):
+        w = route_wp
+        for n in (1, 2):
+            mark = w.left_lane_marking if s > 0 else w.right_lane_marking
+            w = w.get_left_lane() if s > 0 else w.get_right_lane()
+            if w is None or w.lane_type != carla.LaneType.Driving or w.lane_id * route_wp.lane_id <= 0:
+                break
+            marks[s * n] = str(mark.type)
+
+    # Melyik savban van most az ego kozepe. Ha savot valtott, a kulso sav
+    # felfestesen lepett at (0 -> +1 es +1 -> 0 is a +1-es) - ha az folytonos,
+    # terminal. Nem letezo savnal nincs felfestes: ott a 2 m-es hatar dont.
+    lane_idx = int(round(offset / lane_w))
+    solid_crossed = None
+    if lane_idx != _lane_idx:
+        outer = lane_idx if abs(lane_idx) > abs(_lane_idx) else _lane_idx
+        if marks.get(outer) in SOLID_MARKS:
+            solid_crossed = marks[outer]
+        _lane_idx = lane_idx
+
     has_lead = surr["front_id"] is not None
     # Hova allhat ki most (a sajat savomhoz kepest): az elso a sorrendben,
     # ahol odaig szaggatott, a cel sav szabad, es 2 savnal a kozbulson at
@@ -175,7 +221,10 @@ def reward_fn(env):
     # Kiallt: a cel sav fele hagyja el a savot, mikozben elozhet. Innentol
     # addig tart, amig vissza nem er a route savjaba (a sav elhagyasa kozben
     # az env mar a masik savot latja sajatjanak, ezert kell megjegyezni).
-    if not _overtaking and can_overtake and offset * to_lane > 0.0 and abs(offset) > OVERTAKE_START_M:
+    # Csak a route savbol (lane_idx == 0): a szomszed savbol a to_lane mar
+    # ahhoz a savhoz kepest lenne, rossz savszammal.
+    if (not _overtaking and can_overtake and lane_idx == 0
+            and offset * to_lane > 0.0 and abs(offset) > OVERTAKE_START_M):
         _overtaking, _to_lane, _target_id, _passed, _return_ok = \
             True, to_lane, surr["front_id"], False, False
         _overtake_t, _passed_t = 0.0, None
@@ -198,9 +247,13 @@ def reward_fn(env):
             env.terminal_state = True
             terminal_reason = "Vehicle stopped"
 
-        # Elozes kozben a cel savig ervenyes: arra _to_lane savval tagabb a hatar.
-        elif not (-MAX_DISTANCE + (min(_to_lane, 0) * lane_w if _overtaking else 0.0)
-                  <= offset <= MAX_DISTANCE + (max(_to_lane, 0) * lane_w if _overtaking else 0.0)):
+        elif solid_crossed is not None:
+            env.terminal_state = True
+            terminal_reason = f"Solid line ({solid_crossed})"
+        # A hatar arra, amerre azonos iranyu sav van, annyi savval tagabb
+        # (hogy melyikbe szabad atmenni, azt a folytonos vonal donti el, fent).
+        elif not (-MAX_DISTANCE - lane_w * sum(1 for k in marks if k < 0)
+                  <= offset <= MAX_DISTANCE + lane_w * sum(1 for k in marks if k > 0)):
             env.terminal_state = True
             terminal_reason = "Off-track"
         elif MAX_SPEED > 0 and speed_kmh > MAX_SPEED:
@@ -212,6 +265,7 @@ def reward_fn(env):
         # Az utkozest a collision szenzor jelzi (env._on_collision), nem ez a fuggveny.
         if env.collision_with is not None and terminal_reason == "Running...":
             terminal_reason = f"Collision ({env.collision_with})"
+        env.terminal_reason = terminal_reason  # a TensorboardCallback logolja
         if terminal_reason != "Running...":
             print(f"{env.episode_idx}| Terminal: {terminal_reason}")
         if env.success_state:
@@ -249,7 +303,17 @@ def reward_fn(env):
     overtake_term = (OVERTAKE_MIN + OVERTAKE_SPEED * speed_factor ** SPEED_WEIGHT) \
         * lane_factor * linger_factor
 
-    if _overtaking:
+    # Szabad savban van-e: a route savban, vagy elozes kozben a route es a cel
+    # sav kozott. Mashol (szaggatotton at, engedely nelkul) nem terminal - azt
+    # a policy nem mindig latja -, csak buntetes, amig vissza nem jon.
+    # Korabban ez 2 m-en Off-track volt.
+    allowed_lane = lane_idx == 0 or (_overtaking and lane_idx * _to_lane > 0
+                                     and abs(lane_idx) <= abs(_to_lane))
+
+    if not allowed_lane:
+        state = "Off lane %+d" % lane_idx
+        reward = OFF_LANE_PENALTY
+    elif _overtaking:
         state = "Overtaking %s%d" % ("L" if _to_lane > 0 else "R", abs(_to_lane))
         reward = overtake_term
         # Visszaert a route savjaba: vege. Bonusz, ha megelozte, es szaggatott
@@ -278,18 +342,30 @@ def reward_fn(env):
             smoothness_factor = max(1.0 - abs(std) / MAX_STD_CENTER_LANE, 0.0)
 
         lagging = False
+        ttc_term = 0.0
         if blocked:
-            # Nem elozhet: a kovetesi tavolsagot kell tartani - kozelebb
-            # aranyosan kevesebb. A sebesseget a lead autohoz merjuk, nem a
-            # TARGET_SPEED-hez, igy csigazva nem eri meg kovetni (+1: ha a
-            # lead all, a mogotte allo ego is megkapja). A teteje BLOCKED_MAX:
-            # korabban ~1.0 volt, tobb, mint az elozes - a beragadas volt a
-            # legjobb allapot.
+            # Nem elozhet: a FOLLOW_GAP_S kovetesi idot kell tartani - kozelebb
+            # es messzebb is kevesebb (lognormal, lasd fent). A sebesseget a
+            # lead autohoz merjuk, nem a TARGET_SPEED-hez, igy csigazva nem eri
+            # meg kovetni. A teteje BLOCKED_MAX: korabban ~1.0 volt, tobb, mint
+            # az elozes - a beragadas volt a legjobb allapot.
             state = "Blocked"
-            need = FOLLOW_GAP_S * speed_kmh / 3.6
-            gap_term = min(surr["front_dist"] / (need + 1e-6), 1.0)
+            # A lognormal csucsa exp(mu - sigma^2): ide tolva FOLLOW_GAP_S-re,
+            # es a csucsbeli ertekkel osztva, hogy ott 1 legyen. Allo egonal a
+            # kovetesi ido ertelmetlen - 1 m/s-mal szamolunk (a match ugyis ~0).
+            headway = surr["front_dist"] / max(speed_kmh / 3.6, 1.0)
+            mu = np.log(FOLLOW_GAP_S) + HEADWAY_SIGMA ** 2
+            gap_term = FOLLOW_GAP_S / headway * np.exp(
+                HEADWAY_SIGMA ** 2 / 2 - (np.log(headway) - mu) ** 2 / (2 * HEADWAY_SIGMA ** 2))
             match = min((speed_kmh + 1.0) / (surr["front_speed"] + 1.0), 1.0)
             speed_term = BLOCKED_MAX * gap_term * match
+            # Kozeledik: TTC buntetes, mar TTC_MAX_S-mal a rafutas elott jelez
+            # (fek nincs, gazelvetellel idoben kell lassitani). 0.1 s alatt
+            # nem szamolunk tovabb, kulonben log(0).
+            closing = (speed_kmh - surr["front_speed"]) / 3.6
+            ttc = surr["front_dist"] / closing if closing > 0.0 else np.inf
+            if ttc < TTC_MAX_S:
+                ttc_term = TTC_WEIGHT * np.log(max(ttc, 0.1) / TTC_MAX_S)
             env.blocked_time += 1.0 / env.fps
         elif can_overtake:
             # Elozhetne. Ha megis kozel a lead mogott kullog, buntetes: korabban
@@ -308,6 +384,7 @@ def reward_fn(env):
             # A buntetest nem szorozzuk a sav-faktorokkal - kulonben a sav
             # szelen, cikkcakkozva kisebb lenne.
             reward = speed_term
+        reward += ttc_term   # ugyanigy: nem szorozzuk (csak Blocked-ban nem 0)
 
         # Elkezdett kiallni (elozhet, es a cel sav fele tart): 0 m-en a
         # kovetes, 1 m-en mar a teljes elozesi jutalom jar, kozte linearisan -

@@ -1,8 +1,7 @@
 import os
 import time
-
+import signal
 import torch
-
 
 #STB3 imports
 from stable_baselines3 import SAC
@@ -14,7 +13,7 @@ import carla_env.reward as rewards
 from config import CONFIG
 from utils import (
     HParamCallback, TensorboardCallback, AttentionCallback, write_json,
-    load_cam_ae, load_lidar_ae, create_encode_state_fn, create_observation_space,
+    load_cam_ae, load_lidar_ae, create_encode_state_fn, create_observation_space, launch_simulator
 )
 
 
@@ -24,11 +23,13 @@ def main():
     env_cfg = CONFIG["env"]
     algo_cfg = CONFIG["algorithm"]
     log_dir = train_cfg["log_dir"]
+    
+    if env_cfg["launch_sim"]:
+        sim_proc=launch_simulator(env_cfg["carla_root"])
+        print("[INFO] Simulator launched...")
 
     os.makedirs(log_dir, exist_ok=True)
 
-    # Az AE-ket a CARLA elott toltjuk be: ha egy checkpoint hibas, ne alljon fel
-    # elotte a teljes szimulacio.
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = torch.device('cpu')
     print("="*60)
@@ -101,17 +102,19 @@ def main():
             reset_num_timesteps=False,
         )
         model.save(os.path.join(model_dir, "model_final"))
-        print(f"Training complete — model saved to {model_dir}/model_final")
+        print(f"[INFO] Training complete — model saved to {model_dir}/model_final")
     except KeyboardInterrupt:
-        print("Training interrupted — saving model...")
+        print("[INFO] Training interrupted — saving model...")
         model.save(os.path.join(model_dir, "model_interrupted"))
-        print(f"Model saved to {model_dir}/model_interrupted")
+        print(f"[INFO] Model saved to {model_dir}/model_interrupted")
+        os.killpg(os.getpgid(sim_proc.pid), signal.SIGKILL)
+        print(f"[INFO] Simulator closed")
     except Exception:
-        # Barmilyen mas hiba (CARLA timeout, szenzorhiba, NaN) eseten is
-        # mentunk, kulonben az egesz futas elveszne. Utana tovabbdobjuk.
-        print("Training crashed — saving model...")
+        print("[INFO] Training crashed — saving model...")
         model.save(os.path.join(model_dir, "model_crashed"))
-        print(f"Model saved to {model_dir}/model_crashed")
+        print(f"[INFO] Model saved to {model_dir}/model_crashed")
+        os.killpg(os.getpgid(sim_proc.pid), signal.SIGKILL)
+        print(f"[INFO] Simulator closed")
         raise
 
 

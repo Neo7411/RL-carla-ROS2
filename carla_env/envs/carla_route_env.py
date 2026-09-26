@@ -308,6 +308,7 @@ class CarlaRouteEnv(gym.Env):
         self.terminal_state = False  # Set to True when we want to end episode
         self.success_state = False  # Set to True when we want to end episode.
         self.collision_with = None  # az elso utkozes masik szereplojenek type_id-je
+        self.terminal_reason = ""   # mi zarta le az epizodot (a reward_fn allitja; "" = nem terminal)
 
         self.closed = False  # Set to True when ESC is pressed
         self.extra_info = []  # List of extra info shown on the HUD
@@ -749,6 +750,7 @@ class CarlaRouteEnv(gym.Env):
             'overtakes': self.overtakes,
             'overtake_reward': self.overtake_reward,
             'blocked_time': self.blocked_time,
+            'terminal_reason': self.terminal_reason,
         }
         terminated = self.terminal_state
         truncated = (route_done or self.success_state) and not terminated

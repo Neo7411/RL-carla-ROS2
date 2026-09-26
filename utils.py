@@ -1,5 +1,7 @@
 import json
 import math
+import subprocess
+import time
 
 import gymnasium as gym
 import numpy as np
@@ -77,6 +79,19 @@ class TensorboardCallback(BaseCallback):
             self.logger.record("custom/overtakes", self.locals['infos'][0]['overtakes'])
             self.logger.record("custom/overtake_reward", self.locals['infos'][0]['overtake_reward'])
             self.logger.record("custom/blocked_time", self.locals['infos'][0]['blocked_time'])
+            # Mi zarta le az epizodot: epizodonkent 0/1 minden okra, igy a
+            # TensorBoard simitasa az aranyukat mutatja. route_done: nem
+            # terminal, hanem a route vege / max_distance (truncated).
+            reason = self.locals['infos'][0]['terminal_reason']
+            is_vehicle = reason.startswith("Collision (vehicle.")
+            for key, hit in (("collision_vehicle", is_vehicle),
+                             ("collision_other", reason.startswith("Collision") and not is_vehicle),
+                             ("solid_line", reason.startswith("Solid line")),
+                             ("off_track", reason == "Off-track"),
+                             ("stopped", reason == "Vehicle stopped"),
+                             ("too_fast", reason == "Too fast"),
+                             ("route_done", reason == "")):
+                self.logger.record(f"terminal/{key}", float(hit))
             self.logger.dump(self.num_timesteps)
         return True
 
@@ -350,3 +365,17 @@ def create_observation_space(cam_ae, lidar_latent_shape):
     observation_space['waypoints'] = gym.spaces.Box(low=-50, high=50, shape=(15, 2),dtype=np.float32) # waypoints
 
     return gym.spaces.Dict(observation_space)
+
+
+
+def launch_simulator(sim_path):
+    command = ["bash", sim_path + "/CarlaUE4.sh", "-prefernvidia", "-RenderOffScreen"]
+    print(command)
+    process = subprocess.Popen( 
+        command,
+        stdout=subprocess.DEVNULL,  # Nem szemeteli tele a konzolt
+        stderr=subprocess.DEVNULL,  # A hibajelentéseket is elrejti
+        start_new_session=True      # Új folyamatcso                
+    )
+    time.sleep(10)
+    return process

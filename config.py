@@ -1,5 +1,4 @@
 import os
-
 from feature_extractions.fusion_extractor import CarlaFusionExtractor
 from utils import lr_schedule
 
@@ -34,6 +33,8 @@ LIDAR = dict(
 # =============================================================================
 
 ENV = dict(
+    launch_sim=True,
+    carla_root="/home/xavier11/CARLA/CARLA_0.9.16",
     town="Town04",
     host="localhost",
     port=2000,
@@ -50,7 +51,7 @@ ENV = dict(
     traffic_vehicles=50,
     traffic_start_m=20.0,
     traffic_gap_m=(12.0, 30.0),
-    traffic_speed_kmh=(25.0, 25.0),
+    traffic_speed_kmh=(20.0, 25.0),
     hybrid_radius=70.0,
 )
 # =============================================================================
@@ -67,7 +68,7 @@ TRAIN = dict(
     # Ennyi lepesenkent meri, mire figyel a policy (utils.AttentionCallback).
     attention_freq=10_000,
     reload_model=True,
-    reload_model_path=path("tensorboard", "SAC_HALF"),
+    reload_model_path=path("tensorboard", "SAC_OVERTAKE_2"),
     reload_model_file="model_interrupted.zip",
 )
 
