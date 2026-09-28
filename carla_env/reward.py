@@ -146,26 +146,6 @@ def reward_fn_og(env):
 
 
 def reward_fn(env):
-    """Sav-kozep tartas + elozes. A forgalmat az env.surroundings adja
-    (get_vehicle_surroundings, lepesenkent egyszer).
-
-      - Savelhagyas: Off-track, ha a legkozelebbi sav kozepetol is 2 m-nel
-        messzebb van (lement az utrol). Masik savba engedely nelkul (nem elozes), folytonoson vagy
-        szaggatotton at: nem terminal, csak OFF_LANE_PENALTY / lepes, amig
-        vissza nem er. A route savba visszasorolas sosem buntetett.
-      - Nincs elottem senki: mint a reward_fn_og.
-      - Elottem van valaki, es van hova kiallni (lasd fent a sorrendet):
-        kiallhat, a cel savban elozesi jutalmat kap. Elozes kozben
-        OVERTAKE_MIN + OVERTAKE_SPEED * sebesseg - kevesebb, mint a sajat
-        savban, de tobb, mint lassan kovetni. A savhataron LANE_LINE_FACTOR-
-        szoros, a megelozes utan (vagy OVERTAKE_MAX_S utan) pedig csokken,
-        amig vissza nem sorol.
-      - Megelozte (PASS_BEHIND_M-rel mogotte van), es szaggatott vonalon
-        sorolt vissza a route savjaba: +OVERTAKE_BONUS.
-      - Elottem van valaki, de nem elozhet: a FOLLOW_GAP_S kovetesi tavolsagot
-        kell tartani (fek nincs, gazelvetellel), a sebesseget a lead autohoz
-        merjuk, legfeljebb BLOCKED_MAX.
-    """
     global _low_speed_timer, _overtaking, _to_lane, _target_id, _passed, _return_ok
     global _overtaken_ids, _smooth_hold, _overtake_t, _passed_t, _prev_steer, _lag_t
 
@@ -197,11 +177,12 @@ def reward_fn(env):
     has_lead = surr["front_id"] is not None
     # Hova allhat ki most (a sajat savomhoz kepest): az elso a sorrendben,
     # ahol odaig szaggatott, a cel sav szabad, es 2 savnal a kozbulson at
-    # lehet vagni. Jobbra csak akkor, ha balra nem lehet. None: sehova.
+    # lehet vagni. Jobbra nem elozhet: ha csak jobbra lehetne, az is Blocked.
+    # None: sehova.
     to_lane = None
     if has_lead:
         lanes = surr["lanes"]
-        for n in (1, 2, -1, -2):
+        for n in (1, 2):
             lane = lanes.get(n)
             if lane and lane["broken"] and lane["free"] and (abs(n) == 1 or lanes[n // 2]["cross"]):
                 to_lane = n

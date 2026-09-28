@@ -35,7 +35,7 @@ LIDAR = dict(
 ENV = dict(
     launch_sim=True,
     is_carla_in_docker = False,
-    carla_root="/home/xavier11/CARLA/CARLA_0.9.16",
+    carla_root=os.environ["HOME"]+"/CARLA/CARLA_0.9.16",
     carla_docker ="carlasim/carla:0.9.16",
     carla_container="carla_sim",
     town="Town04",
@@ -63,7 +63,7 @@ ENV = dict(
 
 TRAIN = dict(
     log_dir=path("tensorboard"),
-    total_steps=1_000_000_000,
+    total_steps=100_000_000,
     seed=100,
     checkpoint_freq=50_000, 
     attention_freq=10_000,
