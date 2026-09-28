@@ -480,14 +480,10 @@ class World():
         self.world = client.load_world(town)
         self.map = self.get_map()
         self.actor_list = []
-
     def tick(self):
         for actor in list(self.actor_list):
             actor.tick()
-
-        # A szimulalt frame sorszama - ehhez illesztjuk a szenzoradatot.
         return self.world.tick()
-
     def destroy(self):
         print("Destroying all spawned actors")
         for actor in list(self.actor_list):
@@ -497,5 +493,4 @@ class World():
         return self.world
 
     def __getattr__(self, name):
-        """Relay missing methods to underlying carla object"""
         return getattr(self.world, name)

@@ -1,6 +1,7 @@
 import os
 import time
 import signal
+import subprocess
 import torch
 
 #STB3 imports
@@ -24,8 +25,13 @@ def main():
     algo_cfg = CONFIG["algorithm"]
     log_dir = train_cfg["log_dir"]
     
+    sim_proc = None
     if env_cfg["launch_sim"]:
-        sim_proc=launch_simulator(env_cfg["carla_root"])
+        sim_proc = launch_simulator(
+            env_cfg["carla_root"],
+            docker_image=env_cfg["carla_docker"] if env_cfg["is_carla_in_docker"] else None,
+            container_name=env_cfg["carla_container"],
+        )
         print("[INFO] Simulator launched...")
 
     os.makedirs(log_dir, exist_ok=True)
@@ -107,15 +113,21 @@ def main():
         print("[INFO] Training interrupted — saving model...")
         model.save(os.path.join(model_dir, "model_interrupted"))
         print(f"[INFO] Model saved to {model_dir}/model_interrupted")
-        os.killpg(os.getpgid(sim_proc.pid), signal.SIGKILL)
-        print(f"[INFO] Simulator closed")
     except Exception:
         print("[INFO] Training crashed — saving model...")
         model.save(os.path.join(model_dir, "model_crashed"))
         print(f"[INFO] Model saved to {model_dir}/model_crashed")
-        os.killpg(os.getpgid(sim_proc.pid), signal.SIGKILL)
-        print(f"[INFO] Simulator closed")
         raise
+    finally:
+        # Barmilyen kilepesnel (kesz / Ctrl+C / crash) leallitjuk a szimulatort
+        if sim_proc is not None:
+            if env_cfg["is_carla_in_docker"]:
+                # rm -f leallitja es torli is a containert
+                subprocess.run(["docker", "rm", "-f", env_cfg["carla_container"]],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                os.killpg(os.getpgid(sim_proc.pid), signal.SIGKILL)
+            print(f"[INFO] Simulator closed")
 
 
 if __name__ == '__main__':

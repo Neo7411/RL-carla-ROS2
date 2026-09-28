@@ -34,24 +34,27 @@ LIDAR = dict(
 
 ENV = dict(
     launch_sim=True,
+    is_carla_in_docker = False,
     carla_root="/home/xavier11/CARLA/CARLA_0.9.16",
+    carla_docker ="carlasim/carla:0.9.16",
+    carla_container="carla_sim",
     town="Town04",
     host="localhost",
     port=2000,
     obs_res=(160, 80),
     viewer_res=(1280, 720),
     fps=20,
-    max_route_length=2500,
+    max_route_length=2500   ,
     min_route_length=1500,
     action_smoothing=0.75,
     action_space_type="continuous",
     activate_spectator=True,
     activate_render=True,
     reward_fn="reward_fn",
-    traffic_vehicles=50,
+    traffic_vehicles=70,
     traffic_start_m=20.0,
     traffic_gap_m=(12.0, 30.0),
-    traffic_speed_kmh=(20.0, 25.0),
+    traffic_speed_kmh=(20.0, 30.0),
     hybrid_radius=70.0,
 )
 # =============================================================================
@@ -60,15 +63,12 @@ ENV = dict(
 
 TRAIN = dict(
     log_dir=path("tensorboard"),
-    total_steps=100_000_000,
+    total_steps=1_000_000_000,
     seed=100,
-    # Ennyi env-lepesenkent ment. Korabban total_steps // 10 = 10M volt, igy
-    # egy valos futas alatt soha nem mentett.
-    checkpoint_freq=50_000,
-    # Ennyi lepesenkent meri, mire figyel a policy (utils.AttentionCallback).
+    checkpoint_freq=50_000, 
     attention_freq=10_000,
     reload_model=True,
-    reload_model_path=path("tensorboard", "SAC_OVERTAKE_2"),
+    reload_model_path=path("tensorboard", "SAC_3"),
     reload_model_file="model_interrupted.zip",
 )
 
@@ -87,10 +87,6 @@ ALGORITHM = dict(
         learning_starts=10000,
         use_sde=True,
         sde_sample_freq=8,
-        # A learning_starts alatt se egyenletes veletlen akcio menjen, hanem a
-        # (betanitatlan) policy gSDE zajjal. Az egyenletes veletlen fek (a
-        # simitassal) vegig bent maradt, es az auto el sem indult; a policy
-        # ~0.5-os fek-akcioja a 0.7-es holtsav alatt van, igy nem fekez.
         use_sde_at_warmup=True,
         policy_kwargs=dict(
             log_std_init=-1.5,

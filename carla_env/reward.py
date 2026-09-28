@@ -6,18 +6,24 @@ EARLY_STOP = True             # korai epizod-vege engedelyezve?
 MAX_SPEED = 60.0              # ezen felul terminal [km/h]
 TARGET_SPEED = 50.0           # ideal sebesseg [km/h]
 SPEED_WEIGHT = 1.9            # a sebesseg sulya (1.0 = nincs sulyozas)
-MAX_DISTANCE = 2.0            # max eltres a sav kozeptol arra, amerre nincs azonos iranyu sav [m]
+MAX_DISTANCE = 2.0            # centering skala; reward_fn: ennyinel messzebb a legkozelebbi
+                              # sav kozepetol = Off-track [m]
 
-# Savelhagyas (csak reward_fn). Terminal csak a lathato szabalysertes: ezeken a
-# felfestes-tipusokon atlepni (a vegyes Solid/Broken-t nem, mert nem tudjuk,
-# melyik oldala szaggatott). Szaggatotton at engedely (elozes) nelkul: nem
-# terminal, csak OFF_LANE_PENALTY / lepes, amig vissza nem er.
-SOLID_MARKS = ("Solid", "SolidSolid", "Curb", "Grass")
-OFF_LANE_PENALTY = -0.1       # / lepes, mint a kullogas (LAG_PENALTY)
+# Savelhagyas (csak reward_fn): engedely (elozes) nelkul masik savban - akar
+# folytonoson, akar szaggatotton at - nem terminal, csak OFF_LANE_PENALTY /
+# lepes, amig vissza nem er.
+OFF_LANE_PENALTY = -0.5       # / lepes. Rosszabb minden bent maradasnal (kullogas max -0.18,
+                              # TTC max -0.46), kulonben Blocked-bol / kullogasbol kirantja
+                              # a kormanyt a tiltott savba (korabban -0.1 volt)
 MAX_STD_CENTER_LANE = 0.35    # max szoras a kozeptol valo tavolsagban [m]
 MAX_ANGLE_CENTER_LANE = 90    # max szogeltres [fok]
 PENALTY_REWARD = -10          # terminal buntetes
 STOP_TIMEOUT = 5.0            # ennyi mp allas utan terminal [s]
+# Kormany-rangatas: -STEER_RATE_PENALTY * |kormany - elozo lepes kormanya|,
+# minden allapotban (elozes kozben es visszasorolas utan a smoothness_factor
+# nem el). A kiadott (simitott) kormanyt nezi: rangatasnal ~0.1 / lepes, sima
+# savvaltasnal 0.02 alatt.
+STEER_RATE_PENALTY = 2.0      # korabban 1.0 - nem volt eleg
 
 
 FOLLOW_GAP_S = 2.0            # kovetesi tavolsag, ha nem elozhet [s]
@@ -47,8 +53,10 @@ BLOCKED_MAX = 0.8             # (elozes 50 km/h-val: 0.9, szabad sav: 1.0)
 # a tul nagy lemaradas is kevesebbet er.
 HEADWAY_SIGMA = 0.4365
 # Ha kozeledik a leadhez: TTC_WEIGHT * log(TTC / TTC_MAX_S) (Zhu et al. 2020),
-# 3 s: -0.26, 1 s: -0.58. Csak Blocked-ban - az elozes elotti felzarkozast nem.
+# 3 s: -0.26, TTC_MIN_S alatt nem no tovabb: -0.46. Csak Blocked-ban - az elozes
+# elotti felzarkozast nem.
 TTC_MAX_S = 7.0
+TTC_MIN_S = 1.5               # korabban 0.1 (-1.27): akkor a tiltott savba kitores olcsobb volt
 TTC_WEIGHT = 0.3
 
 # Kullogas: elozhetne (van hova kiallni), megis kozel a lead mogott megy, es
@@ -58,6 +66,11 @@ LAG_MARGIN_KMH = 5.0          # ...es nem gyorsabb nala ennyivel: kullog
 LAG_PENALTY = -0.1            # / lepes. gamma=0.98 mellett a vegtelen kullogas -0.1/0.02 = -5,
                               # ez NE legyen rosszabb, mint a PENALTY_REWARD - kulonben inkabb
                               # lesodrodik, minthogy kullogjon
+# A kullogas buntetese no: minel lassabb, es minel regebb ragad be. Legfeljebb
+# 1.8 * LAG_PENALTY = -0.18 - a -0.2 / lepes vegtelen kullogas mar -10 lenne.
+LAG_SLOW_EXTRA = 0.4          # +ennyi * (1 - speed_factor) szoros: allo egonal -0.04
+LAG_STUCK_EXTRA = 0.4         # +ennyi szoros, ha mar LAG_STUCK_S ota kullog: -0.04
+LAG_STUCK_S = 3.0             # ennyi ido alatt no fel linearisan [s]
 
 # Mennyi ideje all EGYHUZAMBAN az auto [s]. Elindulaskor es minden epizod
 # elejen nullazodik.
@@ -73,7 +86,8 @@ _overtaken_ids = set()    # akiert mar jart bonusz
 _smooth_hold = 0          # visszasorolas utan ennyi lepesig nincs cikkcakk-buntetes
 _overtake_t = 0.0         # miota eloz [s]
 _passed_t = None          # az _overtake_t, amikor a _target_id mogem kerult
-_lane_idx = 0             # melyik savban van az ego kozepe (a route savhoz, + balra)
+_prev_steer = 0.0         # az elozo lepes kiadott kormanya
+_lag_t = 0.0              # miota kullog egyhuzamban [s]
 
 
 def reward_fn_og(env):
@@ -135,11 +149,10 @@ def reward_fn(env):
     """Sav-kozep tartas + elozes. A forgalmat az env.surroundings adja
     (get_vehicle_surroundings, lepesenkent egyszer).
 
-      - Savelhagyas: folytonos vonal atlepese terminal (Solid line). Arra,
-        amerre nincs azonos iranyu sav, 2 m-en tul Off-track. Szaggatotton at
-        engedely nelkul (nem elozes) nem terminal, csak OFF_LANE_PENALTY /
-        lepes, amig vissza nem er. Csak az atlepes pillanata szamit: aki
-        szaggatotton kiallt, azt a kesobb folytonosra valto vonal nem oli meg.
+      - Savelhagyas: Off-track, ha a legkozelebbi sav kozepetol is 2 m-nel
+        messzebb van (lement az utrol). Masik savba engedely nelkul (nem elozes), folytonoson vagy
+        szaggatotton at: nem terminal, csak OFF_LANE_PENALTY / lepes, amig
+        vissza nem er. A route savba visszasorolas sosem buntetett.
       - Nincs elottem senki: mint a reward_fn_og.
       - Elottem van valaki, es van hova kiallni (lasd fent a sorrendet):
         kiallhat, a cel savban elozesi jutalmat kap. Elozes kozben
@@ -154,7 +167,7 @@ def reward_fn(env):
         merjuk, legfeljebb BLOCKED_MAX.
     """
     global _low_speed_timer, _overtaking, _to_lane, _target_id, _passed, _return_ok
-    global _overtaken_ids, _smooth_hold, _overtake_t, _passed_t, _lane_idx
+    global _overtaken_ids, _smooth_hold, _overtake_t, _passed_t, _prev_steer, _lag_t
 
     terminal_reason = "Running..."
     speed_kmh = env.vehicle.get_speed()
@@ -165,7 +178,8 @@ def reward_fn(env):
         _overtaken_ids = set()
         _smooth_hold = 0
         _overtake_t, _passed_t = 0.0, None
-        _lane_idx = 0
+        _prev_steer = env.vehicle.control.steer
+        _lag_t = 0.0
 
     # Elojeles tavolsag a route-tol [m]: + = balra, - = jobbra. A nagysaga a
     # distance_from_center, az elojele a route waypoint jobb vektorabol.
@@ -177,30 +191,8 @@ def reward_fn(env):
 
     lane_w = surr["lane_width"]
 
-    # A route sav melletti azonos iranyu savok, oldalankent max 2: sav (+1/+2
-    # balra, -1/-2 jobbra) -> a felfestes tipusa kozte es a route fele eso
-    # szomszedja kozott. Ami nincs (vagy szembesav), az kimarad.
-    route_wp = env.current_waypoint
-    marks = {}
-    for s in (1, -1):
-        w = route_wp
-        for n in (1, 2):
-            mark = w.left_lane_marking if s > 0 else w.right_lane_marking
-            w = w.get_left_lane() if s > 0 else w.get_right_lane()
-            if w is None or w.lane_type != carla.LaneType.Driving or w.lane_id * route_wp.lane_id <= 0:
-                break
-            marks[s * n] = str(mark.type)
-
-    # Melyik savban van most az ego kozepe. Ha savot valtott, a kulso sav
-    # felfestesen lepett at (0 -> +1 es +1 -> 0 is a +1-es) - ha az folytonos,
-    # terminal. Nem letezo savnal nincs felfestes: ott a 2 m-es hatar dont.
+    # Melyik savban van most az ego kozepe (a route savhoz, + balra).
     lane_idx = int(round(offset / lane_w))
-    solid_crossed = None
-    if lane_idx != _lane_idx:
-        outer = lane_idx if abs(lane_idx) > abs(_lane_idx) else _lane_idx
-        if marks.get(outer) in SOLID_MARKS:
-            solid_crossed = marks[outer]
-        _lane_idx = lane_idx
 
     has_lead = surr["front_id"] is not None
     # Hova allhat ki most (a sajat savomhoz kepest): az elso a sorrendben,
@@ -242,18 +234,21 @@ def reward_fn(env):
     # --- 2) Epizod-vege feltetelek -----------------------------------------
     if EARLY_STOP and not env.terminal_state:
         _low_speed_timer = _low_speed_timer + 1.0 / env.fps if speed_kmh < 1.0 else 0.0
+        # A legkozelebbi Driving sav kozepe (barmelyik sav, barmelyik irany).
+        near = env.map.get_waypoint(loc).transform.location
 
         if _low_speed_timer > STOP_TIMEOUT:
             env.terminal_state = True
             terminal_reason = "Vehicle stopped"
 
-        elif solid_crossed is not None:
-            env.terminal_state = True
-            terminal_reason = f"Solid line ({solid_crossed})"
-        # A hatar arra, amerre azonos iranyu sav van, annyi savval tagabb
-        # (hogy melyikbe szabad atmenni, azt a folytonos vonal donti el, fent).
-        elif not (-MAX_DISTANCE - lane_w * sum(1 for k in marks if k < 0)
-                  <= offset <= MAX_DISTANCE + lane_w * sum(1 for k in marks if k > 0)):
+        # Off-track: tenyleg lement az utrol - a legkozelebbi sav kozepetol is
+        # MAX_DISTANCE-nel messzebb van. Korabban a route sav szomszedait
+        # szamoltuk (get_left_lane), de keresztezodesben az a letezo szomszed
+        # savot ~850 m-en nem adja vissza (Town04), es a szomszed savban
+        # (szaggatotton at) elozot is Off-track-kel olte. Tiltott savban
+        # (szaggatotton vagy folytonoson at) nem terminal, csak
+        # OFF_LANE_PENALTY / lepes, lent.
+        elif np.hypot(loc.x - near.x, loc.y - near.y) > MAX_DISTANCE:
             env.terminal_state = True
             terminal_reason = "Off-track"
         elif MAX_SPEED > 0 and speed_kmh > MAX_SPEED:
@@ -310,6 +305,7 @@ def reward_fn(env):
     allowed_lane = lane_idx == 0 or (_overtaking and lane_idx * _to_lane > 0
                                      and abs(lane_idx) <= abs(_to_lane))
 
+    lagging = False
     if not allowed_lane:
         state = "Off lane %+d" % lane_idx
         reward = OFF_LANE_PENALTY
@@ -341,7 +337,6 @@ def reward_fn(env):
             std = np.std(env.distance_from_center_history)
             smoothness_factor = max(1.0 - abs(std) / MAX_STD_CENTER_LANE, 0.0)
 
-        lagging = False
         ttc_term = 0.0
         if blocked:
             # Nem elozhet: a FOLLOW_GAP_S kovetesi idot kell tartani - kozelebb
@@ -360,12 +355,12 @@ def reward_fn(env):
             match = min((speed_kmh + 1.0) / (surr["front_speed"] + 1.0), 1.0)
             speed_term = BLOCKED_MAX * gap_term * match
             # Kozeledik: TTC buntetes, mar TTC_MAX_S-mal a rafutas elott jelez
-            # (fek nincs, gazelvetellel idoben kell lassitani). 0.1 s alatt
-            # nem szamolunk tovabb, kulonben log(0).
+            # (fek nincs, gazelvetellel idoben kell lassitani). TTC_MIN_S alatt
+            # nem szamolunk tovabb (log(0), es a tiltott sav maradjon rosszabb).
             closing = (speed_kmh - surr["front_speed"]) / 3.6
             ttc = surr["front_dist"] / closing if closing > 0.0 else np.inf
             if ttc < TTC_MAX_S:
-                ttc_term = TTC_WEIGHT * np.log(max(ttc, 0.1) / TTC_MAX_S)
+                ttc_term = TTC_WEIGHT * np.log(max(ttc, TTC_MIN_S) / TTC_MAX_S)
             env.blocked_time += 1.0 / env.fps
         elif can_overtake:
             # Elozhetne. Ha megis kozel a lead mogott kullog, buntetes: korabban
@@ -375,7 +370,12 @@ def reward_fn(env):
                        and speed_kmh < surr["front_speed"] + LAG_MARGIN_KMH)
             state = "%s %s%d" % ("Lagging" if lagging else "Can overtake",
                                  "L" if to_lane > 0 else "R", abs(to_lane))
-            speed_term = LAG_PENALTY if lagging else speed_factor ** SPEED_WEIGHT
+            if lagging:
+                # Minel lassabb, es minel regebb ragad be, annal tobb (max -0.18).
+                speed_term = LAG_PENALTY * (1.0 + LAG_SLOW_EXTRA * (1.0 - speed_factor)
+                                            + LAG_STUCK_EXTRA * min(_lag_t / LAG_STUCK_S, 1.0))
+            else:
+                speed_term = speed_factor ** SPEED_WEIGHT
         else:
             state = "Free"
             speed_term = speed_factor ** SPEED_WEIGHT
@@ -393,6 +393,14 @@ def reward_fn(env):
         if can_overtake and offset * to_lane > 0.0:
             k = min(abs(offset) / OVERTAKE_START_M, 1.0)
             reward = (1 - k) * speed_term * next_angle_factor + k * overtake_term
+
+    # Beragadas ideje: barmi mas (kiallt, elment elole, Blocked) nullazza.
+    _lag_t = _lag_t + 1.0 / env.fps if lagging else 0.0
+
+    # Rangatas: minden allapotban, nem szorozzuk a faktorokkal.
+    steer = env.vehicle.control.steer
+    reward -= STEER_RATE_PENALTY * abs(steer - _prev_steer)
+    _prev_steer = steer
 
     env.extra_info.extend([
         terminal_reason,
