@@ -76,6 +76,9 @@ def main():
                                      train_cfg["reload_model_file"])
         model = SAC.load(rl_model_path, env=env, device=algo_cfg["device"],
                          tensorboard_log=log_dir, verbose=1)
+        # A replay buffer nem toltodik vissza, a num_timesteps viszont igen -
+        # enelkul az elso lepestol tanitana az ures bufferen, es szetesik.
+        model.learning_starts = model.num_timesteps + algo_cfg["params"]["learning_starts"]
         print(f"[INFO] Reloading model: {train_cfg['reload_model_path']}")
     else:
         model = SAC('MultiInputPolicy', env=env, verbose=1, seed=train_cfg["seed"],
