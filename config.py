@@ -63,7 +63,7 @@ ENV = dict(
 
 TRAIN = dict(
     log_dir=path("tensorboard"),
-    total_steps=100_000_000,
+    total_steps=1_000_000,
     seed=100,
     checkpoint_freq=50_000, 
     attention_freq=10_000,
