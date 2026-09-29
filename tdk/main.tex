@@ -78,7 +78,7 @@
   \vspace{0.06\textheight}
   {\fontsize{16}{22}\selectfont\bfseries \dolgozatcim\par}
   \vspace{14pt}
-  {\fontsize{14}{18}\selectfont \dolgozatalcim\par}
+  % {\fontsize{14}{18}\selectfont \dolgozatalcim\par}
   \vspace{22pt}
   {\normalsize\scshape \par}
 
@@ -119,14 +119,106 @@
 \section{Bevezetés}
 \label{sec:bevezetes}
 
-Az autonóm járművezetés egyik ígéretes megközelítése a megerősítéses
-tanulás (reinforcement learning, RL)~\cite{sutton2018rl}, amelyben az ágens
-a környezettel való interakció során, jutalomjelek alapján tanulja meg a
-vezetési stratégiát~\cite{kiran2022survey,kendall2019learning}. A valós
-járművön történő tanítás költséges és veszélyes, ezért a kísérleteket a
-nyílt forráskódú CARLA szimulátorban~\cite{dosovitskiy2017carla} végezzük.
+A 21. század egyik ha nem a legnagyobb hatású technológiai átalakulása a közlekedésben
+zajlik. Az elmúlt másfél évtizedben szemünk láttára kerültek önvezető járművek a
+kutatólaboratóriumokból a hétköznapi forgalom részévé. Kezdetben vezetéstámogató
+rendszerek (sávtartó automatika, adaptív tempomat, vészfékasszisztens) kirivó már technológiának számítottak 
+azonban ma már a középkategóriás autókban is alapfelszereltség részét képezik, egyes
+városokban pedig sofőr nélküli robottaxik szállítják az utasokat. A fejlődés robbanásszerű gyorsulását
+a szenzorok relatíve olcsóbbá válása, valamint a járművekbe építhető, nagy teljesítményű
+számítási egységek megjelenése nélkülőzhetetlen volt. Ezen felül az adatfeldolgozás és 
+a mélytanulás fejlődése is kulcsszerepet ezen fejlődés 
+történetben mivel, ezek a technológiák teszik lehetővé, a járművek számára környezetük érzékelését. 
 
-% TODO: motiváció, célkitűzés, a dolgozat felépítése
+Az önvezető autók iránti érdeklődést elsősorban a biztonság motiválja. A közúti
+balesetekben világszerte évente több mint egymillió ember veszti
+életét~\cite{who2023roadsafety}, és a balesetek döntő többsége emberi hibára --
+figyelmetlenségre, fáradtságra, rossz helyzetmegítélésre -- vezethető vissza.
+
+Egy gép nem fárad el, semmi sem vonja el a figyelmét, és valamint a reakcióideje optimális
+esetben rövidebb lehet az emberinél. Ez az eset azonban csak akkor valósulhat meg, ha
+a vezetést végző algoritmus minden helyzetben megbízhatóan, hatékonyan és biztonságosan működik. Nem elég,
+ha a jármű az esetek túlnyomó részében -- egyenes úton, jó időben, kiszámítható hanem nehézkes körülmények között is helyt kell állnia. 
+Ezen oknál fogva avalódi kihívást a ritka, váratlan helyzetek jelentik, például a forgalom dinamikája, egy
+sávba kerülő akadály vagy egy előzés közben megváltozó forgalmi helyzet. Egyetlen
+rosszul kezelt helyzet is megingathatja az emberek bizalmát, ezért egy önvezető
+rendszer esetében a megbízhatóság nem csupán kívánatos tulajdonság, hanem
+alapkövetelmény.
+
+%------------------------------------------------------------------------------------------------------------------
+A vezetési feladatot hagyományosan egymásra épülő, kézzel tervezett modulokra
+(észlelés, predikció, tervezés, szabályozás) bontva oldják meg. Ezek a
+rendszerek jól értelmezhetők, de minden szabályt és határesetet előre meg kell
+fogalmazni bennük, ami a valós forgalom sokszínűsége mellett rendkívül nehéz.
+Alternatívát a megerősítéses tanulás (\emph{reinforcement learning}, RL)
+kínál, amelyben az ágens nem előre megírt szabályokat követ, hanem a
+környezettel való interakció során, jutalmak és büntetések alapján maga tanulja
+meg, hogyan kell cselekednie. Ez a megközelítés különösen alkalmas az olyan
+döntési feladatokra, mint a sávtartás, az akadályok kikerülése vagy az előzés,
+ahol a helyes viselkedést nehéz szabályokkal leírni, de könnyű megmondani, hogy
+egy adott kimenetel jó vagy rossz.
+
+A megerősítéses tanulásnak azonban ára van: az ágens próbálkozások és hibák
+sorozatán keresztül tanul, és mielőtt elfogadható vezetési stratégiát alakítana
+ki, több százezer vagy akár több millió lépésen át, rengeteg ütközést
+elszenvedve kell gyakorolnia. Ezt valós járművel elvégezni gyakorlatilag
+kivitelezhetetlen. Egy szenzorokkal felszerelt tesztjármű, a zárt tesztpálya, a
+biztonsági sofőr és a karbantartás költsége rendkívül magas, egy ütközés pedig
+nemcsak anyagi kárt okoz, hanem emberi életet is veszélyeztethet. Ráadásul a
+legveszélyesebb, így a legfontosabb helyzeteket éppen a valóságban a
+legnehezebb szándékosan és megismételhetően előidézni. Becslések szerint egy
+önvezető rendszer biztonságosságának pusztán valós tesztvezetéssel történő
+igazolásához több száz millió, esetenként milliárdnyi kilométer megtétele
+volna szükséges.
+% TODO hivatkozás: Kalra & Paddock, Driving to Safety (RAND, 2016)
+
+Ezért a tanítást és a tesztelést szimulált környezetben végeztük. A CARLA egy
+nyílt forráskódú, kifejezetten önvezetés-kutatásra fejlesztett szimulátor,
+amely valósághű városi és autópálya-környezetet, fizikai járműmodellt,
+forgalmat és a valós járművekben használtakhoz hasonló szenzorokat (kamera,
+LiDAR, radar, GNSS) biztosít. A szimulációban egy ütközésnek nincs
+következménye, a kísérletek tetszőlegesen megismételhetők, a nehéz helyzetek
+pedig célzottan előállíthatók. Így az ágens biztonságosan tanulhat a saját
+hibáiból, a kész modell viselkedése pedig reprodukálható módon, nagyszámú
+helyzetben értékelhető, mielőtt valós járműre kerülne.
+
+Az önvezető rendszer döntései csak annyira lehetnek jók, amennyire pontos a
+környezetéről alkotott képe, ez a kép pedig kizárólag a szenzorokból származik.
+A kamera gazdag vizuális információt ad -- felismerhetők rajta az útburkolati
+jelek, a sávok és a többi jármű --, ugyanakkor érzékeny a megvilágításra, és a
+távolságot csak közvetetten hordozza. A LiDAR ezzel szemben lézerimpulzusok
+segítségével pontos, a fényviszonyoktól független térbeli mérést ad a környező
+objektumok távolságáról. A két szenzor így kiegészíti egymást, együttes
+használatuk robusztusabb érzékelést tesz lehetővé. A szenzorok azonban
+másodpercenként óriási mennyiségű adatot állítanak elő, amelyet a járműnek
+valós időben kell feldolgoznia: 50\,km/h sebességnél az autó másodpercenként
+közel 14 métert tesz meg, így már egy tized másodperces késés is csaknem
+másfél méternyi, \enquote{vakon} megtett utat jelent. A gyors és hatékony
+feldolgozás a tanulás szempontjából is kulcsfontosságú, hiszen a nagy
+dimenziós nyers képekből és pontfelhőkből közvetlenül tanuló ágens lassan és
+instabilan konvergál. Célszerű ezért az adatokat előbb egy kompakt, a lényeges
+információt megőrző reprezentációvá tömöríteni, és a döntéshozó ágenst már
+ezen tanítani.
+
+Dolgozatunkban ezt a megközelítést követjük. A CARLA szimulátor Town04 pályáján
+egy Soft Actor-Critic (SAC) algoritmussal tanított ágenst fejlesztettünk,
+amely a kamera és a LiDAR adatait egy-egy autoenkóder segítségével alacsony
+dimenziós látens vektorokká tömörítve kapja meg, kiegészítve a tervezett
+útvonalra vonatkozó információval. Az ágens feladata a sáv biztonságos
+tartása, valamint a lassabban haladó járművek -- mint dinamikus akadályok --
+szabályos, balról történő előzéssel való kikerülése. Megvizsgáljuk azt is,
+hogy a jutalomfüggvény kialakítása és a megfigyelési tér összetétele hogyan
+befolyásolja a megtanult vezetési stratégia minőségét.
+
+A dolgozat felépítése a következő. A~\ref{sec:kapcsolodo}.~fejezet áttekinti a
+kapcsolódó szakirodalmat, a~\ref{sec:elmelet}.~fejezet bemutatja a
+megerősítéses tanulás, a SAC algoritmus és az autoenkóderek elméleti hátterét.
+A~\ref{sec:rendszer}.~fejezet a javasolt rendszert, a szimulációs környezetet,
+az érzékelést és a jutalomfüggvényt ismerteti. Az~\ref{sec:eredmenyek}.~fejezet
+a kísérleteket és azok eredményeit mutatja be, végül
+a~\ref{sec:osszegzes}.~fejezet összegzi a munkát és felvázolja a további
+fejlesztési lehetőségeket.
+
 
 \section{Kapcsolódó munkák}
 \label{sec:kapcsolodo}

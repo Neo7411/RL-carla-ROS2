@@ -50,7 +50,7 @@ import torch
 from stable_baselines3 import SAC
 
 import carla_env.reward as rewards
-from carla_env.envs.carla_route_env import CarlaRouteEnv
+from carla_env.carla_env import CarlaEnv
 from carla_env.navigation.planner import compute_route_waypoints
 from carla_env.wrappers import get_actor_display_name
 from config import CONFIG
@@ -105,7 +105,7 @@ def main():
     encode_state_fn = create_encode_state_fn(cam_ae, lidar_ae, CONFIG, device)
 
     try:
-        env = CarlaRouteEnv(
+        env = CarlaEnv(
             obs_res=env_cfg["obs_res"],
             viewer_res=env_cfg["viewer_res"],
             host=env_cfg["host"],

@@ -9,7 +9,7 @@ from stable_baselines3 import SAC
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import configure
 
-from carla_env.envs.carla_route_env import CarlaRouteEnv
+from carla_env.carla_env import CarlaEnv
 import carla_env.reward as rewards
 from config import CONFIG
 from utils import (
@@ -47,7 +47,7 @@ def main():
     observation_space = create_observation_space(cam_ae, lidar_latent_shape)
     encode_state_fn = create_encode_state_fn(cam_ae, lidar_ae, CONFIG, device)
 
-    env = CarlaRouteEnv(
+    env = CarlaEnv(
         obs_res=env_cfg["obs_res"],
         viewer_res=env_cfg["viewer_res"],
         host=env_cfg["host"],
