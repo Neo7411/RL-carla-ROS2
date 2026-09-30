@@ -170,24 +170,6 @@ class CarlaEnv(gym.Env):
         self.reset()
     
     def get_vehicle_surroundings(self, radius=10.0, lead_range=40.0):
-        """A forgalom az egohoz kepest. A step() hivja lepesenkent egyszer
-        (self.surroundings), a HUD es a reward_fn is azt olvassa.
-
-          vehicles      a HUD jelzoi: van-e auto radius-on belul elol / hatul /
-                        balra / jobbra (az ego sajat iranyahoz kepest)
-          left_marking, right_marking   a sajat savom felfestese, az EGO
-                        menetiranyahoz kepest (a szembesavban megforditva)
-          front_id, front_dist, front_speed   a sajat savomban elottem levo
-                        legkozelebbi auto lead_range-en belul (a sebessege
-                        km/h-ban), kulonben None
-          left_free     a bal szomszed sav letezik, es -8..+20 m-en szabad
-          lanes         a szomszed savok az ego iranyabol: +1 bal, +2 ketto
-                        balra, -1 jobb, -2 ketto jobbra (ami nincs, az kimarad).
-                        broken: odaig minden vonal szaggatott; free: -8..+20
-                        m-en szabad (ide allhat be); cross: -8..+8 m-en szabad
-                        (at lehet vagni rajta a tulso savba)
-          lon           minden forgalmi auto hosszanti tavolsaga [m], + = elottem
-        """
         tr = self.vehicle.get_transform()
         loc = tr.location
         fwd = tr.get_forward_vector()
