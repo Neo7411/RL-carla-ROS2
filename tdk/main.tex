@@ -13,10 +13,7 @@
 \usepackage{tgtermes}   % TeX Gyre Termes: Times New Roman-klón, ő/ű is
 \usepackage{microtype}
 
-% ---------------------------------------------------------------------
-% Formai követelmények (TDK 2.2)
-% ---------------------------------------------------------------------
-% A4, margók: bal 3 cm, jobb 2 cm, felső 3 cm, alsó 3 cm
+
 \usepackage[a4paper,left=3cm,right=2cm,top=3cm,bottom=3cm]{geometry}
 
 % 1,5-es sorköz
@@ -51,11 +48,11 @@
 \newcommand{\dolgozatcim}{Dinamikus objektumelkerülés megerősítéses tanulással\\a CARLA szimulátorban}
 % \newcommand{\dolgozatalcim}{Kamera- és LiDAR-autoenkóderre épülő\\Soft Actor-Critic ágens fejlesztése}
 
-\hypersetup{
-  pdftitle   = {Autonóm járművezetés megerősítéses tanulással a CARLA szimulátorban},
-  pdfauthor  = {Angi Dávid},
-  pdfsubject = {TDK dolgozat},
-}
+% \hypersetup{
+%   pdftitle   = {Autonóm járművezetés megerősítéses tanulással a CARLA szimulátorban},
+%   pdfauthor  = {Angi Dávid},
+%   pdfsubject = {TDK dolgozat},
+% }
 
 \begin{document}
 
@@ -141,12 +138,7 @@ a vezetést végző algoritmus minden helyzetben megbízhatóan, hatékonyan és
 ha a jármű az esetek túlnyomó részében -- egyenes úton, jó időben, kiszámítható hanem nehézkes körülmények között is helyt kell állnia. 
 Ezen oknál fogva avalódi kihívást a ritka, váratlan helyzetek jelentik, például a forgalom dinamikája, egy
 sávba kerülő akadály vagy egy előzés közben megváltozó forgalmi helyzet. Egyetlen
-rosszul kezelt helyzet is megingathatja az emberek bizalmát, ezért egy önvezető
-rendszer esetében a megbízhatóság nem csupán kívánatos tulajdonság, hanem
-alapkövetelmény.
-
-%------------------------------------------------------------------------------------------------------------------
-A vezetési feladatot hagyományosan egymásra épülő, kézzel tervezett modulokra
+rosszul kezelt helyzet is súlyos balesethez vezethet.
 (észlelés, predikció, tervezés, szabályozás) bontva oldják meg. Ezek a
 rendszerek jól értelmezhetők, de minden szabályt és határesetet előre meg kell
 fogalmazni bennük, ami a valós forgalom sokszínűsége mellett rendkívül nehéz.
@@ -158,6 +150,8 @@ döntési feladatokra, mint a sávtartás, az akadályok kikerülése vagy az el
 ahol a helyes viselkedést nehéz szabályokkal leírni, de könnyű megmondani, hogy
 egy adott kimenetel jó vagy rossz.
 
+%------------------------------------------------------------------------------------------------------------------
+A vezetési feladatot hagyományosan egymásra épülő, kézzel tervezett modulokra
 A megerősítéses tanulásnak azonban ára van: az ágens próbálkozások és hibák
 sorozatán keresztül tanul, és mielőtt elfogadható vezetési stratégiát alakítana
 ki, több százezer vagy akár több millió lépésen át, rengeteg ütközést
@@ -209,16 +203,6 @@ tartása, valamint a lassabban haladó járművek -- mint dinamikus akadályok -
 szabályos, balról történő előzéssel való kikerülése. Megvizsgáljuk azt is,
 hogy a jutalomfüggvény kialakítása és a megfigyelési tér összetétele hogyan
 befolyásolja a megtanult vezetési stratégia minőségét.
-
-A dolgozat felépítése a következő. A~\ref{sec:kapcsolodo}.~fejezet áttekinti a
-kapcsolódó szakirodalmat, a~\ref{sec:elmelet}.~fejezet bemutatja a
-megerősítéses tanulás, a SAC algoritmus és az autoenkóderek elméleti hátterét.
-A~\ref{sec:rendszer}.~fejezet a javasolt rendszert, a szimulációs környezetet,
-az érzékelést és a jutalomfüggvényt ismerteti. Az~\ref{sec:eredmenyek}.~fejezet
-a kísérleteket és azok eredményeit mutatja be, végül
-a~\ref{sec:osszegzes}.~fejezet összegzi a munkát és felvázolja a további
-fejlesztési lehetőségeket.
-
 
 \section{Kapcsolódó munkák}
 \label{sec:kapcsolodo}

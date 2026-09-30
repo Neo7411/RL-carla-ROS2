@@ -1,5 +1,5 @@
 \select@language {magyar} \contentsline {section}{\numberline {1}Bevezetés}{3}{section.1}%
-\select@language {magyar} \contentsline {section}{\numberline {2}Kapcsolódó munkák}{5}{section.2}%
+\select@language {magyar} \contentsline {section}{\numberline {2}Kapcsolódó munkák}{4}{section.2}%
 \select@language {magyar} \contentsline {section}{\numberline {3}Elméleti háttér}{5}{section.3}%
 \select@language {magyar} \contentsline {subsection}{\numberline {3.1}Megerősítéses tanulás}{5}{subsection.3.1}%
 \select@language {magyar} \contentsline {subsection}{\numberline {3.2}Soft Actor-Critic}{5}{subsection.3.2}%
