@@ -50,7 +50,7 @@ ENV = dict(
     action_space_type="continuous",
     activate_spectator=True,
     activate_render=True,
-    reward_fn="reward_fn_1",
+    reward_fn="reward_fn_2",
     traffic_vehicles=70,
     traffic_start_m=20.0,
     traffic_gap_m=(12.0, 30.0),
@@ -67,7 +67,7 @@ TRAIN = dict(
     seed=100,
     checkpoint_freq=50_000, 
     attention_freq=10_000,
-    reload_model=True,
+    reload_model=False,
     reload_model_path=path("tensorboard", "SAC_5"),
     reload_model_file="model_interrupted.zip",
 )

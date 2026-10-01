@@ -1,4 +1,3 @@
-% !TEX program = pdflatex
 % Fordítás:  latexmk -pdf main.tex   (a biber-t a latexmk magától lefuttatja)
 \documentclass[a4paper,12pt,oneside]{article}
 
@@ -150,123 +149,142 @@ döntési feladatokra, mint a sávtartás, az akadályok kikerülése vagy az el
 ahol a helyes viselkedést nehéz szabályokkal leírni, de könnyű megmondani, hogy
 egy adott kimenetel jó vagy rossz.
 
-%------------------------------------------------------------------------------------------------------------------
-A vezetési feladatot hagyományosan egymásra épülő, kézzel tervezett modulokra
-A megerősítéses tanulásnak azonban ára van: az ágens próbálkozások és hibák
-sorozatán keresztül tanul, és mielőtt elfogadható vezetési stratégiát alakítana
-ki, több százezer vagy akár több millió lépésen át, rengeteg ütközést
-elszenvedve kell gyakorolnia. Ezt valós járművel elvégezni gyakorlatilag
-kivitelezhetetlen. Egy szenzorokkal felszerelt tesztjármű, a zárt tesztpálya, a
+A vezetési feladatot hagyományosan egymásra épülő, alaposan tervezett modulokra bontják. Ezen blokkkat jól megtervezett logikai 
+adatfolyam köti össze amelyet robotikai rendszerek kötnek össze (pl ROS2 )\cite{macenski2022ros2}.
+Ilyen modulokra épülő önevezető rendszer például az Autoware Auto \cite{kato2018autoware} 
+amely egy ROS2 alapokra épülő robotikai rendszer önevezető autózáshoz.
+A rendszer kifinomultsága abban rejlik hogy minden felhasználó saját igényei szerint tudja formálni a rendszert és saját modulokat is adhat hozzá.
+Az ilyen bonyolult rendszerekkel szemben jelent egy lehetséges alternatívát a megerősítéses tanulás 
+azonban ennek ára van. Az ágens próbálkozások és hibák sorozatán keresztül 
+tanul amelyek költsége igen magas lenne a 
+való világban, mivel az elfogadható vezetési stratégia alakítása akár több százezer vagy akár 
+több millió lépésen át is történhet. A tanulási folyamat során az ágensnek gyakorolnia kell és felfedeznie saját világát valamint korlátait. 
+Ezt egy valós járművel elvégezni gyakorlatilag kivitelezhetetlen. Egy szenzorokkal felszerelt tesztjármű, a zárt tesztpálya, a
 biztonsági sofőr és a karbantartás költsége rendkívül magas, egy ütközés pedig
-nemcsak anyagi kárt okoz, hanem emberi életet is veszélyeztethet. Ráadásul a
-legveszélyesebb, így a legfontosabb helyzeteket éppen a valóságban a
-legnehezebb szándékosan és megismételhetően előidézni. Becslések szerint egy
-önvezető rendszer biztonságosságának pusztán valós tesztvezetéssel történő
-igazolásához több száz millió, esetenként milliárdnyi kilométer megtétele
-volna szükséges.
-% TODO hivatkozás: Kalra & Paddock, Driving to Safety (RAND, 2016)
+nemcsak anyagi kárt okoz, hanem emberi életet is veszélyeztethet. Ráadásul az ágnest szeretnénk felkészíteni
+a váratlan és veszélyes helyzetekre, hogy azokat is megfelelőképp kezelje és elkerülje a baleseteket. 
 
-Ezért a tanítást és a tesztelést szimulált környezetben végeztük. A CARLA egy
-nyílt forráskódú, kifejezetten önvezetés-kutatásra fejlesztett szimulátor,
-amely valósághű városi és autópálya-környezetet, fizikai járműmodellt,
-forgalmat és a valós járművekben használtakhoz hasonló szenzorokat (kamera,
-LiDAR, radar, GNSS) biztosít. A szimulációban egy ütközésnek nincs
-következménye, a kísérletek tetszőlegesen megismételhetők, a nehéz helyzetek
-pedig célzottan előállíthatók. Így az ágens biztonságosan tanulhat a saját
-hibáiból, a kész modell viselkedése pedig reprodukálható módon, nagyszámú
-helyzetben értékelhető, mielőtt valós járműre kerülne.
+Ezen okoknál fogva a tanítást és a tesztelést szimulált környezetben végeztem. 
+A szimulációra a CARLA-t \cite{carla} egy nyílt forráskódú, kifejezetten 
+önvezetés-kutatásra fejlesztett szimulátor,amely valósághű városi és autópálya-környezetet is képes egyaránt szimulálni valamint a fizikai járműmodellt,
+amelyek elengedhetetlenek a reális valósághű szimulációkhoz.
 
-Az önvezető rendszer döntései csak annyira lehetnek jók, amennyire pontos a
-környezetéről alkotott képe, ez a kép pedig kizárólag a szenzorokból származik.
-A kamera gazdag vizuális információt ad -- felismerhetők rajta az útburkolati
-jelek, a sávok és a többi jármű --, ugyanakkor érzékeny a megvilágításra, és a
-távolságot csak közvetetten hordozza. A LiDAR ezzel szemben lézerimpulzusok
-segítségével pontos, a fényviszonyoktól független térbeli mérést ad a környező
-objektumok távolságáról. A két szenzor így kiegészíti egymást, együttes
-használatuk robusztusabb érzékelést tesz lehetővé. A szenzorok azonban
-másodpercenként óriási mennyiségű adatot állítanak elő, amelyet a járműnek
-valós időben kell feldolgoznia: 50\,km/h sebességnél az autó másodpercenként
-közel 14 métert tesz meg, így már egy tized másodperces késés is csaknem
-másfél méternyi, \enquote{vakon} megtett utat jelent. A gyors és hatékony
-feldolgozás a tanulás szempontjából is kulcsfontosságú, hiszen a nagy
-dimenziós nyers képekből és pontfelhőkből közvetlenül tanuló ágens lassan és
-instabilan konvergál. Célszerű ezért az adatokat előbb egy kompakt, a lényeges
-információt megőrző reprezentációvá tömöríteni, és a döntéshozó ágenst már
-ezen tanítani.
+Egy önvezető rendszer döntései csak annyira lehetnek jók, amennyire pontos a
+környezetéről alkotott képe, ez a kép pedig kizárólag a gépi látás és érzékelés révén a szenzorokból származik.
+A szenzor adatok feldolgozása az ágnes számára igazi kihivást jelent. A komplex szenzorokból sokszínű és nagy varianciájú adat érkezik.
+Ilyen elgondolás okán a munkám során különböző szenzor adat előfeldozásokat végeztem ezzel optimalizálva a 
+feladatokat az ágens számára.
 
-Dolgozatunkban ezt a megközelítést követjük. A CARLA szimulátor Town04 pályáján
-egy Soft Actor-Critic (SAC) algoritmussal tanított ágenst fejlesztettünk,
-amely a kamera és a LiDAR adatait egy-egy autoenkóder segítségével alacsony
-dimenziós látens vektorokká tömörítve kapja meg, kiegészítve a tervezett
-útvonalra vonatkozó információval. Az ágens feladata a sáv biztonságos
-tartása, valamint a lassabban haladó járművek -- mint dinamikus akadályok --
-szabályos, balról történő előzéssel való kikerülése. Megvizsgáljuk azt is,
-hogy a jutalomfüggvény kialakítása és a megfigyelési tér összetétele hogyan
-befolyásolja a megtanult vezetési stratégia minőségét.
+%------------------------------------------------------------------------------------------------------------------
+Munkám során olyan ágens kifejlesztésén szeretnék dolgozni amely képes forgalmi szituációkat(pl előzés)
+is megfelelőképp biztonságosan kezelni, valamint betartja a KRESZ előírásokat is egyaránt. A fő
+gondolatot \textcite{terapaptommakol2022obstacle} munkája adta, akik a CARLA
+szimulátorban DQN alapú ágenst tanítottak, amely a LiDAR pontfelhő, a pozíció
+és a sebesség alapján fékezéssel és kitéréssel sikeresen elkerülte az úton
+parkoló járművet. Ez a munka azonban kizárólag statikus akadályra terjedt ki.
+Erre építkezve célom a dinamikus objektumok elkerülése, vagyis hogy az ágens a
+mozgó, lassabban haladó járműveket is biztonságosan, a KRESZ szabályait
+betartva kerülje ki.
 
-\section{Kapcsolódó munkák}
-\label{sec:kapcsolodo}
 
-% TODO: RL alapú vezetés, látens reprezentációk, a kiinduló CARLA-SB3 környezet
-Munkánk kiindulópontja a CARLA-SB3 tanítási környezet~\cite{mate2023carlasb3},
-amely egy variációs autoenkóder látens terével tanít SAC ágenst. Hasonló,
-látens térben tanuló megközelítést mutat be \textcite{chen2022interpretable}.
+\section{Szimulációs környezet}
+\label{sec:carla}
 
-\section{Elméleti háttér}
+A tanításhoz és a teszteléshez a CARLA (\emph{Car Learning to Act})
+szimulátorra ~\cite{carla,carlaweb} esett a választásom. (\ref{fig:carla}.~ábra) A CARLA
+egy nyílt forráskódú UnrealEngine4 alapú szimulációs környezet, amelyet kifejezetten önvezető rendszerek
+fejlesztésére, tanítására, validálására és tesztelésére hoztak létre. A szimulátor magja C++ nyelven
+készült, a megjelenítést és a fizikai szimulációt pedig az Unreal Engine~4
+(UE4) játékmotor végzi. Ennek köszönhetően a szimulátor valósághű, képet és járműdinamikát nyújt. 
+A program képes a valóságban is gyakran használt önvezető szenzorok -- többek között RGB-kamera, mélységkamera,
+szemantikus szegmentációs kamera, LiDAR, radar, GNSS és IMU -- szimulált
+megfelelőit generálni minden forgalmi szituációban. Továbbá fel van készítve a dinamikus időjárás, napszak realisztikus kezelésére is.
+A forgalom pedig szabadon állítható és szabályozható. Így az ágens olyan típusú szenzoradatokból tanulhat, mint amilyeneket egy valódi jármű is szolgáltatna.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{pictures/carla_sim.jpeg}
+  \caption{A CARLA szimulátor (forrás:~\cite{carlaweb})}
+  \label{fig:carla}
+\end{figure}
+
+A szimulátor kliens--szerver architektúrára épül~\cite{carladocs}, tehát a szerver
+futtatja magát a szimulációs környezetet ez által ő felel a világ és a járművek fizikájának
+számításáért, valamint a szenzoradatok előállításáért. Ez a kialakítás ugyanakkor teret enged annak is hogy a munka akár 2 számítógépen is megvalósuljon, 
+például ez akkor indokolt ha nem elegendő egy számítógép grafikus feldolgozási erőforrása arra, hogy a szimuláció és az ágens tanulása is fusson egyaránt.
+A kliens program, melyet a felhasználó ír, hálózati interfészen (TCP kommunikációs protokol segítségével alapértelmezetten a 2000-es porton) 
+keresztül kérdezi le a szimuláció állapotát, illetve küld parancsokat a szervernek. Ilyenek lehetnek például a jármű kormány parancsa, gáz adagolása és fékzés is, ugyanakkor 
+a kliens így kapja meg az egyes szimulálni kívánt szenzoradatokat is, a megfigyelni kívánt járműről. A kliensoldali API Pythonban is elérhető, 
+ami nagyban megkönnyíti a fejlesztést. Munkám során a CARLA 0.9.16-os verzióját használtam szinkron módban, rögzített
+(20~Hz-es) szimulációs lépésközzel. Szinkron módban a szerver csak
+akkor lép a következő állapotba, amikor a kliens erre utasítja ez nagy segítségemre volt az ágens egyes lépéseinél, így a
+szenzoradatok és az ágens döntései mindig ugyanahhoz a szimulációs lépéshez
+tartoztak, valamint a tanítás is reprodukálható marad.
+
+A CARLA-ban adott a lehetőség útvonaltervezésre is. A pálya úthálózata útpontokból
+(\emph{waypoint}) álló topológiai gráfként érhető el, amelyen a szimulátorhoz
+tartozó \texttt{GlobalRoutePlanner} segítségével két tetszőleges pont között játszi könnyedséggel
+tervezhető~\cite{carladocs} bármilyen kívánt útvonal. Ezt kihasználva minden epizód elején
+véletlenszerűen választott kezdő- és célpont között új, dinamikus útvonalat
+tervezek, amelyen az ágensnek végig kell haladnia ezzel kiküszöbölve azt, hogy esetlegesen rátanuljon az adott útvonalra, így segítem az
+általánosítási képességét.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.6\textwidth]{pictures/town04.png}
+  \caption{A Town04 pálya felülnézeti térképe (forrás:~\cite{carladocs})}
+  \label{fig:town04}
+\end{figure}
+
+A szimulátor alapértelmezetten tartalmaz több előre elkészített pályát (\emph{Town}), amelyek varianciája az átlagos
+önevezető feladatok többségét kielégíti. Munkám során ezek közül a Town04-et választottam (\ref{fig:town04}.~ábra). 
+
+%============================================================================================================================================
+
+
+Választásom erre a pályára esett mivel az itt kialakított kisváros tökéletesen megfelel az elvárásaimnak. Alakja \enquote{8-as} alakú,
+végtelenített autópályával~\cite{carladocs} megfelelő célom eléréséhez. A pálya egyszerre tartalmaz
+városi utcákat és többsávos autópályát, fel- és lehajtókkal, valamint
+lóhere alakú csomóponttal. Amint említettem célom az autópályás előzés megtanítása, ez
+a pálya a legalkalmasabb. A többsávos autópályán az ágens a lassabban haladó
+járművet a bal oldali sávba kihúzódva szabályosan meg tudja előzni, a
+körbeérő autópálya pedig hosszú, megszakítás nélküli vezetési szakaszokat tesz
+lehetővé.
+
+
+
+
+\section{Programozás és algoritmus}
 \label{sec:elmelet}
-
 \subsection{Megerősítéses tanulás}
-% TODO: MDP, politika, értékfüggvény
 
-\subsection{Soft Actor-Critic}
-% TODO: maximum entrópiás RL, SAC~\cite{haarnoja2018sac}
-Az ágenst a Soft Actor-Critic algoritmussal~\cite{haarnoja2018sac} tanítjuk,
-a Stable-Baselines3 könyvtár~\cite{raffin2021sb3} implementációját használva.
 
-\subsection{Autoenkóderek}
-% TODO: dimenziócsökkentés autoenkóderrel~\cite{hinton2006reducing}
-A nagy dimenziós szenzoradatokat autoenkóderrel~\cite{hinton2006reducing}
-tömörítjük kis dimenziós látens vektorrá.
+\subsection{Python programozási nyelv}
+\subsection{Soft Actor-Critic SB3}
 
-\section{A javasolt rendszer}
-\label{sec:rendszer}
+\section{Szenzoradatok előfeldozása, Autóenkóderek}
+\label{sec:sensors}
+\subsection{Kamera}
+\subsection{LiDAR}
 
-\subsection{Szimulációs környezet}
-% TODO: CARLA, Town04, útvonaltervezés (GlobalRoutePlanner)
+\subsection{Szenzorfuzio}
 
-\subsection{Érzékelés és látens reprezentáció}
-% TODO: kamera-autoenkóder, LiDAR range-image gráf-autoenkóder
 
-\subsection{Megfigyelési és akciótér}
-% TODO: látens vektorok, irányszög, manőver; kormány és gáz
+\section{Jutalom függvény}
+\label{sec:reward}
 
-\subsection{Jutalomfüggvény}
-% TODO: sebesség, célba érés, ütközés elkerülése
+\section{Betanult modellek összehasonlítása}
+\label{sec:modells}
 
-\subsection{Tanítási beállítások}
-% TODO: SAC hiperparaméterek (táblázat)
 
-\section{Kísérletek és eredmények}
-\label{sec:eredmenyek}
+\section{Összegzés}
 
-\subsection{Kísérleti beállítások}
-% TODO
 
-\subsection{Eredmények}
-% TODO: tanulási görbék, összehasonlítás a kiinduló környezettel
-
-\subsection{Ablációs vizsgálat}
-% TODO
-
-\section{Összegzés és további munka}
-\label{sec:osszegzes}
-
-% TODO: eredmények összefoglalása, forgalom (NPC járművek) hozzáadása
 
 % =====================================================================
 % Irodalomjegyzék
 % =====================================================================
 \newpage
-\printbibliography[heading=bibintoc,title={Irodalomjegyzék}]
+\printbibliography[heading=bibintoc,title={Hivatkozások}]
 
 \end{document}

@@ -55,12 +55,274 @@
       \verb https://www.who.int/publications/i/item/9789240086517
       \endverb
     \endentry
+    \entry{macenski2022ros2}{article}{}
+      \name{author}{5}{}{%
+        {{hash=7b84d10a03303cd00f198fefb38a5da3}{%
+           family={Macenski},
+           familyi={M\bibinitperiod},
+           given={Steven},
+           giveni={S\bibinitperiod}}}%
+        {{hash=0d11ace6e44e4742ea1692d7ddf4819e}{%
+           family={Foote},
+           familyi={F\bibinitperiod},
+           given={Tully},
+           giveni={T\bibinitperiod}}}%
+        {{hash=a8ad4a5f43253f69552460c946e34e49}{%
+           family={Gerkey},
+           familyi={G\bibinitperiod},
+           given={Brian},
+           giveni={B\bibinitperiod}}}%
+        {{hash=4e2c9f9d04cf548117105f50a9c8a7a1}{%
+           family={Lalancette},
+           familyi={L\bibinitperiod},
+           given={Chris},
+           giveni={C\bibinitperiod}}}%
+        {{hash=fe838d86b89f8983167a3747e11998bb}{%
+           family={Woodall},
+           familyi={W\bibinitperiod},
+           given={William},
+           giveni={W\bibinitperiod}}}%
+      }
+      \strng{namehash}{4a195e02383364d4009f77ca22451e11}
+      \strng{fullhash}{c321d95ccac4f92536f0f1ed99f34d05}
+      \strng{bibnamehash}{4a195e02383364d4009f77ca22451e11}
+      \strng{authorbibnamehash}{4a195e02383364d4009f77ca22451e11}
+      \strng{authornamehash}{4a195e02383364d4009f77ca22451e11}
+      \strng{authorfullhash}{c321d95ccac4f92536f0f1ed99f34d05}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Science Robotics}
+      \field{number}{66}
+      \field{title}{Robot Operating System 2: Design, Architecture, and Uses in the Wild}
+      \field{volume}{7}
+      \field{year}{2022}
+      \field{pages}{eabm6074}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.1126/scirobotics.abm6074
+      \endverb
+    \endentry
+    \entry{kato2018autoware}{inproceedings}{}
+      \name{author}{10}{}{%
+        {{hash=3b57f784f0e4a8a70d297abe42c3d0c8}{%
+           family={Kato},
+           familyi={K\bibinitperiod},
+           given={Shinpei},
+           giveni={S\bibinitperiod}}}%
+        {{hash=980db98a4b902d4789b6f36ac9c19cf4}{%
+           family={Tokunaga},
+           familyi={T\bibinitperiod},
+           given={Shota},
+           giveni={S\bibinitperiod}}}%
+        {{hash=487149c4acdcc78e78266e1eab430b76}{%
+           family={Maruyama},
+           familyi={M\bibinitperiod},
+           given={Yuya},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=183c44bd8d7e391c8bcf5d7245d1b028}{%
+           family={Maeda},
+           familyi={M\bibinitperiod},
+           given={Seiya},
+           giveni={S\bibinitperiod}}}%
+        {{hash=96509dbc8a9ae63e86fa8a1a4fbe0565}{%
+           family={Hirabayashi},
+           familyi={H\bibinitperiod},
+           given={Manato},
+           giveni={M\bibinitperiod}}}%
+        {{hash=7f4798004303bb9f20158725b6e94259}{%
+           family={Kitsukawa},
+           familyi={K\bibinitperiod},
+           given={Yuki},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=8ce87e31cb54c74755b20ff0ad301780}{%
+           family={Monrroy},
+           familyi={M\bibinitperiod},
+           given={Abraham},
+           giveni={A\bibinitperiod}}}%
+        {{hash=56873d4a0e1e356c6354d9290aa18b88}{%
+           family={Ando},
+           familyi={A\bibinitperiod},
+           given={Tomohito},
+           giveni={T\bibinitperiod}}}%
+        {{hash=b0e954695556b310a8139426889f0d99}{%
+           family={Fujii},
+           familyi={F\bibinitperiod},
+           given={Yusuke},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=8b1fa5daba830e935deda5dec51e2d9a}{%
+           family={Azumi},
+           familyi={A\bibinitperiod},
+           given={Takuya},
+           giveni={T\bibinitperiod}}}%
+      }
+      \strng{namehash}{35300a9d9b9eda69abe4d8cfe04a8957}
+      \strng{fullhash}{d8e806bda82fe113930e0775a331c00a}
+      \strng{bibnamehash}{35300a9d9b9eda69abe4d8cfe04a8957}
+      \strng{authorbibnamehash}{35300a9d9b9eda69abe4d8cfe04a8957}
+      \strng{authornamehash}{35300a9d9b9eda69abe4d8cfe04a8957}
+      \strng{authorfullhash}{d8e806bda82fe113930e0775a331c00a}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2018 ACM/IEEE 9th International Conference on Cyber-Physical Systems (ICCPS)}
+      \field{title}{Autoware on Board: Enabling Autonomous Vehicles with Embedded Systems}
+      \field{year}{2018}
+      \field{pages}{287\bibrangedash 296}
+      \range{pages}{10}
+      \verb{doi}
+      \verb 10.1109/ICCPS.2018.00035
+      \endverb
+    \endentry
+    \entry{carla}{inproceedings}{}
+      \name{author}{5}{}{%
+        {{hash=72308762399d6ab62bbd9391c64c7bfd}{%
+           family={Dosovitskiy},
+           familyi={D\bibinitperiod},
+           given={Alexey},
+           giveni={A\bibinitperiod}}}%
+        {{hash=f1f2a36b2020857c1c8f6c2402336e2a}{%
+           family={Ros},
+           familyi={R\bibinitperiod},
+           given={German},
+           giveni={G\bibinitperiod}}}%
+        {{hash=7057213461868d1b1bc32960a3b2bf64}{%
+           family={Codevilla},
+           familyi={C\bibinitperiod},
+           given={Felipe},
+           giveni={F\bibinitperiod}}}%
+        {{hash=024db8bb102030127d877ec526718939}{%
+           family={Lopez},
+           familyi={L\bibinitperiod},
+           given={Antonio},
+           giveni={A\bibinitperiod}}}%
+        {{hash=9025300f43a193cfed8e10e924f2a117}{%
+           family={Koltun},
+           familyi={K\bibinitperiod},
+           given={Vladlen},
+           giveni={V\bibinitperiod}}}%
+      }
+      \strng{namehash}{d96316bc7578db680aba71d4226354c8}
+      \strng{fullhash}{00d4e7cbde09bfab8648fe4a57403d6e}
+      \strng{bibnamehash}{d96316bc7578db680aba71d4226354c8}
+      \strng{authorbibnamehash}{d96316bc7578db680aba71d4226354c8}
+      \strng{authornamehash}{d96316bc7578db680aba71d4226354c8}
+      \strng{authorfullhash}{00d4e7cbde09bfab8648fe4a57403d6e}
+      \field{sortinit}{4}
+      \field{sortinithash}{9381316451d1b9788675a07e972a12a7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 1st Annual Conference on Robot Learning}
+      \field{title}{{CARLA}: {An} Open Urban Driving Simulator}
+      \field{year}{2017}
+      \field{pages}{1\bibrangedash 16}
+      \range{pages}{16}
+    \endentry
+    \entry{terapaptommakol2022obstacle}{article}{}
+      \name{author}{4}{}{%
+        {{hash=d5ded1c7bca23ee82ce5bd242fbb9abd}{%
+           family={Terapaptommakol},
+           familyi={T\bibinitperiod},
+           given={Wasinee},
+           giveni={W\bibinitperiod}}}%
+        {{hash=33908c440be09fcbf54e454268380f7d}{%
+           family={Phaoharuhansa},
+           familyi={P\bibinitperiod},
+           given={Danai},
+           giveni={D\bibinitperiod}}}%
+        {{hash=aa0a56cfcb96e2b1d0b773d8d177ab3a}{%
+           family={Koowattanasuchat},
+           familyi={K\bibinitperiod},
+           given={Pramote},
+           giveni={P\bibinitperiod}}}%
+        {{hash=6b0780ad606a5f396dc66f0d7247b4bc}{%
+           family={Rajruangrabin},
+           familyi={R\bibinitperiod},
+           given={Jartuwat},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{e8eed1b6c13a0934a0724b232e0a9065}
+      \strng{fullhash}{f105aaf2c2c01cd1a8ce598d83c7ff45}
+      \strng{bibnamehash}{e8eed1b6c13a0934a0724b232e0a9065}
+      \strng{authorbibnamehash}{e8eed1b6c13a0934a0724b232e0a9065}
+      \strng{authornamehash}{e8eed1b6c13a0934a0724b232e0a9065}
+      \strng{authorfullhash}{f105aaf2c2c01cd1a8ce598d83c7ff45}
+      \field{sortinit}{5}
+      \field{sortinithash}{20e9b4b0b173788c5dace24730f47d8c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{World Electric Vehicle Journal}
+      \field{number}{12}
+      \field{title}{Design of Obstacle Avoidance for Autonomous Vehicle Using Deep {Q}-Network and {CARLA} Simulator}
+      \field{volume}{13}
+      \field{year}{2022}
+      \field{pages}{239}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/wevj13120239
+      \endverb
+    \endentry
+    \entry{carlaweb}{online}{}
+      \name{author}{1}{}{%
+        {{hash=3c3526c1335dca7f6527cc7dc96a9a90}{%
+           family={{CARLA Team}},
+           familyi={C\bibinitperiod}}}%
+      }
+      \strng{namehash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \strng{fullhash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \strng{bibnamehash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \strng{authorbibnamehash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \strng{authornamehash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \strng{authorfullhash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \field{extraname}{1}
+      \field{sortinit}{7}
+      \field{sortinithash}{108d0be1b1bee9773a1173443802c0a3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{{CARLA}: Open-source Simulator for Autonomous Driving Research}
+      \field{urlday}{1}
+      \field{urlmonth}{10}
+      \field{urlyear}{2026}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://carla.org
+      \endverb
+      \verb{url}
+      \verb https://carla.org
+      \endverb
+    \endentry
+    \entry{carladocs}{online}{}
+      \name{author}{1}{}{%
+        {{hash=3c3526c1335dca7f6527cc7dc96a9a90}{%
+           family={{CARLA Team}},
+           familyi={C\bibinitperiod}}}%
+      }
+      \strng{namehash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \strng{fullhash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \strng{bibnamehash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \strng{authorbibnamehash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \strng{authornamehash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \strng{authorfullhash}{3c3526c1335dca7f6527cc7dc96a9a90}
+      \field{extraname}{2}
+      \field{sortinit}{9}
+      \field{sortinithash}{0a5ebc79d83c96b6579069544c73c7d4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{{CARLA} Simulator Documentation (0.9.16)}
+      \field{urlday}{1}
+      \field{urlmonth}{10}
+      \field{urlyear}{2026}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://carla.readthedocs.io/en/0.9.16/
+      \endverb
+      \verb{url}
+      \verb https://carla.readthedocs.io/en/0.9.16/
+      \endverb
+    \endentry
   \enddatalist
-  \missing{chen2022interpretable}
-  \missing{haarnoja2018sac}
-  \missing{hinton2006reducing}
-  \missing{mate2023carlasb3}
-  \missing{raffin2021sb3}
 \endrefsection
 \endinput
 

@@ -1,18 +1,14 @@
 \select@language {magyar} \contentsline {section}{\numberline {1}Bevezetés}{3}{section.1}%
-\select@language {magyar} \contentsline {section}{\numberline {2}Kapcsolódó munkák}{4}{section.2}%
-\select@language {magyar} \contentsline {section}{\numberline {3}Elméleti háttér}{5}{section.3}%
-\select@language {magyar} \contentsline {subsection}{\numberline {3.1}Megerősítéses tanulás}{5}{subsection.3.1}%
-\select@language {magyar} \contentsline {subsection}{\numberline {3.2}Soft Actor-Critic}{5}{subsection.3.2}%
-\select@language {magyar} \contentsline {subsection}{\numberline {3.3}Autoenkóderek}{5}{subsection.3.3}%
-\select@language {magyar} \contentsline {section}{\numberline {4}A javasolt rendszer}{5}{section.4}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.1}Szimulációs környezet}{5}{subsection.4.1}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.2}Érzékelés és látens reprezentáció}{5}{subsection.4.2}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.3}Megfigyelési és akciótér}{5}{subsection.4.3}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.4}Jutalomfüggvény}{5}{subsection.4.4}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.5}Tanítási beállítások}{5}{subsection.4.5}%
-\select@language {magyar} \contentsline {section}{\numberline {5}Kísérletek és eredmények}{5}{section.5}%
-\select@language {magyar} \contentsline {subsection}{\numberline {5.1}Kísérleti beállítások}{5}{subsection.5.1}%
-\select@language {magyar} \contentsline {subsection}{\numberline {5.2}Eredmények}{5}{subsection.5.2}%
-\select@language {magyar} \contentsline {subsection}{\numberline {5.3}Ablációs vizsgálat}{5}{subsection.5.3}%
-\select@language {magyar} \contentsline {section}{\numberline {6}Összegzés és további munka}{5}{section.6}%
-\select@language {magyar} \contentsline {section}{Irodalomjegyzék}{6}{section.6}%
+\select@language {magyar} \contentsline {section}{\numberline {2}Szimulációs környezet}{4}{section.2}%
+\select@language {magyar} \contentsline {section}{\numberline {3}Programozás és algoritmus}{7}{section.3}%
+\select@language {magyar} \contentsline {subsection}{\numberline {3.1}Megerősítéses tanulás}{7}{subsection.3.1}%
+\select@language {magyar} \contentsline {subsection}{\numberline {3.2}Python programozási nyelv}{7}{subsection.3.2}%
+\select@language {magyar} \contentsline {subsection}{\numberline {3.3}Soft Actor-Critic SB3}{7}{subsection.3.3}%
+\select@language {magyar} \contentsline {section}{\numberline {4}Szenzoradatok előfeldozása, Autóenkóderek}{7}{section.4}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.1}Kamera}{7}{subsection.4.1}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.2}LiDAR}{7}{subsection.4.2}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.3}Szenzorfuzio}{7}{subsection.4.3}%
+\select@language {magyar} \contentsline {section}{\numberline {5}Jutalom függvény}{7}{section.5}%
+\select@language {magyar} \contentsline {section}{\numberline {6}Betanult modellek összehasonlítása}{7}{section.6}%
+\select@language {magyar} \contentsline {section}{\numberline {7}Összegzés}{7}{section.7}%
+\select@language {magyar} \contentsline {section}{Hivatkozások}{8}{section.7}%

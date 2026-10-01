@@ -1,20 +1,14 @@
 [0] Config.pm:307> INFO - This is Biber 2.17
 [0] Config.pm:310> INFO - Logfile is 'main.blg'
-[37] biber:340> INFO - === Tue Sep 29, 2026, 11:31:22
-[45] Biber.pm:418> INFO - Reading 'main.bcf'
-[75] Biber.pm:972> INFO - Found 6 citekeys in bib section 0
-[81] Biber.pm:4383> INFO - Processing section 0
-[86] Biber.pm:4574> INFO - Looking for bibtex file 'refs.bib' for section 0
-[86] bibtex.pm:1713> INFO - LaTeX decoding ...
-[87] bibtex.pm:1518> INFO - Found BibTeX data source 'refs.bib'
-[110] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'normalization = NFD' with 'normalization = prenormalized'
-[110] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'variable = shifted' with 'variable = non-ignorable'
-[110] Biber.pm:4203> INFO - Sorting list 'none/global//global/global' of type 'entry' with template 'none' and locale 'hu-HU'
-[112] bbl.pm:654> INFO - Writing 'main.bbl' with encoding 'UTF-8'
-[113] bbl.pm:757> INFO - Output to main.bbl
-[113] Biber.pm:130> WARN - I didn't find a database entry for 'mate2023carlasb3' (section 0)
-[113] Biber.pm:130> WARN - I didn't find a database entry for 'chen2022interpretable' (section 0)
-[113] Biber.pm:130> WARN - I didn't find a database entry for 'haarnoja2018sac' (section 0)
-[113] Biber.pm:130> WARN - I didn't find a database entry for 'raffin2021sb3' (section 0)
-[113] Biber.pm:130> WARN - I didn't find a database entry for 'hinton2006reducing' (section 0)
-[113] Biber.pm:132> INFO - WARNINGS: 5
+[49] biber:340> INFO - === Thu Oct  1, 2026, 20:31:20
+[56] Biber.pm:418> INFO - Reading 'main.bcf'
+[86] Biber.pm:972> INFO - Found 7 citekeys in bib section 0
+[96] Biber.pm:4383> INFO - Processing section 0
+[103] Biber.pm:4574> INFO - Looking for bibtex file 'refs.bib' for section 0
+[103] bibtex.pm:1713> INFO - LaTeX decoding ...
+[106] bibtex.pm:1518> INFO - Found BibTeX data source 'refs.bib'
+[147] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[147] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'variable = shifted' with 'variable = non-ignorable'
+[147] Biber.pm:4203> INFO - Sorting list 'none/global//global/global' of type 'entry' with template 'none' and locale 'hu-HU'
+[151] bbl.pm:654> INFO - Writing 'main.bbl' with encoding 'UTF-8'
+[154] bbl.pm:757> INFO - Output to main.bbl
