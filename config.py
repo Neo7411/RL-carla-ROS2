@@ -67,8 +67,8 @@ TRAIN = dict(
     seed=100,
     checkpoint_freq=50_000, 
     attention_freq=10_000,
-    reload_model=False,
-    reload_model_path=path("tensorboard", "SAC_5"),
+    reload_model=True,
+    reload_model_path=path("tensorboard", "SAC_reward_2_part1"),
     reload_model_file="model_interrupted.zip",
 )
 

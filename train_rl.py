@@ -96,7 +96,9 @@ def main():
     total_steps = train_cfg["total_steps"]
     try:
         model.learn(
-            total_timesteps=total_steps,
+            # reset_num_timesteps=False mellett az SB3 hozzaadja a betoltott
+            # num_timesteps-et, igy a total_steps abszolut felso hatar marad.
+            total_timesteps=total_steps - model.num_timesteps,
             callback=[
                 HParamCallback(CONFIG),
                 TensorboardCallback(1),

@@ -1,14 +1,14 @@
 \select@language {magyar} \contentsline {section}{\numberline {1}Bevezetés}{3}{section.1}%
 \select@language {magyar} \contentsline {section}{\numberline {2}Szimulációs környezet}{4}{section.2}%
-\select@language {magyar} \contentsline {section}{\numberline {3}Programozás és algoritmus}{7}{section.3}%
-\select@language {magyar} \contentsline {subsection}{\numberline {3.1}Megerősítéses tanulás}{7}{subsection.3.1}%
-\select@language {magyar} \contentsline {subsection}{\numberline {3.2}Python programozási nyelv}{7}{subsection.3.2}%
-\select@language {magyar} \contentsline {subsection}{\numberline {3.3}Soft Actor-Critic SB3}{7}{subsection.3.3}%
-\select@language {magyar} \contentsline {section}{\numberline {4}Szenzoradatok előfeldozása, Autóenkóderek}{7}{section.4}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.1}Kamera}{7}{subsection.4.1}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.2}LiDAR}{7}{subsection.4.2}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.3}Szenzorfuzio}{7}{subsection.4.3}%
-\select@language {magyar} \contentsline {section}{\numberline {5}Jutalom függvény}{7}{section.5}%
-\select@language {magyar} \contentsline {section}{\numberline {6}Betanult modellek összehasonlítása}{7}{section.6}%
-\select@language {magyar} \contentsline {section}{\numberline {7}Összegzés}{7}{section.7}%
-\select@language {magyar} \contentsline {section}{Hivatkozások}{8}{section.7}%
+\select@language {magyar} \contentsline {section}{\numberline {3}Programozás és algoritmus}{6}{section.3}%
+\select@language {magyar} \contentsline {subsection}{\numberline {3.1}Megerősítéses tanulás}{6}{subsection.3.1}%
+\select@language {magyar} \contentsline {subsection}{\numberline {3.2}Python programozási nyelv}{8}{subsection.3.2}%
+\select@language {magyar} \contentsline {subsection}{\numberline {3.3}Soft Actor-Critic és a Stable-Baselines3}{9}{subsection.3.3}%
+\select@language {magyar} \contentsline {section}{\numberline {4}Szenzoradatok előfeldozása, Autóenkóderek}{10}{section.4}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.1}Kamera}{10}{subsection.4.1}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.2}LiDAR}{10}{subsection.4.2}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.3}Szenzorfuzio}{10}{subsection.4.3}%
+\select@language {magyar} \contentsline {section}{\numberline {5}Jutalom függvény}{10}{section.5}%
+\select@language {magyar} \contentsline {section}{\numberline {6}Betanult modellek összehasonlítása}{10}{section.6}%
+\select@language {magyar} \contentsline {section}{\numberline {7}Összegzés}{10}{section.7}%
+\select@language {magyar} \contentsline {section}{Hivatkozások}{11}{section.7}%

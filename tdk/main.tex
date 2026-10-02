@@ -231,17 +231,13 @@ tervezek, amelyen az ágensnek végig kell haladnia ezzel kiküszöbölve azt, h
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.6\textwidth]{pictures/town04.png}
+  \includegraphics[width=0.6\textwidth]{pictures/town04.jpeg}
   \caption{A Town04 pálya felülnézeti térképe (forrás:~\cite{carladocs})}
   \label{fig:town04}
 \end{figure}
 
 A szimulátor alapértelmezetten tartalmaz több előre elkészített pályát (\emph{Town}), amelyek varianciája az átlagos
 önevezető feladatok többségét kielégíti. Munkám során ezek közül a Town04-et választottam (\ref{fig:town04}.~ábra). 
-
-%============================================================================================================================================
-
-
 Választásom erre a pályára esett mivel az itt kialakított kisváros tökéletesen megfelel az elvárásaimnak. Alakja \enquote{8-as} alakú,
 végtelenített autópályával~\cite{carladocs} megfelelő célom eléréséhez. A pálya egyszerre tartalmaz
 városi utcákat és többsávos autópályát, fel- és lehajtókkal, valamint
@@ -256,11 +252,170 @@ lehetővé.
 
 \section{Programozás és algoritmus}
 \label{sec:elmelet}
+
+A következőkben munkám elméleti és technikai hátterét írom le röviden. Elsőként a
+megerősítéses tanulás alapjai majd, ezt követően a fejlesztéshez használt
+programozási nyelvet és könyvtárait, végül a Soft Actor-Critic algoritmust
+és a Stable-Baselines3 keretrendszert. Mindegyiknél kitérve arra, miért
+esett az adott technológiára a választásom.
+
 \subsection{Megerősítéses tanulás}
+\label{sec:rl}
+
+A gépi tanulás módszereit hagyományosan három nagy csoportba soroljuk. A
+\emph{felügyelt tanulás} során a modell tisztában az elvárt kimenet valamint a bementi adatokkal egyaránt így 
+tanul, vagyis minden tanítópéldához ismert a helyes válasz. Ide tartoznak a klasszikus
+osztályozási és regressziós feladatok, például képeken látható objektumok
+felismerése, de maga a vezetés is megtanulható így. A
+\emph{viselkedésklónozás} (\emph{behavior cloning}) során a modell egy emberi
+sofőr rögzített vezetéséből, a szenzoradatok és a hozzájuk tartozó kormány valamint
+gázparancsok párjaiból tanulja meg utánozni a sofőrt. Ezt az elvet már az 1980-as
+évek végén alkalmazta az ALVINN rendszer~\cite{pomerleau1989alvinn}. A módszer korlátja, hogy a modell
+legfeljebb olyan jó lehet, mint a tanítóadat. Értem ez alatt, hogy a modell nagy varianciájú adaton 
+kell tanuljon különben a váratlan helyzeteket nem tudja megfelelőképp kezelni. Általánosítási képessége kevésbé erős mint a 
+többi gépitanúási megoldásnak.
+Következő módszer \emph{felügyelet nélküli tanulás} ahol nincsenek címkék, a tanítás célja az
+adatok rejtett szerkezetének, például csoportjainak vagy tömör
+reprezentációjának feltárása. Tipikus példája a klaszterezés (például a
+$k$-közép módszer), amely a hasonló adatpontokat csoportokba rendezi.
+
+A \emph{megerősítéses tanulás}(\emph{reinforcement learning}, RL) ezektől alapvetően lényegesen eltér. A tanuló
+ágensnek senki sem mondja meg, mi lett volna a helyes döntés egy adott
+helyzetben vagy mi lett volna az elvárt viselkedés, csupán egy számszerű visszajelzést, \emph{jutalmat} kap viselkedéséről~\cite{sutton2018rl}. 
+A tanulási folyamatnak két szereplője van egyik az \emph{ágens}, a döntések meghozataláért felelős
+a \emph{környezet}, amelyben az ágens mozog a folyamat során. Ezen páros kölcsoönhatása egymással diszkrét 
+időlépésekben történik: az ágens minden lépésben
+megfigyeli a környezet aktuális \emph{állapotát}, ez alapján végrehajt egy
+\emph{akciót}, amelynek hatására a környezet új állapotba kerül, az ágens pedig
+jutalmat kap előző döntései alapján.A feladatot Markov-döntési folyamatként (\emph{Markov Decision Process}, MDP)
+írhatjuk fel ~\cite{sutton2018rl}, amiben az állapotok, az akciók, és az állapotátmenet-valószínűségek valamint a 
+jutalomfüggvény határoz meg. A fentiek alapján a modell feltevése a \emph{Markov-tulajdonság}. A következő
+állapot csak a jelenlegi állapottól és akciótól függ. Mivel az ágens a világot
+szenzorain keresztül érzékeli, ezt tekintjük állapotnak.
+
+Az ágens viselkedését a \emph{stratégia} (\emph{policy}) írja le, célja minden tanulási epizódban a
+\emph{hozam} (\emph{jutalom}) várható értékének maximalizálása:
+\begin{equation}
+  G_t = \sum_{k=0}^{\infty} \gamma^k r_{t+k+1},
+\end{equation}
+ahol $r_{t+1}$ a $t$-edik lépés utáni jutalom, a $\gamma \in [0, 1)$
+diszkontfaktor pedig a jövőbeli jutalmak súlyát szabályozza. A tanulás
+\emph{epizódokra} tagolódik, amelyek nálam ütközéssel vagy az útvonal
+teljesítésével érnek véget.
+
+Esetemben nagy valamint, folytonos állapottérben (kamerakép, LiDAR) az értékfüggvényt és a
+stratégiát mély neurális hálóval közelítem (\emph{deep reinforcement
+learning}). Ezen típusu algoritmusok között az áttörést a DQN hozta~\cite{mnih2015dqn}, amely
+\emph{visszajátszási pufferrel} (\emph{replay buffer}) és \emph{célhálóval}
+(\emph{target network}) stabilizálta a tanulást. 
+
+Az algoritmusválasztás szempontjából a fő különbségek~\cite{sutton2018rl}:
+\begin{itemize}
+  \item \textbf{Modellalapú vs.\ modellmentes:} a CARLA fizikájának
+  megtanulása nehéz lenne, ezért modellmentes módszert választottam.
+  \item \textbf{Értékalapú, stratégiaalapú, aktor--kritikus:} utóbbiban az
+  \emph{aktor} a stratégia, a \emph{kritikus} pedig értékeli a döntéseit.
+  \item \textbf{On-policy vs.\ off-policy:} az on-policy módszerek (pl.\
+  PPO~\cite{schulman2017ppo}) eldobják a régi tapasztalatot, az off-policy
+  módszerek (DDPG~\cite{lillicrap2016ddpg}, TD3~\cite{fujimoto2018td3},
+  SAC~\cite{haarnoja2018sac}) újrahasznosítják, így kevesebb interakcióból
+  tanulnak.
+  \item \textbf{Diszkrét vs.\ folytonos akciótér:} a DQN csak véges akciók
+  közül választhat.
+\end{itemize}
 
 
 \subsection{Python programozási nyelv}
-\subsection{Soft Actor-Critic SB3}
+\label{sec:python}
+
+A kísérletem implementálására a Python programozási nyelvet választottam ami, magas szintű,  
+interpretált, dinamikusan típusos valamint általános célú.
+Megálmodója Guido van Rossum a nylev első változata 1991-ben jelentette meg~\cite{pythonweb}. 
+Tervezési filozófiájának középpontjában az olvashatóság áll. Ezen elvre kiváló példa a kódblokkokat behúzás jelöli, a szintaxis
+tömör és közel áll a természetes nyelvhez, így a programok gyorsan megírhatók
+és könnyen érthetők. Ezen tulajdonságainak köszönheti, hogy ma a világ egyik legszélesebb körben használt programozási
+nyelve, a gépi tanulás és az adattudomány területén pedig gyakorlatilag
+szabványnak számít.
+
+Elsőre ellentmondásosnak tűnik, hogy egy rendkívül számításigényes gépi tanulási problémát 
+egy viszonylag lassú, nyelvben történő megvalósítás követ, de a magyarázat igen logikus. A Python
+ezen a területen \enquote{ragasztónyelvként} működik. Értem ez alatt, hogy a nagy számítási igényű
+műveleteket, a mátrixszorzás, konvolúció vagy a gradiensszámítás, C,
+C++ és CUDA nyelven írt, optimalizált könyvtárak végzik a processzoron vagy a
+grafikus kártyán. A Python pedig ezen optimalizált könyvtárak kényelmes, magas szintű használtát biztosítja. 
+Az interpreter által okozott műveletek többletideje elhanyagolható , köszönhetően ezen könyvtárak nativ implementációjának. A
+fejlesztő így egy könnyen írható nyelv kényelmét élvezi, a számítások mégis natív sebességgel futnak.
+
+A neurális hálókat PyTorch~\cite{paszke2019pytorch} keretrendszerben
+valósítottam meg. Ez GPU-gyorsított tenzorműveleteket és automatikus
+differenciálást biztosít, a számítási gráfot pedig futás közben építi fel, ami
+megkönnyíti a fejlesztést és a hibakeresést. A választást az is indokolta, hogy
+a Stable-Baselines3 is PyTorch-ra épül, így a későbbi neurális hálók és az ágens hálói
+egy keretrendszerben, közös GPU-n futhatnak.
+
+A Python mellett szólt végül de nem utolsó sorban, hogy a CARLA kliensoldali API-ja is
+elérhető Pythonban (\ref{sec:carla}.~fejezet) ámbár a kliens maga eredetileg C++ nyleven iródott. Így egyetlen nyelven valósulhatott
+meg a szimulátor vezérlése, a szenzoradatok feldolgozása, a neurális hálók
+tanítása és maga a megerősítéses tanulás is.
+
+%============================================================================================================================================
+
+\subsection{Soft Actor-Critic és a Stable-Baselines3}
+\label{sec:sac}
+
+A Soft Actor-Critic (SAC) off-policy aktor--kritikus algoritmus, amely folytonos akciótérben sztochasztikus
+stratégiát tanul. A várható hozam mellett a stratégia entrópiáját is
+maximalizálja:
+\begin{equation}
+  J(\pi) = \sum_{t} \mathrm{E}\Big[\, r(s_t, a_t)
+  + \alpha\, \mathcal{H}\big(\pi(\cdot \mid s_t)\big) \Big],
+\end{equation}
+ahol $\mathcal{H}$ a stratégia entrópiája, az $\alpha$ \emph{hőmérséklet}
+pedig a jutalom és az entrópia súlyozása. Így a felfedezés magából a
+célfüggvényből következik: az ágens nem ragad le korán egy rossz megoldásnál,
+és ha több, közel azonos értékű viselkedés létezik -- például most előzzön
+vagy kicsit később --, mindegyiket megtartja, ami robusztusabbá teszi a
+tanult stratégiát.
+
+Az aktor minden állapothoz egy valószínűségi eloszlást rendel az akciók
+felett, és ebből mintavételezzük a végrehajtott akciót. A két kritikus
+függetlenül becsli a Q-függvényt, és a tanítás a kisebbik becslést
+használja, ami csökkenti a túlbecslést. A célértékeket lassan frissülő
+célhálók számítják, a tanítás a visszajátszási pufferből vett kötegeken
+történik, az $\alpha$ értékét pedig az algoritmus automatikusan hangolja:
+a tanítás elején több felfedezést enged, később a megtanult viselkedést
+részesíti előnyben. A SAC stabilabban tanul a
+korábbi off-policy módszereknél, és \textcite{chen2019modelfree} CARLA-beli
+városi vezetési összehasonlításában is a legjobb eredményt érte el.
+
+Az algoritmust nem magam implementáltam, hanem a Stable-Baselines3
+(SB3)~\cite{raffin2021sb3} könyvtárat használtam. Az RL implementációk
+különösen hibára hajlamosak, mert egy elrontott részlet nem okoz
+hibaüzenetet, csak csendben rontja a tanulást. Az SB3 tesztelt, PyTorch-alapú
+megvalósításokat ad egységes felülettel, így a munkám a környezetre, a
+megfigyelésekre és a jutalomra összpontosulhatott.
+
+Az SB3 a Gymnasium~\cite{towers2024gymnasium} szabványnak megfelelő
+környezetekkel működik. Egy ilyen környezet leírja a megfigyelések és akciók
+terét, a \texttt{reset} függvénnyel új epizódot indít, a \texttt{step}
+függvénnyel pedig végrehajtja az akciót, és visszaadja az új megfigyelést, a
+jutalmat és az epizód végét jelző értékeket. A szabvány megkülönbözteti a
+valódi végállapotot (például ütközés) az időkorlát miatti megszakítástól,
+mert utóbbi után a vezetés folytatható lenne, és ezt a tanulásnak is
+figyelembe kell vennie.
+
+A keretrendszerhez saját magam valósítottam meg:
+\begin{itemize}
+  \item a CARLA-környezetet a Gymnasium interfész szerint (jármű, szenzorok,
+    útvonalak, forgalom, epizódkezelés);
+  \item a megfigyelések előállítását a nyers szenzoradatokból
+    (\ref{sec:sensors}.~fejezet);
+  \item a jutalomfüggvényt és az epizódvég feltételeit (\ref{sec:reward}.~fejezet);
+  \item a kamera, a LiDAR, a járműadatok és az útvonal feldolgozását és
+    összefűzését végző jellemzőkinyerő hálót;
+  \item a tanítás fontosabb mutatóit TensorBoardba naplózó
+    callback-függvényeket.
+\end{itemize}
 
 \section{Szenzoradatok előfeldozása, Autóenkóderek}
 \label{sec:sensors}
