@@ -317,7 +317,7 @@ Az algoritmusválasztás szempontjából a fő különbségek~\cite{sutton2018rl
   \emph{aktor} a stratégia, a \emph{kritikus} pedig értékeli a döntéseit.
   \item \textbf{On-policy vs.\ off-policy:} az on-policy módszerek (pl.\
   PPO~\cite{schulman2017ppo}) eldobják a régi tapasztalatot, az off-policy
-  módszerek (DDPG~\cite{lillicrap2016ddpg}, TD3~\cite{fujimoto2018td3},
+  módszerek (DDPG~\cite{lillicrap2016ddpg}, TD3,
   SAC~\cite{haarnoja2018sac}) újrahasznosítják, így kevesebb interakcióból
   tanulnak.
   \item \textbf{Diszkrét vs.\ folytonos akciótér:} a DQN csak véges akciók
@@ -359,67 +359,292 @@ meg a szimulátor vezérlése, a szenzoradatok feldolgozása, a neurális háló
 tanítása és maga a megerősítéses tanulás is.
 
 %============================================================================================================================================
-
 \subsection{Soft Actor-Critic és a Stable-Baselines3}
 \label{sec:sac}
 
-A Soft Actor-Critic (SAC) off-policy aktor--kritikus algoritmus, amely folytonos akciótérben sztochasztikus
-stratégiát tanul. A várható hozam mellett a stratégia entrópiáját is
-maximalizálja:
+Kísérleteim alapjául a Soft Actor-Critic (SAC) algoritmust választottam. A választott algoritmus
+egy off-policy aktor--kritikus módszer, amely folytonos akciótérben sztochasztikus
+stratégiát tanul. Az eljárás minden állapothoz párosít egy valószínűségi eloszlást majd az akciók halmazából.
+Később ebből mintavételezi a végrehajtandó akciót. 
+
+A célja nemcsak a jutalom, hanem a stratégia entrópiájának maximalizálása is:
 \begin{equation}
-  J(\pi) = \sum_{t} \mathrm{E}\Big[\, r(s_t, a_t)
-  + \alpha\, \mathcal{H}\big(\pi(\cdot \mid s_t)\big) \Big],
+  J(\pi) = \sum_{t} \mathrm{E}\Big[\, \gamma^{t} \Big( r(s_t, a_t)
+  + \alpha\, \mathcal{H}\big(\pi(\cdot \mid s_t)\big) \Big) \Big],
 \end{equation}
-ahol $\mathcal{H}$ a stratégia entrópiája, az $\alpha$ \emph{hőmérséklet}
-pedig a jutalom és az entrópia súlyozása. Így a felfedezés magából a
-célfüggvényből következik: az ágens nem ragad le korán egy rossz megoldásnál,
-és ha több, közel azonos értékű viselkedés létezik -- például most előzzön
-vagy kicsit később --, mindegyiket megtartja, ami robusztusabbá teszi a
-tanult stratégiát.
+ahol $s_t$ a $t$-edik időlépés állapota, $a_t$ az ekkor választott akció,
+$r(s_t, a_t)$ az érte kapott jutalom, $\pi(\cdot \mid s_t)$ a stratégia által
+adott akcióeloszlás, $\mathcal{H}$ ennek entrópiája (azaz mennyire szétterült
+az akcióeloszlás), $\alpha$ pedig a \emph{hőmérséklet}, amely az entrópia
+súlyát adja meg a jutalomhoz képest. A $\gamma$ diszkontfaktor (nálam 0,98)
+a későbbi jutalmakat kisebb súllyal veszi figyelembe. A várható érték a
+stratégia követésével bejárt állapotokra és akciókra vonatkozik.
 
-Az aktor minden állapothoz egy valószínűségi eloszlást rendel az akciók
-felett, és ebből mintavételezzük a végrehajtott akciót. A két kritikus
-függetlenül becsli a Q-függvényt, és a tanítás a kisebbik becslést
-használja, ami csökkenti a túlbecslést. A célértékeket lassan frissülő
-célhálók számítják, a tanítás a visszajátszási pufferből vett kötegeken
-történik, az $\alpha$ értékét pedig az algoritmus automatikusan hangolja:
-a tanítás elején több felfedezést enged, később a megtanult viselkedést
-részesíti előnyben. A SAC stabilabban tanul a
-korábbi off-policy módszereknél, és \textcite{chen2019modelfree} CARLA-beli
-városi vezetési összehasonlításában is a legjobb eredményt érte el.
+A fentiekben elmondottak alapján az ágens addig marad változatos, amíg ez nem rontja érdemben a jutalmat.
+Így a felfedezés nagyrészt magából a célfüggvényből következik: az ágens
+kevésbé hajlamos korán leragadni egy rossz megoldásnál, és nem kötelezi el
+magát idő előtt egyetlen viselkedés mellett (például hogy most előzzön vagy
+kicsit később). Az SB3 megvalósításában a stratégia egy Gauss-eloszlás,
+amelynek mintáit a $\tanh$ függvény szorítja a megengedett akciótartományba.
+A felfedezést nálam ezen felül az állapotfüggő felfedezés
+(gSDE)~\cite{raffin2022gsde} segíti: a zaj az aktuális állapottól függ, és
+nem minden lépésben sorsolódik újra, hanem csak 8 lépésenként, így a kormány-
+és gázmozdulatok simábbak, nem remegnek lépésről lépésre.
 
-Az algoritmust nem magam implementáltam, hanem a Stable-Baselines3
-(SB3)~\cite{raffin2021sb3} könyvtárat használtam. Az RL implementációk
-különösen hibára hajlamosak, mert egy elrontott részlet nem okoz
-hibaüzenetet, csak csendben rontja a tanulást. Az SB3 tesztelt, PyTorch-alapú
-megvalósításokat ad egységes felülettel, így a munkám a környezetre, a
-megfigyelésekre és a jutalomra összpontosulhatott.
+A tanítást két kritikus (Q-háló) segíti ezek alapértelmezetten implementálva vannak az STB3-ban.
+Ezek becslik a Q-függvényt, két kritikus egy közös jellemzőkinyerő hálón
+osztozik a szenzoradatokat feldolgozó csak a rá épül külön rétegként.
+A tanítás célértékét a két becslés kisebbikéből számolja, ami csökkenti a
+Q-értékek túlbecslését. A tanítás a visszajátszási
+pufferből vett kötegeken történik. Az $\alpha$ értékét az algoritmus
+automatikusan hangolja~\cite{haarnoja2018sacapps}: úgy állítja, hogy a
+stratégia entrópiája egy előre adott célérték közelében maradjon (az SB3-ban
+ez az akciótér dimenziójának mínusz egyszerese, nálam $-2$).
 
-Az SB3 a Gymnasium~\cite{towers2024gymnasium} szabványnak megfelelő
-környezetekkel működik. Egy ilyen környezet leírja a megfigyelések és akciók
-terét, a \texttt{reset} függvénnyel új epizódot indít, a \texttt{step}
-függvénnyel pedig végrehajtja az akciót, és visszaadja az új megfigyelést, a
-jutalmat és az epizód végét jelző értékeket. A szabvány megkülönbözteti a
-valódi végállapotot (például ütközés) az időkorlát miatti megszakítástól,
-mert utóbbi után a vezetés folytatható lenne, és ezt a tanulásnak is
-figyelembe kell vennie.
+Az algoritmust nem magam implementáltam, hanem a Python
+Stable-Baselines3 (SB3)~\cite{raffin2021sb3} könyvtárát használtam könnyenhasználhatósága valamint népszerűsége okán.
+Az SB3 egy megfelelően kitesztelt PyTorch-alapú megvalósítás emiatt
+a munkám a hatékony környezeti jellemzők kinyerésére és a megfelelően finomhangolt jutalomra összpontosulhatott.
+Az SB3 a Gymnasium~\cite{towers2024gymnasium} szabványú környezetekkel
+működik, amelyek a \texttt{reset} és \texttt{step} függvényeken keresztül
+indítanak epizódot és hajtanak végre akciót. A szabvány megkülönbözteti a
+valódi végállapotot (\emph{terminated}) az olyan megszakítástól
+(\emph{truncated}), amely után a vezetés folytatható lenne; utóbbinál az SB3
+a következő állapot becsült értékével számol tovább. Nálam valódi végállapot
+az ütközés, a pályaelhagyás, a megállás és a túl gyors haladás, megszakítás
+pedig az útvonal végének vagy a kitűzött távolságnak az elérése.
 
-A keretrendszerhez saját magam valósítottam meg:
+Megvalósításaim:
 \begin{itemize}
-  \item a CARLA-környezetet a Gymnasium interfész szerint (jármű, szenzorok,
-    útvonalak, forgalom, epizódkezelés);
-  \item a megfigyelések előállítását a nyers szenzoradatokból
+  \item a CARLA-környezet Gymnasium interfésszel (jármű, szenzorok, útvonalak,
+    forgalom, epizódkezelés);
+  \item a megfigyelések előállítása a szenzoradatokból
     (\ref{sec:sensors}.~fejezet);
-  \item a jutalomfüggvényt és az epizódvég feltételeit (\ref{sec:reward}.~fejezet);
-  \item a kamera, a LiDAR, a járműadatok és az útvonal feldolgozását és
-    összefűzését végző jellemzőkinyerő hálót;
-  \item a tanítás fontosabb mutatóit TensorBoardba naplózó
-    callback-függvényeket.
+  \item a jutalomfüggvény és az epizódvég feltételei
+    (\ref{sec:reward}.~fejezet);
+  \item a kamera- és LiDAR-jellemzőket összegző, majd a járműadatokkal és az
+    útvonal jellemzőivel összefűző háló;
+  \item a fontosabb mutatókat TensorBoardba naplózó callbackek.
 \end{itemize}
-
 \section{Szenzoradatok előfeldozása, Autóenkóderek}
 \label{sec:sensors}
+
+Az robotikai eszközök (például autók), környezetüket rájuk erősített szenzorok segítségével érzékelik.
+Ezen eszközök halamzának segítségével valósítják meg a gépilátás és érzékelés folyamatát. Míg az emberek saját 
+érkezszerveikkel jutnak információhoz a külvilágról a robotikai eszközök, szenzor rendszereikkel végzik el
+ezt az igen kritikus lépést a tájékzódás során. A szenzoradatok a pontos érzékelés okánál fogva nagyon sokrétüek 
+és sűrűek. Emiatt nagy számítási kapacitást igénnyel feldolgozásuk során valamint áltlában átesnek egy adattisztiási
+folyamaton is. Az említett folyamatok szükségessége abban nyilvánul hogy az ágens önmagában nem képes feldolgozni ezt a 
+rengeteg információt, valamintha mégis ezek a feldolgozási folyamatok nagyba lassíthatják a döntés megszületését.
+
+Ebben a fejezetben bemutatásra kerülnke az általam használt szenzorok, valamint az is hogy miként végeztem el az előfeldolgozási
+folyamatokat. Ágensem érzékelésért 2 fő szensor felelős, egy LiDAR valamint egy RGB kamera. Választásom azért esett ezekre az eszközökre
+mert ezek tökéletesen elegendőek arra, hogy megfelelőképp megfigyelje a forgalomat. A kamera a vizuális észlelés, hogy lesz előttem
+egy jármű, valamint azért felelős, hogy az ágens pontosan lássa a sávok felfestését az útburkolatom. A LiDAR szenzoradatok a térbeli
+letapogatásért felelős, információt szolgáltat például a megelőzendő jármű fizikai dimenzióiról. Akkor lehet hasznos hogy ne probálja
+túl korán befejezni az előzési manővert.
+
+A CARLA mindkét szenzort valósághűen szimulálja~\cite{carladocs}. A kamera
+képét az Unreal Engine grafikus motorja rendereli, és a valódi kamerákra
+jellemző hatásokat is utánozza: automatikus expozíciót, mozgási elmosódást,
+becsillanást, mélységélességet, stb. A LiDAR-t sugárkövetéssel szimulálja: 
+a csatornák száma, a hatótávolság, a látószög és
+a forgási frekvencia a valódi eszközökhöz hasonlóan beállítható, a mérésekhez
+zaj adható, és a pontok egy része véletlenszerűen elveszik, ahogy a
+valóságban is. 
+
+Előzetes tapasztalataim alapján nem optimális a nyers szenzoradatokat
+közvetlenül a modellnek adni. Egyetlen kamerakép is több tízezer számértékből ami igen megterheli a modellt futását
+a LiDAR pedig több tízezer pontból áll ráadásul a pontok száma
+és sorrendje lépésről lépésre változik. Ha az ágens ezeket nyersen kapná, a
+jutalomjelből kellene megtanulnia kinyerni a szenzorokból a lényeges információkat és vezetni. 
+Ezek mellett a nagy bemenet a visszajátszási puffer
+memóriaigényét is jelentősen megnövelné. 
+
+Ezért saját, tömör beágyazásokat készítettem a szenzoradatokból, ehhez autoenkódereket alkalmaztam.
+Az autoenkóder egy kódolóból és egy dekódolóból álló háló, amely úgy tanul,
+hogy a bemenetét egy kis méretű belső reprezentáción (látens téren)
+keresztül próbálja visszaállítani. Az 1gy kinyert látens vektor vagy címke márcsak az adatok lényegi információit
+tartalmaza. A tanítás után a kódoló kimenete adja az ágensnek a bemenetét, így a 
+tanulás elegendő ha a vezetés elsajátítására összpontosulhat.
+
+Az autoenkóderek tanításához saját adatgyűjtő programot használtam és írtam. Ez a Town04
+pályán, 200 forgalmi jármű között vezeti az autót, ugyanazokkal a
+szenzorbeállításokkal rögzít, mint amelyeket az ágens a tanulás során lát.
+A CARLA-ban elérhető autopilot, ami mindig pontosan a sáv közepén halad, az autót a sávon belül
+folyamatosan jobbra-balra térítettem, és időnként véletlen kormánymozdulatokat
+is adtam neki, így az adatban a sávból kisodródott, ferdén álló helyzetek is
+szerepelnek. 
+
+Ezzel biztosítva az adatok nagyobb varianciáját. A szimuláció 20~Hz-en fut, de 
+csak minden negyedik lépést mentettem (5~Hz), erre szükség volt mivel az egymást 
+közvetlenül követő képek szinte azonosak, és fölöslegesen növelnék az
+adat méretét. 
+Összesen 40\,211 egymáshoz tartozó kamera--LiDAR párt
+gyűjtöttem (kb. 15~GB).
+Az összetartozó kép és pontfelhő fájlneve a szimulációs képkocka sorszáma, így biztosan
+ugyanahhoz a pillanathoz tartoznak. Ezen az adathalmazon mindkét szenzorhoz
+három különböző autoenkódert tanítottam és hasonlítottam össze, hogy
+kiválasszam a legjobbat.
+
 \subsection{Kamera}
+\label{sec:camera}
+
+Az ágens kamerája a CARLA szimulált RGB kamerája (\texttt{sensor.camera.rgb}), amelynek 
+a helyzete a járműrvőn a szélvédő mögött van. Az autó testének 
+középpontjához képest 1,6~m-rel előrébb és 1,7~m magasan, menetirányba néz.
+
+A képet 160$\times$80 pixeles felbontásban, 110°-os vízszintes látószöggel,
+a szimulációval szinkronban 20~Hz-en rögzíti
+(\ref{fig:camera_examples}.~ábra). Ez a relatíve kisebb felbontás tökéletesen elegendő a sávjelek valamint 
+a forgalom többi szereplőjének felismeréséhez. 
+
+\newpage
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{pictures/sensors/camera/camera_examples.png}
+  \caption{Példák az ágens által látott 160$\times$80 kameraképekből}
+  \label{fig:camera_examples}
+\end{figure}
+
+Miútán kész voltam a tanító adatok begyüjtésével kiválasztottam 3 különböző architektúrára épülő autoenkódert, 
+hogy ezekből kiválasszam a számomra legjobbat.
+A három modellt az egyenlő feltételek mellett ugyanazon a rekonstrukciós feladaton tanítottam.
+A bemeneti és a visszaállított kép közötti minden esetben átlagos négyzetes hibát (MSE) mértem
+majd ezt minimalizáltam, Adam optimalizálóval.
+
+A modellek bemenete a 160$\times$80 pixeles RGB kép, a pixelértékei normalizáláson estek át így
+ezután a pixelek $[0,1]$ tartományba estek. A 40\,211 képet véletlenszerűen megkevertem és
+70/15/15 arányban osztottam fel. Ezek után 28\,149 kép került a tanító-, 6031 a validációs és
+6031 a teszthalmazokba. A keverésre azért volt szükség, mert az
+egymást követő képek szinte azonosak, és enélkül a halmazok a pálya más-más
+szakaszait tartalmaznák.
+
+Az eljárás során a validációs halmazon legjobbnak bizonyult modellt
+mentettem el. Az alábbi ábrák mindegyike ugyanazt a négy, a tanítás során
+félretett teszthalmazból származó képet mutatja, ez által a modellek
+rekonstrukciói közvetlenül összevethetők.
+
+\subsubsection{Konvolúciós autoenkóder}
+
+Első választottam egy egyszerű konvolúció autoenkóderre esett amely szerkezetileg a következő.
+A kódoló négy konvolúciós blokkból áll (4$\times$4-es kernel, 2-es
+lépésköz, batch-normalizálás, LeakyReLU), amelyek mindegyike felezi a kép
+méretét, ezek által 3$\times$80$\times$160-as bemenetből 256$\times$5$\times$10-es
+jellemzőtérkép lesz. Ez egy teljesen összekötött réteg amely vetítésre kerül a látens
+vektorba a kinyert jellemzőkkel. A dekódoló ennek tükörképe transzponált konvolúciókkal, a kimenetet egy
+szigmoid függvény adja és szorítja a $[0,1]$ es tartományba. Egyszerű, sekély felépítése
+miatt a három modell közül ez a leggyorsabb. A rekonstrukción
+(\ref{fig:camera_rec_conv}.~ábra) jól kivehetők a sávjelek, az útnak a széle és a járművek egyaránt
+jól kivehetők. A háttér apró részletei mosódnak el de az jelen esetben amúgyis zajnak számít.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{pictures/sensors/camera/camera_rec_conv.png}
+  \caption{A konvolúciós autoenkóder rekonstrukciói a teszthalmazon}
+  \label{fig:camera_rec_conv}
+\end{figure}
+
+\subsubsection{Reziduális autoenkóder}
+
+Második autoenkóder jelöltem egy Reziduális blokkokra épülő modell. 
+Ebben a rétegek kimenetéhez hozzáadódik a
+bemenetük ($x + F(x)$); ez mélyebb hálóknál is stabil tanulást tesz
+lehetővé~\cite{he2016resnet}. A háló négy felbontási szinten dolgozik, szintenként
+két reziduális blokkal, és többfelbontású átkötéseket is felhasznál. Minden szint
+kimenete közvetlenül a szűk keresztmetszet elé is eljut, hogy ez által a finom
+részletek is bekerülhessenek a látens reprezentációba. A három modell közül
+ennek van a legkevesebb paramétere (2,4 millió). A rekonstrukció
+(\ref{fig:camera_rec_resnet}.~ábra) erősen elmosott: az út nagyjából
+felismerhető, de a jármű körvonala szétfolyik, a környezet pedig általános,
+ködös foltokká válik.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{pictures/sensors/camera/camera_rec_resnet.png}
+  \caption{A reziduális autoenkóder rekonstrukciói a teszthalmazon}
+  \label{fig:camera_rec_resnet}
+\end{figure}
+
+\subsubsection{VGG-alapú autoenkóder}
+
+A harmadik megvalósítás egy a VGG-19 hálózat~\cite{simonyan2015vgg} első négy blokkja (a
+\texttt{relu4\_1} rétegig), az ImageNet adathalmazon előtanított súlyokkal.
+Előtanítottsága okán az alapvető képi jellemzők (élek, textúrák) felismerését
+a hálónak nem kell nulláról megtanulnia. A dekódoló a kódoló tükörképe.
+Mivel ez egy mély, normalizálás nélküli háló, kisebb tanulási rátával
+($10^{-4}$) kellett tanítani. Éredkesség, hogy az előtanított súlyok nélkül egyáltalán nem
+tanult. A rekonstrukción (\ref{fig:camera_rec_vgg}.~ábra) a sávjelek és a
+jármű megmaradnak, de elmosódnak, és a modell helyenként a jelenetre
+jellemző, de valójában ott nem lévő elemeket rajzol. a második képen az
+épület és a téglafal helyén fákat rajzol amik valójában ott sincsenek.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{pictures/sensors/camera/camera_rec_vgg.png}
+  \caption{A VGG-alapú autoenkóder rekonstrukciói a teszthalmazon}
+  \label{fig:camera_rec_vgg}
+\end{figure}
+
+\subsubsection{Összehasonlítás és a választott modell}
+
+A modelleket a 40\,211 képből félretett, 6031 képes teszthalmazon
+hasonlítottam össze. Az MSE mellett a csúcsjel-zaj viszonyt (PSNR) is
+megfigyeltem amely a $[0,1]$ tartományba skálázott képekre a következő:
+\begin{equation}
+  \mathrm{PSNR} = 10 \log_{10} \frac{1}{\mathrm{MSE}}~\mathrm{dB},
+\end{equation}
+Ezen mérőszám minál nagyobb, annál pontosabb a visszaállított kép. A kódoló az
+ágens tanítása közben minden lépésben, ugyanazon a GPU-n
+fut így a kódolási idő is szignifikáns jellemzők közés soroltam. (\ref{tab:camera_compare}.~táblázat).
+
+\begin{table}[htbp]
+  \centering
+  \caption{A három kamera-autoenkóder összehasonlítása a teszthalmazon}
+  \label{tab:camera_compare}
+  \begin{tabular}{lrrrr}
+    \toprule
+    Modell & MSE & PSNR [dB] & Paraméter [M] & Kódolás [ms] \\
+    \midrule
+    Konvolúciós AE & \textbf{0,00088} & \textbf{30,58} & 4,5 & \textbf{0,27} \\
+    Reziduális AE  & 0,00495 & 23,06 & \textbf{2,4} & 0,93 \\
+    VGG-alapú AE   & 0,00278 & 25,56 & 8,7  & 1,01 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+A fenti táblázat alapján a konvolúciós autoenkóder hibája a legkisebb. Az MSE-je harmada a VGG-alapú
+megoldáshoz képest és kevesebb, mint ötöde a reziduális modellének, ami 5, illetve 7,5~dB-lel jobb PSNR-t
+jelent. A különbség nem csak átlagban áll fenn, a képenkénti párosítás során kiderült, hogy
+a konvolúciós megoldás a teszthalmaz képeinek 97,4\%-án kisebb a hibája, mint a VGG-alapú modellé, a
+reziduális modellnél pedig minden képen jobb (\ref{fig:camera_psnr}.~ábra).
+\newpage
+A hibatérképeken (\ref{fig:camera_err}.~ábra) az is látszik, hogy a
+konvolúciós modell rekonstrukciója a legkevésbé zajos. A hiba nála csak a
+tárgyak éleinél jelenik meg vékony vonalakként. A többi modellnél esetében
+nagyobb, összefüggő foltokban, például a jármű és a sávjelek környékén, vagyis
+ott, ahol az ágensnek a legpontosabb információra volna szüksége.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{pictures/sensors/camera/camera_error_maps.png}
+  \caption{A rekonstrukciók abszolút hibája képpontonként, közös skálán
+    (sötétebb = nagyobb hiba)}
+  \label{fig:camera_err}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{pictures/sensors/camera/camera_psnr_hist.pdf}
+  \caption{A képenkénti PSNR eloszlása a teszthalmazon; a szaggatott vonalak
+    a modellek mediánját jelölik}
+  \label{fig:camera_psnr}
+\end{figure}
+
+Ezen okoknál fogva választásom a konvolúciós autoenkóderre esett. A legjobb
+rekonstrukció mellett ez a leggyorsabb is. Egy kép kódolása kb. 0,27~ms,
+a másik két modellnél ez közel négyszer annyi.
+
 \subsection{LiDAR}
 
 \subsection{Szenzorfuzio}
@@ -428,7 +653,7 @@ A keretrendszerhez saját magam valósítottam meg:
 \section{Jutalom függvény}
 \label{sec:reward}
 
-\section{Betanult modellek összehasonlítása}
+\section{Elkészült modellek összehasonlítása}
 \label{sec:modells}
 
 

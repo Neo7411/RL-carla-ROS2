@@ -554,44 +554,6 @@
       \field{title}{Continuous Control with Deep Reinforcement Learning}
       \field{year}{2016}
     \endentry
-    \entry{fujimoto2018td3}{inproceedings}{}
-      \name{author}{3}{}{%
-        {{hash=064fb8795fb3fe6537e4d29fc8578ec4}{%
-           family={Fujimoto},
-           familyi={F\bibinitperiod},
-           given={Scott},
-           giveni={S\bibinitperiod}}}%
-        {{hash=f2db100b30806f7c8e894892db68dadb}{%
-           family={Hoof},
-           familyi={H\bibinitperiod},
-           given={Herke},
-           giveni={H\bibinitperiod},
-           prefix={van},
-           prefixi={v\bibinitperiod}}}%
-        {{hash=a5137015bf373eff6cd1b6a96b145c3c}{%
-           family={Meger},
-           familyi={M\bibinitperiod},
-           given={David},
-           giveni={D\bibinitperiod}}}%
-      }
-      \strng{namehash}{fa31fcf8611ccec7d2a280d8c08326e7}
-      \strng{fullhash}{fa31fcf8611ccec7d2a280d8c08326e7}
-      \strng{bibnamehash}{fa31fcf8611ccec7d2a280d8c08326e7}
-      \strng{authorbibnamehash}{fa31fcf8611ccec7d2a280d8c08326e7}
-      \strng{authornamehash}{fa31fcf8611ccec7d2a280d8c08326e7}
-      \strng{authorfullhash}{fa31fcf8611ccec7d2a280d8c08326e7}
-      \field{sortinit}{2}
-      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{booktitle}{Proceedings of the 35th International Conference on Machine Learning (ICML)}
-      \field{series}{Proceedings of Machine Learning Research}
-      \field{title}{Addressing Function Approximation Error in Actor-Critic Methods}
-      \field{volume}{80}
-      \field{year}{2018}
-      \field{pages}{1587\bibrangedash 1596}
-      \range{pages}{10}
-    \endentry
     \entry{haarnoja2018sac}{inproceedings}{}
       \name{author}{4}{}{%
         {{hash=45b14f55dd7ae28cb6cb2e23e4a168b9}{%
@@ -621,6 +583,7 @@
       \strng{authorbibnamehash}{b8c131de85c5000ff50df59a4d062227}
       \strng{authornamehash}{b8c131de85c5000ff50df59a4d062227}
       \strng{authorfullhash}{951e86110020d3107317b3e819f3d92d}
+      \field{extraname}{1}
       \field{sortinit}{2}
       \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
       \field{labelnamesource}{author}
@@ -785,42 +748,114 @@
       \field{pages}{8024\bibrangedash 8035}
       \range{pages}{12}
     \endentry
-    \entry{chen2019modelfree}{inproceedings}{}
+    \entry{raffin2022gsde}{inproceedings}{}
       \name{author}{3}{}{%
-        {{hash=bb6b197eada5af8ee357627dbfb8754b}{%
-           family={Chen},
-           familyi={C\bibinitperiod},
-           given={Jianyu},
+        {{hash=646dfae388f2fca3d68ff9214acd722c}{%
+           family={Raffin},
+           familyi={R\bibinitperiod},
+           given={Antonin},
+           giveni={A\bibinitperiod}}}%
+        {{hash=c1af96639c1bc5af057c028f303f6322}{%
+           family={Kober},
+           familyi={K\bibinitperiod},
+           given={Jens},
            giveni={J\bibinitperiod}}}%
-        {{hash=7f5fc3a87be46c7ccc254eab3ad8f64b}{%
-           family={Yuan},
-           familyi={Y\bibinitperiod},
-           given={Bodi},
-           giveni={B\bibinitperiod}}}%
-        {{hash=84b66ce2b6f9f8530dd504fc63a4cc64}{%
-           family={Tomizuka},
-           familyi={T\bibinitperiod},
-           given={Masayoshi},
-           giveni={M\bibinitperiod}}}%
+        {{hash=5f493367839a6ecf0d54e4abcfdc0211}{%
+           family={Stulp},
+           familyi={S\bibinitperiod},
+           given={Freek},
+           giveni={F\bibinitperiod}}}%
       }
-      \strng{namehash}{0bcdfbddb5a70e3889c982b362310493}
-      \strng{fullhash}{0bcdfbddb5a70e3889c982b362310493}
-      \strng{bibnamehash}{0bcdfbddb5a70e3889c982b362310493}
-      \strng{authorbibnamehash}{0bcdfbddb5a70e3889c982b362310493}
-      \strng{authornamehash}{0bcdfbddb5a70e3889c982b362310493}
-      \strng{authorfullhash}{0bcdfbddb5a70e3889c982b362310493}
+      \strng{namehash}{dc8d1bc937832a0633834cd264544e25}
+      \strng{fullhash}{dc8d1bc937832a0633834cd264544e25}
+      \strng{bibnamehash}{dc8d1bc937832a0633834cd264544e25}
+      \strng{authorbibnamehash}{dc8d1bc937832a0633834cd264544e25}
+      \strng{authornamehash}{dc8d1bc937832a0633834cd264544e25}
+      \strng{authorfullhash}{dc8d1bc937832a0633834cd264544e25}
       \field{sortinit}{2}
       \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{booktitle}{2019 IEEE Intelligent Transportation Systems Conference (ITSC)}
-      \field{title}{Model-free Deep Reinforcement Learning for Urban Autonomous Driving}
-      \field{year}{2019}
-      \field{pages}{2765\bibrangedash 2771}
-      \range{pages}{7}
-      \verb{doi}
-      \verb 10.1109/ITSC.2019.8917306
-      \endverb
+      \field{booktitle}{Proceedings of the 5th Conference on Robot Learning (CoRL)}
+      \field{series}{Proceedings of Machine Learning Research}
+      \field{title}{Smooth Exploration for Robotic Reinforcement Learning}
+      \field{volume}{164}
+      \field{year}{2022}
+      \field{pages}{1634\bibrangedash 1644}
+      \range{pages}{11}
+    \endentry
+    \entry{haarnoja2018sacapps}{article}{}
+      \name{author}{11}{}{%
+        {{hash=45b14f55dd7ae28cb6cb2e23e4a168b9}{%
+           family={Haarnoja},
+           familyi={H\bibinitperiod},
+           given={Tuomas},
+           giveni={T\bibinitperiod}}}%
+        {{hash=519033a7338e5ef684c77d4d04748a4a}{%
+           family={Zhou},
+           familyi={Z\bibinitperiod},
+           given={Aurick},
+           giveni={A\bibinitperiod}}}%
+        {{hash=2bf28b92c31c717feee2c15487657b25}{%
+           family={Hartikainen},
+           familyi={H\bibinitperiod},
+           given={Kristian},
+           giveni={K\bibinitperiod}}}%
+        {{hash=641a3f5d5ce834c4b56fb672c5df0207}{%
+           family={Tucker},
+           familyi={T\bibinitperiod},
+           given={George},
+           giveni={G\bibinitperiod}}}%
+        {{hash=d235634814ed266793a4de24b71955e6}{%
+           family={Ha},
+           familyi={H\bibinitperiod},
+           given={Sehoon},
+           giveni={S\bibinitperiod}}}%
+        {{hash=aaa7cb90b2e1cc2079b5e8a087a903c9}{%
+           family={Tan},
+           familyi={T\bibinitperiod},
+           given={Jie},
+           giveni={J\bibinitperiod}}}%
+        {{hash=bbba0ccb50436105a4134d24509b62d7}{%
+           family={Kumar},
+           familyi={K\bibinitperiod},
+           given={Vikash},
+           giveni={V\bibinitperiod}}}%
+        {{hash=fde29d8aa12ec2aa9ab89c495df350fb}{%
+           family={Zhu},
+           familyi={Z\bibinitperiod},
+           given={Henry},
+           giveni={H\bibinitperiod}}}%
+        {{hash=d0792eb04b685020eafedbc871aeb84f}{%
+           family={Gupta},
+           familyi={G\bibinitperiod},
+           given={Abhishek},
+           giveni={A\bibinitperiod}}}%
+        {{hash=e28d4ee199593959d8c29980a64f1974}{%
+           family={Abbeel},
+           familyi={A\bibinitperiod},
+           given={Pieter},
+           giveni={P\bibinitperiod}}}%
+        {{hash=c9545da54b33744da25943cdf66eadac}{%
+           family={Levine},
+           familyi={L\bibinitperiod},
+           given={Sergey},
+           giveni={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{b8c131de85c5000ff50df59a4d062227}
+      \strng{fullhash}{c6ac1e78375b5b1cb1c472544f2557df}
+      \strng{bibnamehash}{b8c131de85c5000ff50df59a4d062227}
+      \strng{authorbibnamehash}{b8c131de85c5000ff50df59a4d062227}
+      \strng{authornamehash}{b8c131de85c5000ff50df59a4d062227}
+      \strng{authorfullhash}{c6ac1e78375b5b1cb1c472544f2557df}
+      \field{extraname}{2}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{arXiv preprint arXiv:1812.05905}
+      \field{title}{Soft Actor-Critic Algorithms and Applications}
+      \field{year}{2018}
     \endentry
     \entry{raffin2021sb3}{article}{}
       \name{author}{6}{}{%
@@ -969,6 +1004,75 @@
       \field{journaltitle}{arXiv preprint arXiv:2407.17032}
       \field{title}{Gymnasium: A Standard Interface for Reinforcement Learning Environments}
       \field{year}{2024}
+    \endentry
+    \entry{he2016resnet}{inproceedings}{}
+      \name{author}{4}{}{%
+        {{hash=6b4b60e909e78633945f3f9c9dc83e01}{%
+           family={He},
+           familyi={H\bibinitperiod},
+           given={Kaiming},
+           giveni={K\bibinitperiod}}}%
+        {{hash=5e72bc22dbcf0984c6d113d280e36990}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Xiangyu},
+           giveni={X\bibinitperiod}}}%
+        {{hash=bb295293acacd54387339079ebbe4ead}{%
+           family={Ren},
+           familyi={R\bibinitperiod},
+           given={Shaoqing},
+           giveni={S\bibinitperiod}}}%
+        {{hash=f85751488058842b5777c7b4074077b5}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Jian},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{6edb98fe38401d2fe4a026f5ce6e8451}
+      \strng{fullhash}{42c4b52dc3a62cebabbc11c73e1afb53}
+      \strng{bibnamehash}{6edb98fe38401d2fe4a026f5ce6e8451}
+      \strng{authorbibnamehash}{6edb98fe38401d2fe4a026f5ce6e8451}
+      \strng{authornamehash}{6edb98fe38401d2fe4a026f5ce6e8451}
+      \strng{authorfullhash}{42c4b52dc3a62cebabbc11c73e1afb53}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)}
+      \field{title}{Deep Residual Learning for Image Recognition}
+      \field{year}{2016}
+      \field{pages}{770\bibrangedash 778}
+      \range{pages}{9}
+      \verb{doi}
+      \verb 10.1109/CVPR.2016.90
+      \endverb
+    \endentry
+    \entry{simonyan2015vgg}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=9d16b7284df92c9adaee86c37ab992df}{%
+           family={Simonyan},
+           familyi={S\bibinitperiod},
+           given={Karen},
+           giveni={K\bibinitperiod}}}%
+        {{hash=c72fc39e94030f67717052309266a44d}{%
+           family={Zisserman},
+           familyi={Z\bibinitperiod},
+           given={Andrew},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{25d2f3c4577a6632d37f0126cc781232}
+      \strng{fullhash}{25d2f3c4577a6632d37f0126cc781232}
+      \strng{bibnamehash}{25d2f3c4577a6632d37f0126cc781232}
+      \strng{authorbibnamehash}{25d2f3c4577a6632d37f0126cc781232}
+      \strng{authornamehash}{25d2f3c4577a6632d37f0126cc781232}
+      \strng{authorfullhash}{25d2f3c4577a6632d37f0126cc781232}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{3rd International Conference on Learning Representations (ICLR)}
+      \field{title}{Very Deep Convolutional Networks for Large-Scale Image Recognition}
+      \field{year}{2015}
     \endentry
   \enddatalist
   \missing{terapaptommakol2022obstacle}
