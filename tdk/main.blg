@@ -1,16 +1,16 @@
 [0] Config.pm:307> INFO - This is Biber 2.17
 [0] Config.pm:310> INFO - Logfile is 'main.blg'
-[29] biber:340> INFO - === Mon Oct  5, 2026, 11:34:24
-[35] Biber.pm:418> INFO - Reading 'main.bcf'
-[60] Biber.pm:972> INFO - Found 27 citekeys in bib section 0
-[66] Biber.pm:4383> INFO - Processing section 0
-[71] Biber.pm:4574> INFO - Looking for bibtex file 'refs.bib' for section 0
-[72] bibtex.pm:1713> INFO - LaTeX decoding ...
-[82] bibtex.pm:1518> INFO - Found BibTeX data source 'refs.bib'
-[208] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'variable = shifted' with 'variable = non-ignorable'
-[208] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'normalization = NFD' with 'normalization = prenormalized'
-[208] Biber.pm:4203> INFO - Sorting list 'none/global//global/global' of type 'entry' with template 'none' and locale 'hu-HU'
-[218] bbl.pm:654> INFO - Writing 'main.bbl' with encoding 'UTF-8'
-[233] bbl.pm:757> INFO - Output to main.bbl
-[233] Biber.pm:130> WARN - I didn't find a database entry for 'terapaptommakol2022obstacle' (section 0)
-[233] Biber.pm:132> INFO - WARNINGS: 1
+[34] biber:340> INFO - === Mon Oct  5, 2026, 13:40:26
+[41] Biber.pm:418> INFO - Reading 'main.bcf'
+[68] Biber.pm:972> INFO - Found 26 citekeys in bib section 0
+[73] Biber.pm:4383> INFO - Processing section 0
+[78] Biber.pm:4574> INFO - Looking for bibtex file 'refs.bib' for section 0
+[78] bibtex.pm:1713> INFO - LaTeX decoding ...
+[88] bibtex.pm:1518> INFO - Found BibTeX data source 'refs.bib'
+[199] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'variable = shifted' with 'variable = non-ignorable'
+[199] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[199] Biber.pm:4203> INFO - Sorting list 'none/global//global/global' of type 'entry' with template 'none' and locale 'hu-HU'
+[207] bbl.pm:654> INFO - Writing 'main.bbl' with encoding 'UTF-8'
+[218] bbl.pm:757> INFO - Output to main.bbl
+[218] Biber.pm:130> WARN - I didn't find a database entry for 'terapaptommakol2022obstacle' (section 0)
+[218] Biber.pm:132> INFO - WARNINGS: 1

@@ -15,8 +15,8 @@
 \select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.2}Gráf-alapú autoenkóder}{18}{subsubsection.4.2.2}%
 \select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.3}Point-MAE}{19}{subsubsection.4.2.3}%
 \select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.4}Összehasonlítás és a választott modell}{20}{subsubsection.4.2.4}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.3}Szenzorfuzio}{21}{subsection.4.3}%
-\select@language {magyar} \contentsline {section}{\numberline {5}Jutalom függvény}{21}{section.5}%
-\select@language {magyar} \contentsline {section}{\numberline {6}Elkészült modellek összehasonlítása}{21}{section.6}%
-\select@language {magyar} \contentsline {section}{\numberline {7}Összegzés}{21}{section.7}%
-\select@language {magyar} \contentsline {section}{Hivatkozások}{22}{section.7}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.3}Szenzorfuzio}{22}{subsection.4.3}%
+\select@language {magyar} \contentsline {section}{\numberline {5}Jutalom függvény}{22}{section.5}%
+\select@language {magyar} \contentsline {section}{\numberline {6}Elkészült modellek összehasonlítása}{22}{section.6}%
+\select@language {magyar} \contentsline {section}{\numberline {7}Összegzés}{22}{section.7}%
+\select@language {magyar} \contentsline {section}{Hivatkozások}{23}{section.7}%

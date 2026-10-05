@@ -763,22 +763,26 @@ kivehetők, a finom részletek viszont láthatóan kevésbé maradnak hangsúlyo
 \subsubsection{Point-MAE}
 
 A harmadik választottam a Point-MAE~\cite{pang2022pointmae} modell ami képeknél már sikeresen bevált
-maszkolt autoenkóder~\cite{he2022mae} ötletét viszi át pontfelhőkre, és
+maszkolt autoenkóder ötletét viszi át pontfelhőkre, és
 közvetlenül a pontfelhőn dolgozik, képkockánként 24\,576 véletlenszerűen
 kiválasztott ponttal. 
 
-A felhőt 512 darab, egyenként 32 pontos foltra bontja A foltok középpontjait 
-legtávolabbi-pont mintavételezéssel választja ki,
-hogy egyenletesen lefedjék a jelenetet, majd mindegyikhez a 32 legközelebbi
-pontot rendeli. Minden foltot egy kis háló egy 192 elemű vektorrá (tokenné)
-alakít, a folt helyét pedig külön pozíciókódolás adja meg; a tokeneket egy
+A pontfelhőt 512 darab, egyenként 32 pontos foltra bontja. A foltok középpontjait 
+legtávolabbi-pont mintavételezéssel választja ki. Erre azért van okvetlenül szükség,
+hogy egyenletesen lefedjék a jelenetet. Minden ponthoz a 32 legközelebbi
+szomszédot rendeli. Minden foltot egy kis háló egy 192 elemű vektorrá (tokenné)
+alakít, a foltok helyét pedig külön pozíciókódolás segítségével adja meg. A tokeneket egy
 Transformer kódoló dolgozza fel. Tanítás közben a foltok 60\%-át elrejti,
-és a modellnek a látható foltokból kell visszaállítania a rejtetteket. A
-hibát Chamfer-távolsággal mértem, amely mindkét pontfelhő minden pontjához
-megkeresi a másik felhő legközelebbi pontját, és ezek távolságát átlagolja,
-így nem függ a pontok sorrendjétől. A kódoló kimenete, vagyis a látens
-reprezentáció 512 token, egyenként 192 dimenzióval, ami összesen
-98\,304 érték. A rekonstrukción
+és a modellnek a látható foltokból kell visszaállítania a rejtetteket. Ezen modell esetén a hibát 
+Chamfer távolsággal mértem, mely mindkét pontfelhő minden pontjához
+megkeresi a másik felhő legközelebbi pontját.  
+Majd ezek távolságát átlagolja, ez által nem függ a pontok sorrendjétől. 
+A kódoló kimenete, vagyis a látens reprezentáció 512 token, egyenként 192 dimenzióval, ami összesen
+98\,304 érték. Ez több, mint maga a bemenet (24\,576 pont $\times$ 3 koordináta =
+73\,728 érték), vagyis ez a modell nem tömörít: a maszkolt autoenkóder nem szűk
+keresztmetszettel, hanem a kitakart foltok visszajóslásával tanul. A legtávolabbi-pont
+mintavételezés ráadásul véletlen pontból indul, ezért ugyanaz a képkocka kétszer kódolva
+is más sorrendű, részben más foltokból álló tokensort ad. A rekonstrukción
 (\ref{fig:lidar_rec_mae}.~ábra) a jelenet nagy vonalai felismerhetők, de a
 pontok csomókba tömörülnek, és a járművek körvonala elvész.
 
@@ -829,22 +833,31 @@ az adathalmazból véletlenszerűen kiválasztott képkockán:
     \midrule
     BEV-alapú AE   & \textbf{0,725} & \textbf{1,51$\times$} & 1,44$\times$ & \textbf{0,793} & 0,554 \\
     Gráf-alapú AE  & 0,504 & \textbf{1,51$\times$} & \textbf{1,86$\times$} & 0,684 & \textbf{0,639} \\
-    Point-MAE      & 0,576 & 1,39$\times$ & 1,03$\times$ & 0,678 & 0,466 \\
+    Point-MAE      & 0,576 & 1,39$\times^{*}$ & 1,03$\times^{*}$ & 0,678$^{*}$ & 0,466$^{*}$ \\
     \midrule
     Konstans becslés & -- & -- & -- & 0,537 & 0,000 \\
     \bottomrule
   \end{tabular}
+
+  \smallskip
+  {\footnotesize $^{*}$ A Point-MAE tokenjeinek sorrendje kódolásonként véletlen, ezért ezek
+  az értékek nem a jelenetet, hanem a nyers tokensort tükrözik (lásd a szöveget).\par}
 \end{table}
 
 A BEV-alapú modell a foglaltsági térképet olvastatja ki a legjobban, de ez
 nem meglepő, hiszen a dekódolója pontosan ezt rekonstruálja, így ez a mérés
 neki kedvez. A vezetés szempontjából fontosabb szabad távolságot viszont a
 gráf-alapú modell látenséből lehet a legpontosabban kiolvasni ($R^2 = 0{,}639$,
-szemben a 0,554-dal és a 0,466-tal). Ennek a látense a legsimább is
+szemben a BEV-alapú modell 0,554-ével). Ennek a látense a legsimább is
 (\ref{fig:lidar_smooth}.~ábra): két egymást követő képkocka között nála a
-legkisebb a változás. A Point-MAE látense ezzel szemben két szomszédos
+legkisebb a változás. A Point-MAE nyers tokensora ezzel szemben két szomszédos
 képkocka között szinte annyit változik, mint két teljesen véletlen képkocka
-között, mert a foltok kiválasztása és sorrendje minden képkockán más. Az
+között. Ennek oka nem a jelenet, hanem az, hogy a foltok kiválasztása és
+sorrendje minden kódoláskor más, így nála a k-NN és a simaság valójában a
+véletlen tokensorrendet méri. Ugyanez rontja a lineáris próbát is: a tokenek
+rácsra szórásához használt folt-középpontok egy külön kódolásból származtak,
+ami a véletlen sorrend miatt nem egyezik a tokenekével, ezért a Point-MAE
+próbaértékei alulbecsültek lehetnek. Az
 effektív rangban a BEV-alapú modell a legjobb, de mindhárom modell 0,5
 felett van, tehát egyik látense sem omlott össze néhány dimenzióra.
 
@@ -856,10 +869,17 @@ felett van, tehát egyik látense sem omlott össze néhány dimenzióra.
   \label{fig:lidar_smooth}
 \end{figure}
 
+A Point-MAE nem lett jó választás. A látense (98\,304 érték) nagyobb, mint maga a
+bemenet, vagyis nem tömörít. A legtávolabbi-pont mintavételezés véletlen kezdőpontja
+miatt ugyanarra a jelenetre minden kódoláskor más sorrendű tokensort ad, így az ágens
+ugyanabban a helyzetben is más bemenetet kapna. A rekonstrukciója is gyenge, a járművek
+körvonala elvész. Egyedi tárgyak kis pontfelhőire tervezték, nem 100~m-es közlekedési
+jelenetekre.
+
 Ezek alapján a gráf-alapú autoenkódert választottam: a vezetéshez szükséges
-információ ebből olvasható ki a legjobban, és a látense követi a jármű
-folyamatos mozgását, így az ágens egymást követő lépésekben következetes
-bemenetet kap. A jellemzőtérképét az ágens saját konvolúciós rétegei
+információ ebből olvasható ki pontosabban, mint a BEV-alapú modellből, és a
+látense követi a jármű folyamatos mozgását, így az ágens egymást követő
+lépésekben következetes bemenetet kap. A jellemzőtérképét az ágens saját konvolúciós rétegei
 dolgozzák fel tovább.
 
 \subsection{Szenzorfuzio}

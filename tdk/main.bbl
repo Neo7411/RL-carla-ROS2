@@ -1034,7 +1034,6 @@
       \strng{authorbibnamehash}{6edb98fe38401d2fe4a026f5ce6e8451}
       \strng{authornamehash}{6edb98fe38401d2fe4a026f5ce6e8451}
       \strng{authorfullhash}{42c4b52dc3a62cebabbc11c73e1afb53}
-      \field{extraname}{1}
       \field{sortinit}{2}
       \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
       \field{labelnamesource}{author}
@@ -1187,59 +1186,6 @@
       \endverb
       \verb{url}
       \verb https://www.ecva.net/papers/eccv_2022/papers_ECCV/papers/136620591.pdf
-      \endverb
-    \endentry
-    \entry{he2022mae}{inproceedings}{}
-      \name{author}{6}{}{%
-        {{hash=6b4b60e909e78633945f3f9c9dc83e01}{%
-           family={He},
-           familyi={H\bibinitperiod},
-           given={Kaiming},
-           giveni={K\bibinitperiod}}}%
-        {{hash=ce10870c303bf2f78994acd2df305b39}{%
-           family={Chen},
-           familyi={C\bibinitperiod},
-           given={Xinlei},
-           giveni={X\bibinitperiod}}}%
-        {{hash=843b6293b24d49cdfdcda48e1ccd7eb3}{%
-           family={Xie},
-           familyi={X\bibinitperiod},
-           given={Saining},
-           giveni={S\bibinitperiod}}}%
-        {{hash=46e2e0b282bd98dcc736b344f4c7274f}{%
-           family={Li},
-           familyi={L\bibinitperiod},
-           given={Yanghao},
-           giveni={Y\bibinitperiod}}}%
-        {{hash=ecd149fdcb3e0503881d49e545744c3d}{%
-           family={Dollár},
-           familyi={D\bibinitperiod},
-           given={Piotr},
-           giveni={P\bibinitperiod}}}%
-        {{hash=bd5dadbe57bedc5957c19a3154c4d424}{%
-           family={Girshick},
-           familyi={G\bibinitperiod},
-           given={Ross},
-           giveni={R\bibinitperiod}}}%
-      }
-      \strng{namehash}{6edb98fe38401d2fe4a026f5ce6e8451}
-      \strng{fullhash}{720293b27fe84a23031231f283c72cd1}
-      \strng{bibnamehash}{6edb98fe38401d2fe4a026f5ce6e8451}
-      \strng{authorbibnamehash}{6edb98fe38401d2fe4a026f5ce6e8451}
-      \strng{authornamehash}{6edb98fe38401d2fe4a026f5ce6e8451}
-      \strng{authorfullhash}{720293b27fe84a23031231f283c72cd1}
-      \field{extraname}{2}
-      \field{sortinit}{3}
-      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{booktitle}{2022 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}
-      \field{title}{Masked Autoencoders Are Scalable Vision Learners}
-      \field{year}{2022}
-      \field{pages}{16000\bibrangedash 16009}
-      \range{pages}{10}
-      \verb{doi}
-      \verb 10.1109/CVPR52688.2022.01553
       \endverb
     \endentry
     \entry{garrido2023rankme}{inproceedings}{}
