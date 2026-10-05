@@ -646,6 +646,221 @@ rekonstrukció mellett ez a leggyorsabb is. Egy kép kódolása kb. 0,27~ms,
 a másik két modellnél ez közel négyszer annyi.
 
 \subsection{LiDAR}
+\label{sec:lidar}
+
+Amint a fentiekben is említettem az általam választott második gépi érzékelési 
+eljárás a térbeli letapogatás a LiDAR szenzor által. Az ágens LiDAR-ja a 
+CARLA-ban alapból szimulált sugárkövetéses LiDAR szenzor.
+(\texttt{sensor.lidar.ray\_cast}). Helyzetét tekintva jármű tetején,  
+középpontja felett 2,4~m magasan helyezkedik el. 
+A szenzor 64 csatornás, függőlegesen +10° és $-25$° között, 
+vízszintesen 360°-ban, 50~m-es hatótávolságig mér.
+Forgási frekvenciáját nézve a szimulációval azonos 20~Hz-re állítottam, így
+minden szimulációs lépésben pontosan egy teljes körülfordulásra elegendő 
+adata érkezik.
+Egy fordulat 64$\times$1024 sugárból áll, ezek egy részét a CARLA a valós
+szenzorokhoz hasonlóan véletlenszerűen elejti, így képkockánként mintegy 30
+ezer pont marad.
+
+A 3D pontfelhő általánosságban rendezetlen pont halmazként érkezik a szenzorból.
+A pontok száma jelenetről jelenetre változik, ez a változatosság egy neurális 
+háló számára közvetlenül nem feldolgozható. 
+A kameránál látottakhoz hasonlóan itt is az adat látens térbeli beágyazása
+volt a tervem. Szintén választottam három különböző
+architektúrájú autoenkódert majd ezeket mértem össze, 
+a lényegi különbség, hogy mindegyik más formában kapja meg a
+jelenetet (\ref{fig:lidar_inputs}.~ábra). felülnézeti rácsként,
+távolságképként, illetve közvetlenül pontfelhőként. Mindhárom modellt
+azonos adathalmazon, 40 epochon át tanítottam, és a validációs halmazon
+legjobbnak bizonyult modellt mentettem el. Az adatokat itt is véletlenszerű
+keverés után 70/15/15 arányban osztottam tanító-, validációs és
+teszthalmazra. A hibafüggvény modellenként eltér, mert mindegyik más
+formában állítja vissza az adatokat
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{pictures/sensors/lidar/lidar_inputs.png}
+  \caption{Ugyanaz a LiDAR-képkocka a három modell bemeneti formájában; a
+    háromszög a saját járművet jelöli, a távolságképen a fehér cellákból
+    nem érkezett visszaverődés}
+  \label{fig:lidar_inputs}
+\end{figure}
+
+\subsubsection{BEV-alapú autoenkóder}
+
+Első megoldásként egy relatíve népszerű megoldást választottam, mégpedig
+a pontfelhőt felülnézeti (BEV) rácsra valóvetítését. A jármű
+körüli 102,4$\times$102,4~m-es területet 0,8~m-es cellákra osztottam
+(128$\times$128 cella), majd cellánként három értéket számoltam.Elsőként foglalt-e,
+majd megnéztem benne lévő legmagasabb és legalacsonyabb pont magasságát. 
+Erre a már 2 dimenziós képre egy konvolúciós autoenkódert építettem, 
+amely a képet egy jóval kisebb
+jellemzőtérképbe tömörítette. Mivel a foglaltság 0/1 érték, erre a
+hibafüggvény bináris keresztentrópia. 
+
+A rekonstrukció (\ref{fig:lidar_rec_bev}.~ábra) szinte hibátlan, a foglalt cellák 98--99\%-át
+helyesen adja vissza. Sajnos ennek a megoldásnak több hátránya is, 
+hogy a rács felbontása rögzített, a 0,8~m-nél kisebb részletek  elvesznek valamint a 
+függőleges 3D szerkezetek nagy része már a bemenetből hiányzik.
+A kódoló kimenete, vagyis a látens reprezentáció egy
+256$\times$8$\times$8-as jellemzőtérkép, ami összesen 16\,384 érték.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.7\textwidth]{pictures/sensors/lidar/lidar_rec_bev.png}
+  \caption{A BEV-alapú autoenkóder rekonstrukciói (foglalt cella: fekete)}
+  \label{fig:lidar_rec_bev}
+\end{figure}
+\newpage
+\subsubsection{Gráf-alapú autoenkóder}
+
+A második megoldás során a pontfelhőt távolságképpé alakítom. Ez annyit tesz, hogy  minden sugárirány egy
+cella, az oszlop lesz a hozzátartozó irányszög, a sor pedig az emelkedési szög. 
+A cellák értékét pedig a mért távolság adja meg. A CARLA LiDAR-ja szabályos 
+sugárrácsban mér, ez által maga a vetítés kevésbe veszteséges mint a BEV esetén. 
+Az ég felé tekintő felső sorok nem rendelkeznek számomra fontos információval ezért 
+levágtam. Az így keletkezett kép 44$\times$256 cellás, a távolságokat pedig logaritmikus skálán a $[-1,1]$
+tartományba normáltam. 
+
+A kódoló ötletét a TopoLiDM~\cite{liu2025topolidm} LiDAR-modellből vettem. 
+A hálózat a konvolúciós rétegek mellett gráfrétegeket is
+tartalmaz, ezek a rétegek minden jellemzőt a hozzá leginkább hasonló szomszédjaival 
+vetnek össze, így a térben összetartozó részeket akkor is együtt kezelik, ha a képen távol
+esnek egymástól. A kép két szélét körkörös konvolúció köti össze, hiszem 
+a 360°-os körben való szomszédság fontos részlet. 
+
+A kódoló kimenete 16$\times$11$\times$32-es
+jellemzőtérkép. 
+Hibafüggvénynek az L1-et választottam amely átlagos abszolút
+hibát számolja:
+\begin{equation}
+  L_1 = \frac{1}{N} \sum_{i=1}^{N} \left| x_i - \hat{x}_i \right|,
+\end{equation}
+
+A képletben $x_i$ az eredeti, $\hat{x}_i$ a visszaállított távolság az $i$-edik
+cellában. Az $N$ pedig a cellák száma, az eljárás minden cella eltérését az
+eltérés nagyságával arányosan, egyenlő súllyal veszi figyelembe, így egy-egy
+nagyobb hiba nem nyomja el a többit, valamint a ritka, kiugró mérési hibák sem befolyásolhatják
+a tanulást. 
+A hiba akkor a legkisebb, amikor a modell cellánként a
+legvalószínűbb értéket (a mediánt) becsli. Ez a távolságképen különösen
+fontos, mert egy tárgy széle éles ugrásként jelenik meg. Az üres,
+visszaverődés nélküli cellák ugyanakkora súllyal számítanak, így a modell
+azt is megtanulja, hol végződik egy tárgy. A rekonstrukción
+(\ref{fig:lidar_rec_graph}.~ábra) a közeli járművek és az út széle jól
+kivehetők, a finom részletek viszont láthatóan kevésbé maradnak hangsúlyosak.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{pictures/sensors/lidar/lidar_rec_graph.png}
+  \caption{A gráf-alapú autoenkóder rekonstrukciói két képkockán
+    (sötétebb = közelebb, fehér = nincs visszaverődés)}
+  \label{fig:lidar_rec_graph}
+\end{figure}
+
+\newpage
+
+\subsubsection{Point-MAE}
+
+A harmadik választottam a Point-MAE~\cite{pang2022pointmae} modell ami képeknél már sikeresen bevált
+maszkolt autoenkóder~\cite{he2022mae} ötletét viszi át pontfelhőkre, és
+közvetlenül a pontfelhőn dolgozik, képkockánként 24\,576 véletlenszerűen
+kiválasztott ponttal. 
+
+A felhőt 512 darab, egyenként 32 pontos foltra bontja A foltok középpontjait 
+legtávolabbi-pont mintavételezéssel választja ki,
+hogy egyenletesen lefedjék a jelenetet, majd mindegyikhez a 32 legközelebbi
+pontot rendeli. Minden foltot egy kis háló egy 192 elemű vektorrá (tokenné)
+alakít, a folt helyét pedig külön pozíciókódolás adja meg; a tokeneket egy
+Transformer kódoló dolgozza fel. Tanítás közben a foltok 60\%-át elrejti,
+és a modellnek a látható foltokból kell visszaállítania a rejtetteket. A
+hibát Chamfer-távolsággal mértem, amely mindkét pontfelhő minden pontjához
+megkeresi a másik felhő legközelebbi pontját, és ezek távolságát átlagolja,
+így nem függ a pontok sorrendjétől. A kódoló kimenete, vagyis a látens
+reprezentáció 512 token, egyenként 192 dimenzióval, ami összesen
+98\,304 érték. A rekonstrukción
+(\ref{fig:lidar_rec_mae}.~ábra) a jelenet nagy vonalai felismerhetők, de a
+pontok csomókba tömörülnek, és a járművek körvonala elvész.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{pictures/sensors/lidar/lidar_rec_mae.png}
+  \caption{A Point-MAE rekonstrukciói felülnézetből (a háromszög a saját
+    jármű)}
+  \label{fig:lidar_rec_mae}
+\end{figure}
+\newpage
+
+\subsubsection{Összehasonlítás és a választott modell}
+
+A három modell más-más bemenetet állít vissza, ezért a rekonstrukciós
+hibájuk nem vethető össze. Az ágens ráadásul nem a rekonstrukciót, hanem a
+kódoló kimenetét, a látens reprezentációt kapja, ezért közvetlenül azt
+vizsgáltam, mennyire használható ez a vezetéshez. Négy mérést végeztem 2000,
+az adathalmazból véletlenszerűen kiválasztott képkockán:
+\begin{itemize}
+  \item \textbf{Effektív rang} (RankMe~\cite{garrido2023rankme}): a látens
+    dimenziók mekkora része hordoz egymástól független információt; azonos
+    méretű véletlen zaj rangjához viszonyítva (1 = teljes kihasználtság).
+  \item \textbf{k-NN konzisztencia}~\cite{oquab2024dinov2}: a látens térben
+    legközelebbi képkockák valóban hasonló jelenetet mutatnak-e; a
+    szomszédok pontfelhői hányszor közelebb vannak egymáshoz, mint két
+    véletlen képkockáé.
+  \item \textbf{Időbeli simaság}: két egymást követő képkocka látense
+    hányszor közelebb van egymáshoz, mint két véletlen képkockáé. Ha alig, a
+    látens apró változásra is nagyot ugrik, ami az ágens számára zajos
+    bemenet.
+  \item \textbf{Lineáris próba}~\cite{zhang2024probing}: egyetlen lineáris
+    réteg mennyire tudja kiolvasni a látensből a BEV foglaltsági térképet,
+    illetve 16 irányban a legközelebbi akadály távolságát. Ez utóbbit egyik
+    modell sem látta tanítás közben, és ez áll a legközelebb ahhoz, amit egy
+    vezető ágensnek tudnia kell. A méretkülönbségek kiegyenlítésére minden
+    látenst azonos, 8$\times$8-as térbeli rácsra, majd PCA-val 256
+    dimenzióra hoztam.
+\end{itemize}
+
+\begin{table}[htbp]
+  \centering
+  \caption{A három LiDAR-autoenkóder látens reprezentációjának összehasonlítása}
+  \label{tab:lidar_compare}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    Modell & RankMe & k-NN & Simaság & BEV IoU & Szabad táv. $R^2$ \\
+    \midrule
+    BEV-alapú AE   & \textbf{0,725} & \textbf{1,51$\times$} & 1,44$\times$ & \textbf{0,793} & 0,554 \\
+    Gráf-alapú AE  & 0,504 & \textbf{1,51$\times$} & \textbf{1,86$\times$} & 0,684 & \textbf{0,639} \\
+    Point-MAE      & 0,576 & 1,39$\times$ & 1,03$\times$ & 0,678 & 0,466 \\
+    \midrule
+    Konstans becslés & -- & -- & -- & 0,537 & 0,000 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+A BEV-alapú modell a foglaltsági térképet olvastatja ki a legjobban, de ez
+nem meglepő, hiszen a dekódolója pontosan ezt rekonstruálja, így ez a mérés
+neki kedvez. A vezetés szempontjából fontosabb szabad távolságot viszont a
+gráf-alapú modell látenséből lehet a legpontosabban kiolvasni ($R^2 = 0{,}639$,
+szemben a 0,554-dal és a 0,466-tal). Ennek a látense a legsimább is
+(\ref{fig:lidar_smooth}.~ábra): két egymást követő képkocka között nála a
+legkisebb a változás. A Point-MAE látense ezzel szemben két szomszédos
+képkocka között szinte annyit változik, mint két teljesen véletlen képkocka
+között, mert a foltok kiválasztása és sorrendje minden képkockán más. Az
+effektív rangban a BEV-alapú modell a legjobb, de mindhárom modell 0,5
+felett van, tehát egyik látense sem omlott össze néhány dimenzióra.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{pictures/sensors/lidar/lidar_smoothness.pdf}
+  \caption{A látens változása 400 egymást követő képkockán; a szaggatott
+    vonal két véletlen képkocka látensének átlagos távolsága}
+  \label{fig:lidar_smooth}
+\end{figure}
+
+Ezek alapján a gráf-alapú autoenkódert választottam: a vezetéshez szükséges
+információ ebből olvasható ki a legjobban, és a látense követi a jármű
+folyamatos mozgását, így az ágens egymást követő lépésekben következetes
+bemenetet kap. A jellemzőtérképét az ágens saját konvolúciós rétegei
+dolgozzák fel tovább.
 
 \subsection{Szenzorfuzio}
 

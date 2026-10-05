@@ -116,15 +116,44 @@
 \newlabel{fig:camera_err}{{7}{15}{A rekonstrukciók abszolút hibája képpontonként, közös skálán (sötétebb = nagyobb hiba)}{figure.7}{}}
 \@writefile{lof}{\select@language{magyar} \contentsline {figure}{\numberline {8}{\ignorespaces A képenkénti PSNR eloszlása a teszthalmazon; a szaggatott vonalak a modellek mediánját jelölik}}{15}{figure.8}\protected@file@percent }
 \newlabel{fig:camera_psnr}{{8}{15}{A képenkénti PSNR eloszlása a teszthalmazon; a szaggatott vonalak a modellek mediánját jelölik}{figure.8}{}}
-\@writefile{toc}{\select@language{magyar} \contentsline {subsection}{\numberline {4.2}LiDAR}{16}{subsection.4.2}\protected@file@percent }
-\@writefile{toc}{\select@language{magyar} \contentsline {subsection}{\numberline {4.3}Szenzorfuzio}{16}{subsection.4.3}\protected@file@percent }
-\@writefile{toc}{\select@language{magyar} \contentsline {section}{\numberline {5}Jutalom függvény}{16}{section.5}\protected@file@percent }
-\newlabel{sec:reward}{{5}{16}{Jutalom függvény}{section.5}{}}
-\@writefile{toc}{\select@language{magyar} \contentsline {section}{\numberline {6}Elkészült modellek összehasonlítása}{16}{section.6}\protected@file@percent }
-\newlabel{sec:modells}{{6}{16}{Elkészült modellek összehasonlítása}{section.6}{}}
-\@writefile{toc}{\select@language{magyar} \contentsline {section}{\numberline {7}Összegzés}{16}{section.7}\protected@file@percent }
-\@writefile{toc}{\select@language{magyar} \contentsline {section}{Hivatkozások}{17}{section.7}\protected@file@percent }
-\abx@aux@read@bbl@mdfivesum{229782A2E87025CE698F4A879EB023A6}
+\@writefile{toc}{\select@language{magyar} \contentsline {subsection}{\numberline {4.2}LiDAR}{15}{subsection.4.2}\protected@file@percent }
+\newlabel{sec:lidar}{{4.2}{15}{LiDAR}{subsection.4.2}{}}
+\@writefile{lof}{\select@language{magyar} \contentsline {figure}{\numberline {9}{\ignorespaces Ugyanaz a LiDAR-képkocka a három modell bemeneti formájában; a háromszög a saját járművet jelöli, a távolságképen a fehér cellákból nem érkezett visszaverődés}}{16}{figure.9}\protected@file@percent }
+\newlabel{fig:lidar_inputs}{{9}{16}{Ugyanaz a LiDAR-képkocka a három modell bemeneti formájában; a háromszög a saját járművet jelöli, a távolságképen a fehér cellákból nem érkezett visszaverődés}{figure.9}{}}
+\@writefile{toc}{\select@language{magyar} \contentsline {subsubsection}{\numberline {4.2.1}BEV-alapú autoenkóder}{17}{subsubsection.4.2.1}\protected@file@percent }
+\@writefile{lof}{\select@language{magyar} \contentsline {figure}{\numberline {10}{\ignorespaces A BEV-alapú autoenkóder rekonstrukciói (foglalt cella: fekete)}}{17}{figure.10}\protected@file@percent }
+\newlabel{fig:lidar_rec_bev}{{10}{17}{A BEV-alapú autoenkóder rekonstrukciói (foglalt cella: fekete)}{figure.10}{}}
+\abx@aux@cite{0}{liu2025topolidm}
+\abx@aux@segm{0}{0}{liu2025topolidm}
+\@writefile{toc}{\select@language{magyar} \contentsline {subsubsection}{\numberline {4.2.2}Gráf-alapú autoenkóder}{18}{subsubsection.4.2.2}\protected@file@percent }
+\abx@aux@cite{0}{pang2022pointmae}
+\abx@aux@segm{0}{0}{pang2022pointmae}
+\abx@aux@cite{0}{he2022mae}
+\abx@aux@segm{0}{0}{he2022mae}
+\@writefile{lof}{\select@language{magyar} \contentsline {figure}{\numberline {11}{\ignorespaces A gráf-alapú autoenkóder rekonstrukciói két képkockán (sötétebb = közelebb, fehér = nincs visszaverődés)}}{19}{figure.11}\protected@file@percent }
+\newlabel{fig:lidar_rec_graph}{{11}{19}{A gráf-alapú autoenkóder rekonstrukciói két képkockán (sötétebb = közelebb, fehér = nincs visszaverődés)}{figure.11}{}}
+\@writefile{toc}{\select@language{magyar} \contentsline {subsubsection}{\numberline {4.2.3}Point-MAE}{19}{subsubsection.4.2.3}\protected@file@percent }
+\@writefile{lof}{\select@language{magyar} \contentsline {figure}{\numberline {12}{\ignorespaces A Point-MAE rekonstrukciói felülnézetből (a háromszög a saját jármű)}}{19}{figure.12}\protected@file@percent }
+\newlabel{fig:lidar_rec_mae}{{12}{19}{A Point-MAE rekonstrukciói felülnézetből (a háromszög a saját jármű)}{figure.12}{}}
+\abx@aux@cite{0}{garrido2023rankme}
+\abx@aux@segm{0}{0}{garrido2023rankme}
+\abx@aux@cite{0}{oquab2024dinov2}
+\abx@aux@segm{0}{0}{oquab2024dinov2}
+\abx@aux@cite{0}{zhang2024probing}
+\abx@aux@segm{0}{0}{zhang2024probing}
+\@writefile{toc}{\select@language{magyar} \contentsline {subsubsection}{\numberline {4.2.4}Összehasonlítás és a választott modell}{20}{subsubsection.4.2.4}\protected@file@percent }
+\@writefile{lot}{\select@language{magyar} \contentsline {table}{\numberline {2}{\ignorespaces A három LiDAR-autoenkóder látens reprezentációjának összehasonlítása}}{20}{table.2}\protected@file@percent }
+\newlabel{tab:lidar_compare}{{2}{20}{A három LiDAR-autoenkóder látens reprezentációjának összehasonlítása}{table.2}{}}
+\@writefile{lof}{\select@language{magyar} \contentsline {figure}{\numberline {13}{\ignorespaces A látens változása 400 egymást követő képkockán; a szaggatott vonal két véletlen képkocka látensének átlagos távolsága}}{21}{figure.13}\protected@file@percent }
+\newlabel{fig:lidar_smooth}{{13}{21}{A látens változása 400 egymást követő képkockán; a szaggatott vonal két véletlen képkocka látensének átlagos távolsága}{figure.13}{}}
+\@writefile{toc}{\select@language{magyar} \contentsline {subsection}{\numberline {4.3}Szenzorfuzio}{21}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\select@language{magyar} \contentsline {section}{\numberline {5}Jutalom függvény}{21}{section.5}\protected@file@percent }
+\newlabel{sec:reward}{{5}{21}{Jutalom függvény}{section.5}{}}
+\@writefile{toc}{\select@language{magyar} \contentsline {section}{\numberline {6}Elkészült modellek összehasonlítása}{21}{section.6}\protected@file@percent }
+\newlabel{sec:modells}{{6}{21}{Elkészült modellek összehasonlítása}{section.6}{}}
+\@writefile{toc}{\select@language{magyar} \contentsline {section}{\numberline {7}Összegzés}{21}{section.7}\protected@file@percent }
+\@writefile{toc}{\select@language{magyar} \contentsline {section}{Hivatkozások}{22}{section.7}\protected@file@percent }
+\abx@aux@read@bbl@mdfivesum{23B80834ECE93C8DE67CEC817AA8C124}
 \abx@aux@defaultrefcontext{0}{who2023roadsafety}{none/global//global/global}
 \abx@aux@defaultrefcontext{0}{macenski2022ros2}{none/global//global/global}
 \abx@aux@defaultrefcontext{0}{kato2018autoware}{none/global//global/global}
@@ -145,4 +174,10 @@
 \abx@aux@defaultrefcontext{0}{towers2024gymnasium}{none/global//global/global}
 \abx@aux@defaultrefcontext{0}{he2016resnet}{none/global//global/global}
 \abx@aux@defaultrefcontext{0}{simonyan2015vgg}{none/global//global/global}
-\gdef \@abspage@last{18}
+\abx@aux@defaultrefcontext{0}{liu2025topolidm}{none/global//global/global}
+\abx@aux@defaultrefcontext{0}{pang2022pointmae}{none/global//global/global}
+\abx@aux@defaultrefcontext{0}{he2022mae}{none/global//global/global}
+\abx@aux@defaultrefcontext{0}{garrido2023rankme}{none/global//global/global}
+\abx@aux@defaultrefcontext{0}{oquab2024dinov2}{none/global//global/global}
+\abx@aux@defaultrefcontext{0}{zhang2024probing}{none/global//global/global}
+\gdef \@abspage@last{23}
