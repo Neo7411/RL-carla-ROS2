@@ -1261,49 +1261,6 @@
       \field{title}{{DINOv2}: Learning Robust Visual Features without Supervision}
       \field{year}{2024}
     \endentry
-    \entry{zhang2024probing}{article}{}
-      \name{author}{5}{}{%
-        {{hash=f05380e728f7eeb809cba8f866f1812b}{%
-           family={Zhang},
-           familyi={Z\bibinitperiod},
-           given={Wancong},
-           giveni={W\bibinitperiod}}}%
-        {{hash=f020c57b0689811a4f5b65f1efd168c9}{%
-           family={GX-Chen},
-           familyi={G\bibinithyphendelim C\bibinitperiod},
-           given={Anthony},
-           giveni={A\bibinitperiod}}}%
-        {{hash=16f99840f08e134ca61bbe0c6bd18c4f}{%
-           family={Sobal},
-           familyi={S\bibinitperiod},
-           given={Vlad},
-           giveni={V\bibinitperiod}}}%
-        {{hash=6a1aa6b7eab12b931ca7c7e3f927231d}{%
-           family={LeCun},
-           familyi={L\bibinitperiod},
-           given={Yann},
-           giveni={Y\bibinitperiod}}}%
-        {{hash=0cb223da593b5653feac6f6eabcbe82d}{%
-           family={Carion},
-           familyi={C\bibinitperiod},
-           given={Nicolas},
-           giveni={N\bibinitperiod}}}%
-      }
-      \strng{namehash}{87dbc0ceae2d19d464b72498ba2d29c8}
-      \strng{fullhash}{9f1856585879029fe2da4e9a1ac7d630}
-      \strng{bibnamehash}{87dbc0ceae2d19d464b72498ba2d29c8}
-      \strng{authorbibnamehash}{87dbc0ceae2d19d464b72498ba2d29c8}
-      \strng{authornamehash}{87dbc0ceae2d19d464b72498ba2d29c8}
-      \strng{authorfullhash}{9f1856585879029fe2da4e9a1ac7d630}
-      \field{sortinit}{3}
-      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{Reinforcement Learning Journal}
-      \field{title}{Light-weight Probing of Unsupervised Representations for Reinforcement Learning}
-      \field{volume}{1}
-      \field{year}{2024}
-    \endentry
   \enddatalist
   \missing{terapaptommakol2022obstacle}
 \endrefsection

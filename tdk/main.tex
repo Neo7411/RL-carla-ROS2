@@ -34,6 +34,8 @@
 % Ábrák, táblázatok, hivatkozások
 % ---------------------------------------------------------------------
 \usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
 \usepackage{booktabs}
 \usepackage{csquotes}
 \usepackage[backend=biber,style=numeric-comp,sorting=none]{biblatex}
@@ -767,23 +769,28 @@ maszkolt autoenkóder ötletét viszi át pontfelhőkre, és
 közvetlenül a pontfelhőn dolgozik, képkockánként 24\,576 véletlenszerűen
 kiválasztott ponttal. 
 
-A pontfelhőt 512 darab, egyenként 32 pontos foltra bontja. A foltok középpontjait 
+A pontfelhőt 512 darab, egyenként 32 pontos foltra bontja. Ezek után a foltok középpontjait 
 legtávolabbi-pont mintavételezéssel választja ki. Erre azért van okvetlenül szükség,
 hogy egyenletesen lefedjék a jelenetet. Minden ponthoz a 32 legközelebbi
 szomszédot rendeli. Minden foltot egy kis háló egy 192 elemű vektorrá (tokenné)
-alakít, a foltok helyét pedig külön pozíciókódolás segítségével adja meg. A tokeneket egy
-Transformer kódoló dolgozza fel. Tanítás közben a foltok 60\%-át elrejti,
+alakít, a foltok helyét pedig külön pozíciókódolás segítségével adja meg. 
+
+Ezen tokeneket egy Transformer kódoló dolgozza fel. Az eljárás során a foltok 60\%-át elrejti,
 és a modellnek a látható foltokból kell visszaállítania a rejtetteket. Ezen modell esetén a hibát 
 Chamfer távolsággal mértem, mely mindkét pontfelhő minden pontjához
 megkeresi a másik felhő legközelebbi pontját.  
-Majd ezek távolságát átlagolja, ez által nem függ a pontok sorrendjétől. 
+Ezeknek a pontoknak a  távolságát átlagolja, ez által nem függ a pontok sorrendjétől. 
 A kódoló kimenete, vagyis a látens reprezentáció 512 token, egyenként 192 dimenzióval, ami összesen
-98\,304 érték. Ez több, mint maga a bemenet (24\,576 pont $\times$ 3 koordináta =
-73\,728 érték), vagyis ez a modell nem tömörít: a maszkolt autoenkóder nem szűk
-keresztmetszettel, hanem a kitakart foltok visszajóslásával tanul. A legtávolabbi-pont
-mintavételezés ráadásul véletlen pontból indul, ezért ugyanaz a képkocka kétszer kódolva
-is más sorrendű, részben más foltokból álló tokensort ad. A rekonstrukción
-(\ref{fig:lidar_rec_mae}.~ábra) a jelenet nagy vonalai felismerhetők, de a
+98\,304 érték. 
+
+Ez jelentősen több, magánál a bemenetnél is (24\,576 pont $\times$ 3 koordináta =
+73\,728 érték), vagyis ez a modell nem tömörít. A maszkolt autoenkóder nem szűk
+keresztmetszettel, hanem a kitakart foltok visszajóslásával tanult így mint kiderült számomra használhatatlan lett.
+A legtávolabbi-pont mintavételezés ráadásul véletlen pontból indul, 
+ezért ugyanaz a képkocka kétszer kódolva is más sorrendű, részben más 
+foltokból álló tokensort ad. 
+
+A rekonstrukción(\ref{fig:lidar_rec_mae}.~ábra) a jelenet nagy vonalai felismerhetők, de a
 pontok csomókba tömörülnek, és a járművek körvonala elvész.
 
 \begin{figure}[htbp]
@@ -797,15 +804,26 @@ pontok csomókba tömörülnek, és a járművek körvonala elvész.
 
 \subsubsection{Összehasonlítás és a választott modell}
 
-A három modell más-más bemenetet állít vissza, ezért a rekonstrukciós
-hibájuk nem vethető össze. Az ágens ráadásul nem a rekonstrukciót, hanem a
-kódoló kimenetét, a látens reprezentációt kapja, ezért közvetlenül azt
-vizsgáltam, mennyire használható ez a vezetéshez. Négy mérést végeztem 2000,
-az adathalmazból véletlenszerűen kiválasztott képkockán:
+A megfelelő LiDAR autoenkóder keresése elején 3 modellt készítettem, 
+de a Point-MAE-t kihagytam az összehasonlításból, mert mint kiderült nem lett megfelelő 
+ahoz amire én használnám. A látense (98\,304 érték) nagyobb, mint maga a
+bemenet, vagyis nem tömörít. 
+
+Így a következőkben a másik két modellre fokuszálnék. Mindkét megoldás 
+más-más bemenetet állít vissza, ezért a rekonstrukciós
+hibájuk nem vethető össze.  
+
+Ezen okból másképp fogtam meg azon kérdést, hogy vajon hogyan is válasszam ki a legjobb rekonstrukciót.
+Az alapegondolás onnan indult, hogy az ágens ugye nem a rekonstrukciót kapja meg, 
+hanem a kódoló kimenetét, a látens minőségének elemzésére fektettem a hangsúlyt. 
+Legfőbb célom volt kideríteni, hogy melyik eljárás képes a legjobban megőrizni a környezet geometriáját. 
+Összesen 3db mérést végeztem az adathalmazból véletlenszerűen kiválasztott 2000db képkockákon. 
+
+Az eljárások a következők:
 \begin{itemize}
   \item \textbf{Effektív rang} (RankMe~\cite{garrido2023rankme}): a látens
-    dimenziók mekkora része hordoz egymástól független információt; azonos
-    méretű véletlen zaj rangjához viszonyítva (1 = teljes kihasználtság).
+    dimenziók mekkora része hordoz, gyakorlatilag azt mérem 
+    mennyire zajos a látens vektor (1 = teljes kihasználtság).
   \item \textbf{k-NN konzisztencia}~\cite{oquab2024dinov2}: a látens térben
     legközelebbi képkockák valóban hasonló jelenetet mutatnak-e; a
     szomszédok pontfelhői hányszor közelebb vannak egymáshoz, mint két
@@ -814,76 +832,134 @@ az adathalmazból véletlenszerűen kiválasztott képkockán:
     hányszor közelebb van egymáshoz, mint két véletlen képkockáé. Ha alig, a
     látens apró változásra is nagyot ugrik, ami az ágens számára zajos
     bemenet.
-  \item \textbf{Lineáris próba}~\cite{zhang2024probing}: egyetlen lineáris
-    réteg mennyire tudja kiolvasni a látensből a BEV foglaltsági térképet,
-    illetve 16 irányban a legközelebbi akadály távolságát. Ez utóbbit egyik
-    modell sem látta tanítás közben, és ez áll a legközelebb ahhoz, amit egy
-    vezető ágensnek tudnia kell. A méretkülönbségek kiegyenlítésére minden
-    látenst azonos, 8$\times$8-as térbeli rácsra, majd PCA-val 256
-    dimenzióra hoztam.
 \end{itemize}
 
 \begin{table}[htbp]
   \centering
-  \caption{A három LiDAR-autoenkóder látens reprezentációjának összehasonlítása}
+  \caption{A két LiDAR-autoenkóder látens reprezentációjának összehasonlítása}
   \label{tab:lidar_compare}
-  \begin{tabular}{lrrrrr}
+  \begin{tabular}{lrrr}
     \toprule
-    Modell & RankMe & k-NN & Simaság & BEV IoU & Szabad táv. $R^2$ \\
+    Modell & RankMe & k-NN & Simaság \\
     \midrule
-    BEV-alapú AE   & \textbf{0,725} & \textbf{1,51$\times$} & 1,44$\times$ & \textbf{0,793} & 0,554 \\
-    Gráf-alapú AE  & 0,504 & \textbf{1,51$\times$} & \textbf{1,86$\times$} & 0,684 & \textbf{0,639} \\
-    Point-MAE      & 0,576 & 1,39$\times^{*}$ & 1,03$\times^{*}$ & 0,678$^{*}$ & 0,466$^{*}$ \\
-    \midrule
-    Konstans becslés & -- & -- & -- & 0,537 & 0,000 \\
+    BEV-alapú AE   & \textbf{0,725} & \textbf{1,51$\times$} & 1,44$\times$ \\
+    Gráf-alapú AE  & 0,504 & \textbf{1,51$\times$} & \textbf{1,86$\times$} \\
     \bottomrule
   \end{tabular}
-
-  \smallskip
-  {\footnotesize $^{*}$ A Point-MAE tokenjeinek sorrendje kódolásonként véletlen, ezért ezek
-  az értékek nem a jelenetet, hanem a nyers tokensort tükrözik (lásd a szöveget).\par}
 \end{table}
 
-A BEV-alapú modell a foglaltsági térképet olvastatja ki a legjobban, de ez
-nem meglepő, hiszen a dekódolója pontosan ezt rekonstruálja, így ez a mérés
-neki kedvez. A vezetés szempontjából fontosabb szabad távolságot viszont a
-gráf-alapú modell látenséből lehet a legpontosabban kiolvasni ($R^2 = 0{,}639$,
-szemben a BEV-alapú modell 0,554-ével). Ennek a látense a legsimább is
+A gráf-alapú modell látense a legsimább
 (\ref{fig:lidar_smooth}.~ábra): két egymást követő képkocka között nála a
-legkisebb a változás. A Point-MAE nyers tokensora ezzel szemben két szomszédos
-képkocka között szinte annyit változik, mint két teljesen véletlen képkocka
-között. Ennek oka nem a jelenet, hanem az, hogy a foltok kiválasztása és
-sorrendje minden kódoláskor más, így nála a k-NN és a simaság valójában a
-véletlen tokensorrendet méri. Ugyanez rontja a lineáris próbát is: a tokenek
-rácsra szórásához használt folt-középpontok egy külön kódolásból származtak,
-ami a véletlen sorrend miatt nem egyezik a tokenekével, ezért a Point-MAE
-próbaértékei alulbecsültek lehetnek. Az
-effektív rangban a BEV-alapú modell a legjobb, de mindhárom modell 0,5
+legkisebb a változás. Az
+effektív rangban a BEV-alapú modell a legjobb, de mindkét modell 0,5
 felett van, tehát egyik látense sem omlott össze néhány dimenzióra.
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.9\textwidth]{pictures/sensors/lidar/lidar_smoothness.pdf}
-  \caption{A látens változása 400 egymást követő képkockán; a szaggatott
-    vonal két véletlen képkocka látensének átlagos távolsága}
+  \includegraphics[width=0.9\textwidth,trim={30pt 151pt 0 0},clip]{pictures/sensors/lidar/lidar_smoothness.pdf}
+  \caption{A látens változása két szomszédos képkocka között, 400 egymást
+    követő képkockán (5~Hz); a szaggatott vonal két véletlen képkocka
+    látensének átlagos távolsága}
   \label{fig:lidar_smooth}
 \end{figure}
 
-A Point-MAE nem lett jó választás. A látense (98\,304 érték) nagyobb, mint maga a
-bemenet, vagyis nem tömörít. A legtávolabbi-pont mintavételezés véletlen kezdőpontja
-miatt ugyanarra a jelenetre minden kódoláskor más sorrendű tokensort ad, így az ágens
-ugyanabban a helyzetben is más bemenetet kapna. A rekonstrukciója is gyenge, a járművek
-körvonala elvész. Egyedi tárgyak kis pontfelhőire tervezték, nem 100~m-es közlekedési
-jelenetekre.
-
-Ezek alapján a gráf-alapú autoenkódert választottam: a vezetéshez szükséges
-információ ebből olvasható ki pontosabban, mint a BEV-alapú modellből, és a
-látense követi a jármű folyamatos mozgását, így az ágens egymást követő
-lépésekben következetes bemenetet kap. A jellemzőtérképét az ágens saját konvolúciós rétegei
-dolgozzák fel tovább.
-
+A fenti mérésekből következtetve, a gráf-alapú autoenkódert választottam. Ennek a 
+látense követi a legpontosabban a jármű folyamatos mozgását. Ez a tulajdonság kiemelkedően fotnos  
+az ágens számára mivel az egymást követő lépésekben következetes bemenetet kap. 
 \subsection{Szenzorfuzio}
 
+A két autoenkóder látense jóval nagyobb, számokban is és nagyságrendileg is, mint az ágens többi bemenete. 
+A LiDAR látens 16$\times$11$\times$32, azaz 5\,632 érték, a kamera látense 128 érték, míg
+a jármű állapotát leíró megfigyelések összesen 38 számszerű értéket tartalmaznak. 
+
+Ha ezeket a Stable-Baselines3 beépített eljárására bíztam, hogy oldja meg a tanulást
+a látensek nagyságrendileg annyira elnyomták a többi jellet hogy nem mentem semmire a tanítás során,
+gyakorlatilag az ágens nem látta mire figyeljen. 
+
+Ezen problémától motiválva saját jellemzőkinyerőt (\emph{feature extractor}) készítettem, 
+amely három külön bemeneti ágon
+dolgozza fel a szenzorokból érkező adatokat, majd ezekt a végén ugy rendezi ahogy nekem tetszik.
+(\ref{fig:fusion}.~ábra).
+\newpage
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      box/.style={draw, rounded corners=2pt, align=center, font=\small,
+                  text width=3.8cm, inner sep=4pt},
+      inp/.style={box, fill=gray!12},
+      arr/.style={-{Stealth[length=2mm]}, thick},
+      r1/.style={minimum height=2.0cm},
+      r2/.style={minimum height=2.0cm},
+      r3/.style={minimum height=1.1cm},
+    ]
+    % --- LiDAR ag ---
+    \node[inp, r1] (lin) at (-5, 0)    {LiDAR látens\\16$\times$11$\times$32};
+    \node[box, r2] (lc)  at (-5,-2.8)  {3$\times$ azimut-körkörös\\3$\times$3 konvolúció +\\GroupNorm + ReLU\\$\rightarrow$ 64$\times$3$\times$4};
+    \node[box, r3] (lf)  at (-5,-5.1)  {Lapítás + lineáris\\768 $\rightarrow$ 256};
+    % --- kamera ag ---
+    \node[inp, r1] (cin) at (0, 0)     {Kamera látens\\128};
+    \node[box, r2] (cn)  at (0,-2.8)   {LayerNorm};
+    \node[box, r3] (cf)  at (0,-5.1)   {Lineáris\\128 $\rightarrow$ 256};
+    % --- allapot ag ---
+    \node[inp, r1] (sin) at (5, 0)     {Állapot (38 érték)\\sebesség, előző akció,\\irányszög, manőver,\\15 waypoint};
+    \node[box, r2] (sn)  at (5,-2.8)   {Skálázás\\$[-1,1]$-re};
+    \node[box, r3] (sf)  at (5,-5.1)   {Lineáris + ReLU +\\LayerNorm, 38 $\rightarrow$ 64};
+    % --- fuzio ---
+    \node[draw, circle, thick, inner sep=1pt, font=\large] (add) at (-2.5,-6.8) {$+$};
+    \node[box, r3] (fn)  at (-2.5,-8.2) {LayerNorm (256)};
+    \node[box, r3] (cat) at (0,-10.0)   {Konkatenálás\\256 + 64 = 320};
+    \node[box, r3] (mlp) at (0,-11.8)   {SAC aktor és kritikus\\MLP (500, 300)};
+
+    \draw[arr] (lin) -- (lc);  \draw[arr] (lc) -- (lf);
+    \draw[arr] (cin) -- (cn);  \draw[arr] (cn) -- (cf);
+    \draw[arr] (sin) -- (sn);  \draw[arr] (sn) -- (sf);
+    \draw[arr] (lf) |- (add);  \draw[arr] (cf) |- (add);
+    \draw[arr] (add) -- (fn);
+    \draw[arr] (fn) |- (cat);  \draw[arr] (sf) |- (cat);
+    \draw[arr] (cat) -- (mlp);
+  \end{tikzpicture}
+  \caption{A saját jellemzőkinyerő felépítése; a szürke dobozok a bemenetek}
+  \label{fig:fusion}
+\end{figure}
+
+\paragraph{LiDAR ág.} A LiDAR szenzor dekódolójából származó látens nem egy sima vektor, 
+hanem egy több dimenziós jellemzőtérkép. Ezt az ágens saját konvolúciós rétegei dolgozzák
+fel, amelyek az ő tanulása folyamán finomhangolodnak azon jellemzőkre amire tényleg szűkségesek a modellnek
+gyakorlatilag együtt tanul a modellel. 
+Három 3$\times$3-as konvolúciós réteg csökkenti a térkép méretét 
+16$\times$11$\times$32-ről 64$\times$3$\times$4-re, mindegyik után GroupNorm normalizálással 
+és ReLU aktivációval. 
+A kapott 768 értéket egy lineáris réteg 256 dimenzióra vetíti.
+
+\paragraph{Kamera ág.} A kamera látense már vektor, ezért itt elég egyetlen
+lineáris réteg, de a fentiekben is említettem, hogy a LiDAR jellemzők 256 dimenziósra csökkentek
+így ha össze akarom adni a 128 hosszú látensel akkor 256 dimenziósra fel kell skáláznom. Ezt szintén 
+egy Lineáris réteggel oldtam meg.
+
+\paragraph{Fúzió.} A lényeges rész a fuzios eljárás maga esetemben a két szenzorágat 
+összeadással vezettem össze. Azért ezt a megoldást preferáltam 
+az összefűzéssel ellentétben, mert a jellemzőkinyerő végén a kimenet
+alapértelmezetten konkatenálással áll össze, fölösleges még egy összefüzést itt is alkalmazni. 
+Mivel a két ág azonos, 256 hosszú vektort ad, az összeadáshoz nincs szükség további
+vetítő rétegre, és a valamint az egyesített szenzor jellemző vektor mérete sem nő. Az összeg után egy
+LayerNorm rögzíti a vektor teljes skáláját, mert a gráf-alapú kódoló kimenete
+sem korlátos. Viszont a két szenzor ág egymáshoz viszonyított súlyát nem állítom manuálisan,
+ezt az ágensre bízom honnan tud több információra szert tenni.
+
+\paragraph{Állapot ág.} A maradék további megfigyelés került utoljára A jármű sebessége,
+az előző lépés kormány- és gázértéke, a következő waypoint irányszöge, a
+manőver one-hot kódolva, valamint a következő 15 waypoint relatív koordinátái.
+
+Ezeket a jellemzőket a megfigyelési tér határai alapján a $[-1,1]$ tartományba skáláztam
+hogy a nagy értékű jelek ne nyomják el a kicsiket, majd egy lineáris réteg,
+ReLU és LayerNorm 64 dimenzióra képezi le őket.
+
+A jellemzőkinyerő kimenete a 256 hosszú szenzorvektor és a 64 hosszú
+állapotvektor összefűzése, összesen 320 érték. Ez kerül a SAC aktor- és
+kritikushálózatának bemenetére, amelyek két, 500 és 300 neuronos rejtett
+rétegből állnak. Így a szenzorinformáció a bemenet nagyobb részét adja, de
+az állapotjelek is külön, saját ágon jutnak el a döntéshozó hálózatig.
 
 \section{Jutalom függvény}
 \label{sec:reward}
