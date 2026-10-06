@@ -86,9 +86,14 @@ def main():
                     **algo_cfg["params"])
         print(f"[INFO] Initing new RL agent")
 
-    model_suffix = f"_{getattr(rewards, env_cfg["reward_fn"]),}"
-    model_name = f'{model.__class__.__name__}_{model_suffix}'
+    # Mappanev a reward fuggvenybol: reward_fn_5 -> SAC_reward_5. Ha mar van
+    # ilyen (pl. folytatott tanitas), _part2, _part3, ... - a regit nem irja felul.
+    model_name = f'{model.__class__.__name__}_{env_cfg["reward_fn"].replace("reward_fn_", "reward_")}'
     model_dir = os.path.join(log_dir, model_name)
+    part = 2
+    while os.path.exists(model_dir):
+        model_dir = os.path.join(log_dir, f"{model_name}_part{part}")
+        part += 1
     new_logger = configure(model_dir, ["stdout", "csv", "tensorboard"])
     model.set_logger(new_logger)
     write_json(CONFIG, os.path.join(model_dir, 'config.json'))
