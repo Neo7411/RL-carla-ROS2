@@ -86,7 +86,7 @@ def main():
                     **algo_cfg["params"])
         print(f"[INFO] Initing new RL agent")
 
-    model_suffix = f"{int(time.time())}_{algo_cfg['name']}"
+    model_suffix = f"_{getattr(rewards, env_cfg["reward_fn"]),}"
     model_name = f'{model.__class__.__name__}_{model_suffix}'
     model_dir = os.path.join(log_dir, model_name)
     new_logger = configure(model_dir, ["stdout", "csv", "tensorboard"])
