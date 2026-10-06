@@ -79,14 +79,10 @@ def main():
     scenes = [(group, sc) for group in ("highway", "city_to_highway") for sc in cfg[group]]
 
     # Eredmenyfajlok: scene-enkent irjuk, igy Ctrl+C utan is megmarad, ami kesz.
-    os.makedirs(os.path.join(EVAL_DIR, "results"), exist_ok=True)
+    results_dir = os.path.join(EVAL_DIR, "results")
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    scenes_csv = os.path.join(EVAL_DIR, "results", f"{stamp}_scenes.csv")
-    hits_csv = os.path.join(EVAL_DIR, "results", f"{stamp}_hits.csv")
-    with open(scenes_csv, "w", newline="") as f:
-        csv.writer(f).writerow(SCENE_COLS)
-    with open(hits_csv, "w", newline="") as f:
-        csv.writer(f).writerow(HIT_COLS)
+    scenes_csv = os.path.join(results_dir, f"{stamp}_scenes.csv")
+    hits_csv = os.path.join(results_dir, f"{stamp}_hits.csv")
 
     env_cfg = CONFIG["env"]
     sim_proc = None
@@ -246,9 +242,17 @@ def main():
                     lane_center_pct=round(100.0 * lane_ok / steps, 1),
                     steer_jerk=round(steer_jerk / steps, 4),
                 )
+                # A mappat / fejlecet iraskor hozzuk letre: ha futas kozben eltunik, ujra lesz.
+                os.makedirs(results_dir, exist_ok=True)
+                new_file = not os.path.exists(scenes_csv)
                 with open(scenes_csv, "a", newline="") as f:
+                    if new_file:
+                        csv.writer(f).writerow(SCENE_COLS)
                     csv.DictWriter(f, SCENE_COLS).writerow(row)
+                new_file = not os.path.exists(hits_csv)
                 with open(hits_csv, "a", newline="") as f:
+                    if new_file:
+                        csv.writer(f).writerow(HIT_COLS)
                     for type_id, hit_loc, route_m in first_hit.values():
                         csv.writer(f).writerow([model_path, sc["name"], type_id,
                                                 round(hit_loc.x, 1), round(hit_loc.y, 1), route_m])
