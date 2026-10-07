@@ -6,7 +6,7 @@
     "stop_on_collision": false
   },
   "traffic": {
-    "max_vehicles": 150,
+    "max_vehicles": 100,
     "start_m": 20.0,
     "gap_m": [12.0, 30.0],
     "speed_kmh": [20.0, 30.0]
