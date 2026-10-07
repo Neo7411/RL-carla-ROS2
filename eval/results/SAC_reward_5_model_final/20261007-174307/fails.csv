@@ -1,0 +1,13 @@
+model,scene,reason,route_m,completion_pct,t_s,x,y,speed_kmh,offset_m,lane_idx,collision_with,front_id,front_dist,left_free,steer,throttle,penalty
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_4,Off-track,3201,71.0,278.4,-134.1,-133.9,28.4,2.0,1,,1218,4.5,0,-0.062,0.606,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_4,Off-track,3228,71.6,283.1,-156.8,-120.4,30.7,2.05,1,,1218,3.5,0,-0.025,0.824,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_4,Off-track,3261,72.3,289.5,-186.3,-105.3,18.0,2.04,1,,1218,4.2,0,0.101,0.222,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_4,Off-track,3287,72.9,293.9,-210.4,-96.0,30.8,2.05,1,,1218,3.8,0,0.155,0.734,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_4,Off-track,3321,73.7,300.1,-243.6,-87.0,32.7,2.04,1,,1218,3.7,0,0.043,0.897,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_4,Off-track,3342,74.1,303.9,-264.6,-83.6,28.2,2.0,1,,1218,3.7,0,0.08,0.597,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_4,Off-track,3365,74.7,308.2,-287.5,-81.6,27.2,2.03,1,,1218,4.8,0,0.237,0.683,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_4,Off-track,3382,75.0,311.1,-304.5,-81.0,32.2,2.12,1,,1218,3.9,0,0.124,0.741,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_4,Off-track,3401,75.4,314.6,-323.2,-77.6,27.5,2.07,1,,1218,3.5,0,-0.086,0.741,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_4,Off-track,3419,75.8,318.1,-339.6,-70.3,22.9,2.07,1,,1218,4.7,0,0.111,0.848,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_5,Off-track,3411,62.0,289.9,-357.4,-56.1,31.2,2.04,1,,1371,4.5,0,-0.102,0.036,-10.0
+../tensorboard/SAC_reward_5/model_final.zip,city_highway_5,Off-track,3457,62.8,298.6,-378.0,-15.7,16.2,2.01,1,,1371,3.9,0,-0.094,0.405,-10.0

@@ -1,0 +1,11 @@
+model,group,scene,length_m,traffic,cars,end,reached_b,completion_pct,time_s,avg_speed_kmh,overtakes,pass_gap_avg_m,pass_gap_min_m,hit_cars,lane_center_pct,steer_jerk,resets,off_track,stopped,resets_per_km,total_reward,mean_reward,reward_no_penalty
+../tensorboard/SAC_reward_4/model_final.zip,highway,highway_1,1002,1,40,Route done,1,100.0,120.3,31.5,5,0.63,0.24,0,69.2,0.029,0,0,0,0.0,1166.8,0.485,1166.8
+../tensorboard/SAC_reward_4/model_final.zip,highway,highway_2,2035,1,76,Route done,1,100.0,173.8,42.4,12,0.42,-1.94,2,67.3,0.027,0,0,0,0.0,2414.6,0.695,2414.6
+../tensorboard/SAC_reward_4/model_final.zip,highway,highway_3,3016,1,119,Route done,1,100.0,384.6,28.2,7,0.18,-2.38,2,79.9,0.0231,0,0,0,0.0,3671.2,0.477,3671.2
+../tensorboard/SAC_reward_4/model_final.zip,highway,highway_4,4514,1,144,Route done,1,100.0,598.6,26.9,18,0.17,-2.07,4,61.2,0.0263,0,0,0,0.0,4666.5,0.39,4666.5
+../tensorboard/SAC_reward_4/model_final.zip,highway,highway_5,6099,1,142,Route done,1,100.0,693.8,31.6,28,0.3,-2.19,7,56.2,0.0251,0,0,0,0.0,6914.3,0.498,6914.3
+../tensorboard/SAC_reward_4/model_final.zip,city_to_highway,city_highway_1,1499,1,55,Route done,1,100.0,147.2,36.2,5,-0.19,-1.17,2,78.4,0.0302,1,0,1,0.68,1663.6,0.565,1673.6
+../tensorboard/SAC_reward_4/model_final.zip,city_to_highway,city_highway_2,2500,1,97,Route done,1,100.0,191.9,44.6,5,0.34,0.18,0,82.7,0.0274,0,0,0,0.0,2912.3,0.759,2912.3
+../tensorboard/SAC_reward_4/model_final.zip,city_to_highway,city_highway_3,3591,1,134,Route done,1,100.0,280.4,44.7,17,0.42,-1.15,3,69.0,0.0294,0,0,0,0.0,3644.3,0.65,3644.3
+../tensorboard/SAC_reward_4/model_final.zip,city_to_highway,city_highway_4,4509,1,150,Route done,1,100.0,402.1,40.2,12,0.43,-1.96,2,76.6,0.027,2,2,0,0.45,5282.3,0.657,5302.3
+../tensorboard/SAC_reward_4/model_final.zip,city_to_highway,city_highway_5,5505,1,147,Too many resets,0,60.8,310.1,38.9,19,-0.05,-2.4,5,68.1,0.0322,10,9,1,2.98,3545.6,0.572,3647.8

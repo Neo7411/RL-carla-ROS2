@@ -1,11 +1,18 @@
 """Modellek kiertekelese a scenes.json 10 rogzitett scene-jen (Town04).
 
+A scene nem all meg az elso hibanal. Ha az auto lemegy az utrol, megall vagy
+utkozik, feljegyezzuk, MI es HOL volt a baj, visszatesszuk az utolso erintett
+route-waypointra, es megy tovabb - a CARLA Leaderboard logikaja szerint, ahol a
+route vegigmegy es az infrakciok szamlalodnak. Igy minden modell ugyanannyi
+lepest vezet, es a sebesseg / sav / elozes metrikak osszehasonlithatok (korabban
+egy 5%-on megallo scene 23 s-bol adott atlagot egy 268 s-os mellett). 10
+visszatevesnel a scene "Too many resets"-tel zarul.
+
 scenes.json:
   town        a terkep
   params      min_avg_kmh: ennel lassabb atlaggal Timeout
               lane_center_tol_m: ennyin belul "a sav kozepen" [m]
-              stop_on_collision: false = utkozes utan is megy tovabb (igy
-                szamolhato, hany autot utott el), true = az elso utkozes a vege
+              stop_on_collision: mar nem hasznalt (utkozes utan is megy tovabb)
   traffic     a forgalmas scene-ek forgalma (mint a config ENV-ben)
   highway, city_to_highway   5-5 scene:
               name, length_m (a route hossza), traffic (van-e forgalom),
@@ -13,24 +20,36 @@ scenes.json:
               [x, y, z]. A route a pontok kozti savvaltas nelkuli
               legrovidebb utakbol all ossze.
 
-Eredmeny, results/<datum>_scenes.csv, scene-enkent egy sor:
-  reached_b         eljutott-e A-bol B-be (0/1)
-  completion_pct    a route hany %-at tette meg
-  time_s, avg_speed_kmh   mennyi ido alatt, milyen atlagsebesseggel
-  overtakes         hany autot elozott meg: elotte volt a savjaban, mellette
-                    elment, es mogeje kerult
-  pass_gap_avg_m, pass_gap_min_m   a megelozott autok mellett a ket
-                    karosszeria kozti oldaltavolsag, atlag / legkisebb [m]
-  hit_cars          hany kulonbozo autot utott el
-  lane_center_pct   az ido hany %-aban volt lane_center_tol_m-en belul a
-                    (legkozelebbi) sav kozepetol
-  steer_jerk        atlagos |kormany valtozas| lepesenkent (rangatas)
-  end               mi zarta a scene-t (Route done / Timeout / Off-track / ...)
-results/<datum>_hits.csv: minden elutott auto / targy, es hol (x, y, route_m).
+Eredmeny: results/<modell>_<checkpoint>/<datum>/ - modellenkent sajat mappa.
+  scenes.csv  scene-enkent egy sor:
+    reached_b         eljutott-e A-bol B-be (0/1)
+    completion_pct    a route hany %-at tette meg
+    time_s, avg_speed_kmh   mennyi ido alatt, milyen atlagsebesseggel
+    overtakes         hany autot elozott meg: elotte volt a savjaban, mellette
+                      elment, es mogeje kerult
+    pass_gap_avg_m, pass_gap_min_m   a megelozott autok mellett a ket
+                      karosszeria kozti oldaltavolsag, atlag / legkisebb [m]
+    hit_cars          hany kulonbozo autot utott el
+    resets            hany visszatevesre volt szukseg
+    off_track, stopped   ebbol hany volt letero / megallo
+    resets_per_km     a fo osszehasonlito szam: beavatkozas / km
+    lane_center_pct   az ido hany %-aban volt lane_center_tol_m-en belul a
+                      (legkozelebbi) sav kozepetol
+    steer_jerk        atlagos |kormany valtozas| lepesenkent (rangatas)
+    total_reward      a scene alatt kapott reward osszege
+    mean_reward       lepesenkenti atlag - a scene-ek kulonbozo hosszuak, ez
+                      teszi a rewardot kozottuk osszevethetove
+    reward_no_penalty a visszatevesek buntetese (-10 / -30) nelkul
+    end               mi zarta a scene-t (Route done / Timeout / Too many resets)
+  fails.csv   minden visszateveshez egy sor: reason, hol (route_m, x, y),
+              mikor (t_s), es mi volt az allapot (speed_kmh, offset_m,
+              lane_idx, collision_with, front_id, front_dist, left_free,
+              steer, throttle) - ebbol latszik, miert szallt el.
+  hits.csv    minden elutott auto / targy, es hol (x, y, route_m).
 
 Futtatas a repo gyokerebol (a CARLA-t a config szerint inditja):
   python eval/eval_scenes.py                  # a configban beallitott reload_model
-  python eval/eval_scenes.py --model tensorboard/SAC_4/model_interrupted.zip tensorboard/SAC_3/model_interrupted.zip
+  python eval/eval_scenes.py --model tensorboard/SAC_reward_1/model_final.zip tensorboard/SAC_reward_5/model_final.zip
 """
 import argparse
 import csv
@@ -60,8 +79,14 @@ from utils import (
 
 SCENE_COLS = ["model", "group", "scene", "length_m", "traffic", "cars", "end", "reached_b",
               "completion_pct", "time_s", "avg_speed_kmh", "overtakes", "pass_gap_avg_m",
-              "pass_gap_min_m", "hit_cars", "lane_center_pct", "steer_jerk"]
+              "pass_gap_min_m", "hit_cars", "lane_center_pct", "steer_jerk",
+              "resets", "off_track", "stopped", "resets_per_km",
+              "total_reward", "mean_reward", "reward_no_penalty"]
 HIT_COLS = ["model", "scene", "hit", "x", "y", "route_m"]
+# Minden visszatevesrol egy sor: mi volt a baj, hol, mi volt az allapot.
+FAIL_COLS = ["model", "scene", "reason", "route_m", "completion_pct", "t_s", "x", "y",
+             "speed_kmh", "offset_m", "lane_idx", "collision_with",
+             "front_id", "front_dist", "left_free", "steer", "throttle", "penalty"]
 
 
 def main():
@@ -79,10 +104,11 @@ def main():
     scenes = [(group, sc) for group in ("highway", "city_to_highway") for sc in cfg[group]]
 
     # Eredmenyfajlok: scene-enkent irjuk, igy Ctrl+C utan is megmarad, ami kesz.
+    # Modellenkent sajat mappa a model nevebol (a .zip-et tartalmazo mappa, pl.
+    # SAC_reward_1), azon belul a futas idobelyege - igy egy ujrafuttatas nem
+    # irja felul a regit, es nem keverednek a modellek egy CSV-be.
     results_dir = os.path.join(EVAL_DIR, "results")
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    scenes_csv = os.path.join(results_dir, f"{stamp}_scenes.csv")
-    hits_csv = os.path.join(results_dir, f"{stamp}_hits.csv")
 
     env_cfg = CONFIG["env"]
     sim_proc = None
@@ -146,6 +172,20 @@ def main():
             print(f"[INFO] Model: {model_path}")
             print("=" * 60)
 
+            # A modell neve = a .zip-et tartalmazo mappa (pl. SAC_reward_1), a
+            # fajlnev a .zip neve nelkul hozzafuzve, ha tobb checkpointot
+            # futtatunk ugyanabbol a mappabol (model_final, model_500000_steps).
+            model_dir = os.path.join(
+                results_dir,
+                f"{os.path.basename(os.path.dirname(os.path.abspath(model_path)))}"
+                f"_{os.path.splitext(os.path.basename(model_path))[0]}",
+                stamp)
+            os.makedirs(model_dir, exist_ok=True)
+            scenes_csv = os.path.join(model_dir, "scenes.csv")
+            hits_csv = os.path.join(model_dir, "hits.csv")
+            fails_csv = os.path.join(model_dir, "fails.csv")
+            print(f"[INFO] Results dir: {model_dir}")
+
             for i, (group, sc) in enumerate(scenes):
                 # A route: a pontok kozti szakaszok egymas utan, a szakaszhataron
                 # a dupla pontot kihagyjuk.
@@ -174,14 +214,20 @@ def main():
                 prev_steer = env.vehicle.control.steer
                 terminated = truncated = False
                 steps = 0
-                while not (terminated or truncated) and steps < max_steps:
+                # Visszatevesek. A scene nem all meg az elso hibanal (CARLA
+                # Leaderboard-stilus: a route vegigmegy, a hibak szamlalodnak),
+                # igy a sebesseg / sav / elozes metrikak ugyanannyi lepesbol
+                # jonnek minden modellnel es osszehasonlithatok.
+                fails = []
+                n_off_track = n_stopped = 0
+                while not truncated and steps < max_steps and len(fails) < 10:
                     # Ugyanazok a dtype-ok, mint tanitaskor (a DummyVecEnv a space dtype-jara konvertal).
                     obs = {k: np.asarray(v, dtype=np.int64 if k == "maneuver" else np.float32)
                            for k, v in obs.items()}
                     action, _ = model.predict(obs, deterministic=True)
                     if env.activate_render:
                         env.extra_info.append(f"Scene {i + 1}/{len(scenes)}: {sc['name']}")
-                    obs, _, terminated, truncated, _ = env.step(action)
+                    obs, reward, terminated, truncated, _ = env.step(action)
                     steps += 1
 
                     # Sav kozepe: a legkozelebbi sav kozepvonalatol (elozes kozben a masik savetol).
@@ -211,15 +257,79 @@ def main():
                                                      abs(lat) - ego_ext.y - ext.y)
                     passed |= {a_id for a_id in leads if surr["lon"].get(a_id, 0.0) < -5.0}
 
-                    if params["stop_on_collision"] and hits:
-                        break
+                    # --- Visszatevés -------------------------------------
+                    # Ha az env terminalt (Off-track / Vehicle stopped /
+                    # Collision / Too fast), feljegyezzuk, MI es HOL volt a
+                    # baj, majd visszatesszuk az autot az utolso erintett
+                    # route-waypointra, es a scene megy tovabb.
+                    if terminated:
+                        reason = env.terminal_reason or "Terminated"
+                        wp = env.route_waypoints[env.current_waypoint_index][0]
+                        # A route savjanak kozepetol elojeles oldaltavolsag
+                        # (+ balra), es hogy hanyadik savban van - ebbol latszik,
+                        # hogy elozes kozben vagy a sajat savjaban szallt el.
+                        wtr = wp.transform
+                        wr = wtr.get_right_vector()
+                        side = ((loc.x - wtr.location.x) * wr.x
+                                + (loc.y - wtr.location.y) * wr.y)
+                        fails.append(dict(
+                            model=model_path, scene=sc["name"], reason=reason,
+                            route_m=env.current_waypoint_index,
+                            completion_pct=round(100.0 * (env.current_waypoint_index + 1) / len(route), 1),
+                            t_s=round(steps / env.fps, 1),
+                            x=round(loc.x, 1), y=round(loc.y, 1),
+                            speed_kmh=round(env.vehicle.get_speed(), 1),
+                            offset_m=round(-side, 2),
+                            lane_idx=int(round(-side / surr["lane_width"])),
+                            collision_with=env.collision_with or "",
+                            front_id=surr["front_id"] if surr["front_id"] is not None else "",
+                            front_dist=round(surr["front_dist"], 1) if surr["front_id"] is not None else "",
+                            left_free=int(surr["left_free"]),
+                            steer=round(env.vehicle.control.steer, 3),
+                            throttle=round(env.vehicle.control.throttle, 3),
+                            # A terminal lepes rewardja maga a buntetes: a
+                            # reward_fn ilyenkor azonnal kilep (-10, jarmu-
+                            # utkozesnel -30, reward 5-nel a PBRS -Phi-vel).
+                            penalty=round(float(reward), 2),
+                        ))
+                        n_off_track += reason == "Off-track"
+                        n_stopped += reason == "Vehicle stopped"
+                        print(f"    !! {reason:<22} @ {env.current_waypoint_index:5d} m "
+                              f"({fails[-1]['completion_pct']:5.1f}%) "
+                              f"x={loc.x:7.1f} y={loc.y:7.1f} "
+                              f"v={fails[-1]['speed_kmh']:5.1f} km/h "
+                              f"offset={fails[-1]['offset_m']:+5.2f} m "
+                              f"lane={fails[-1]['lane_idx']:+d} "
+                              f"lead={fails[-1]['front_dist'] or '-'} "
+                              f"steer={fails[-1]['steer']:+.3f} "
+                              f"-> visszateve ({len(fails)}/10)", flush=True)
 
-                if params["stop_on_collision"] and hits:
-                    end = "Collision"
-                elif terminated:
-                    end = env.terminal_reason or "Terminated"
+                        # Teleport a route-ra, a route iranyaba nezve. A fizika
+                        # kikapcsolasa kell, kulonben a motor megtartja a
+                        # sebesseget/impulzust (ugyanaz, mint a new_route()-ban).
+                        env.vehicle.control.steer = 0.0
+                        env.vehicle.control.throttle = 0.0
+                        env.vehicle.control.brake = 0.0
+                        env.vehicle.set_simulate_physics(False)
+                        env.vehicle.set_transform(carla.Transform(
+                            wtr.location + carla.Location(z=0.5), wtr.rotation))
+                        env.vehicle.set_simulate_physics(True)
+                        # A teleport ne szamitson bele a megtett utba (ebbol jon
+                        # az avg_speed_kmh), es az allo auto ne inditsa ujra a
+                        # "Vehicle stopped" 5 s-os timert a kovetkezo lepesben.
+                        env.previous_location = wtr.location
+                        env.terminal_state = False
+                        env.collision_with = None
+                        env.terminal_reason = ""
+                        rewards._low_speed_timer = 0.0
+                        env.world.tick()
+
+                if truncated:
+                    end = "Route done"
+                elif len(fails) >= 10:
+                    end = "Too many resets"
                 else:
-                    end = "Route done" if truncated else "Timeout"
+                    end = "Timeout"
 
                 # Egy auto / targy egyszer szamit (az utkozes tobb eventet is ad): az elso erintes.
                 first_hit = {}
@@ -231,7 +341,7 @@ def main():
                 row = dict(
                     model=model_path, group=group, scene=sc["name"], length_m=len(route),
                     traffic=int(sc["traffic"]), cars=len(env.traffic_ids), end=end,
-                    reached_b=int(truncated and not terminated),
+                    reached_b=int(truncated),
                     completion_pct=round(100.0 * (env.current_waypoint_index + 1) / len(route), 1),
                     time_s=round(time_s, 1),
                     avg_speed_kmh=round(3.6 * env.distance_traveled / time_s, 1),
@@ -241,9 +351,19 @@ def main():
                     hit_cars=sum(t.startswith("vehicle.") for t, _, _ in first_hit.values()),
                     lane_center_pct=round(100.0 * lane_ok / steps, 1),
                     steer_jerk=round(steer_jerk / steps, 4),
+                    resets=len(fails), off_track=n_off_track, stopped=n_stopped,
+                    # A fo osszehasonlito szam: hany beavatkozas kellett 1 km-en.
+                    resets_per_km=round(1000.0 * len(fails) / max(env.distance_traveled, 1.0), 2),
+                    total_reward=round(env.total_reward, 1),
+                    # Lepesenkenti atlag: a scene-ek kulonbozo hosszuak, a
+                    # total_reward-ot ez teszi osszevethetove kozottuk.
+                    mean_reward=round(env.total_reward / steps, 3),
+                    # A visszatevesek buntetese nelkul: igy a vezetes minosege
+                    # es a hibak szama (resets) kulon szam, nem egy osszegben.
+                    reward_no_penalty=round(env.total_reward - sum(f["penalty"] for f in fails), 1),
                 )
                 # A mappat / fejlecet iraskor hozzuk letre: ha futas kozben eltunik, ujra lesz.
-                os.makedirs(results_dir, exist_ok=True)
+                os.makedirs(model_dir, exist_ok=True)
                 new_file = not os.path.exists(scenes_csv)
                 with open(scenes_csv, "a", newline="") as f:
                     if new_file:
@@ -256,18 +376,28 @@ def main():
                     for type_id, hit_loc, route_m in first_hit.values():
                         csv.writer(f).writerow([model_path, sc["name"], type_id,
                                                 round(hit_loc.x, 1), round(hit_loc.y, 1), route_m])
+                new_file = not os.path.exists(fails_csv)
+                with open(fails_csv, "a", newline="") as f:
+                    if new_file:
+                        csv.writer(f).writerow(FAIL_COLS)
+                    for fail in fails:
+                        csv.DictWriter(f, FAIL_COLS).writerow(fail)
 
-                print(f"[{sc['name']:<16}] {end:<14} | {row['completion_pct']:5.1f}% "
+                print(f"[{sc['name']:<16}] {end:<15} | {row['completion_pct']:5.1f}% "
                       f"{row['time_s']:6.1f} s {row['avg_speed_kmh']:4.1f} km/h | "
                       f"overtakes {row['overtakes']} (gap avg {row['pass_gap_avg_m'] or '-'} m, "
                       f"min {row['pass_gap_min_m'] or '-'} m) | hit cars {row['hit_cars']} | "
-                      f"lane center {row['lane_center_pct']:.1f}% | steer jerk {row['steer_jerk']:.4f}",
+                      f"resets {row['resets']} (off {n_off_track}, stop {n_stopped}, "
+                      f"{row['resets_per_km']}/km) | "
+                      f"lane center {row['lane_center_pct']:.1f}% | steer jerk {row['steer_jerk']:.4f} | "
+                      f"reward {row['total_reward']:.0f} "
+                      f"(mean {row['mean_reward']:.2f}, no pen {row['reward_no_penalty']:.0f})",
                       flush=True)
 
     except KeyboardInterrupt:
         print("[INFO] Evaluation interrupted")
     finally:
-        print(f"[INFO] Results: {scenes_csv}")
+        print(f"[INFO] Results: {results_dir}")
         # Mint a train_rl.py-ban: kilepeskor leallitjuk a szimulatort.
         if sim_proc is not None:
             if env_cfg["is_carla_in_docker"]:
