@@ -1,43 +1,24 @@
-Dolgozatomban  egy megerősítéses tanulás alapú önvezető ágenstkifejlesztésén valamint
-tökéletesítésén dolgoztam. Célom az volt, hogy a modell autópályán, 
-városban egyaránt navigáljon és a hozzáképest lassabb autókat a KRESZ szabályokat betartva előzze meg.
-Az alapötletet egy tudományos cikk adta, amelyben egy DQN-hálózat al, LiDAR-adatok alapján kerültek 
-ki statikus járműveket. 
-Ezt szerettem volna továbbvinni mozgó forgalomra. Az ágens viselkedését igyekeztem a 
-következőkre tanítani szabályos előzésnek számít
-ha  tőle balra, szaggatott vonal van és szabad a sáv kiállhat előzni, 
-majd visszasorol a művelet végrehajtása után. 
-A kíséreletemhez szükségem volt egy megfelelő szimulációs környezetre amely célra a 
-CARLA Szimulátor tökéltesen megfelelt
-Az UnrealEngine ben készített szimulátor, Town04 pályáján végeztem a munkát,mivel itt 
-egyaránt megtalálható városi és autópályás környezet is. 
-A ágens típusának a Stable-Baselines3 Soft Actor-Critic (SAC) algoritmusát választottam, 
-folytonos kormány valamint gázakcióval. 
-A modell környezetéről egy 160×80 pixeles RGB-kamerával valamint  
-egy 64 csatornás LiDAR segítségével gyűjt adatokat. 
-Vezetés során nem a nyers szenzoradatot nem adom közvetlenül az 
-ágensnek ezen célra saját autoenkódereket tanítottam így az ágnes az összeadással fúzionált 
-szenzor látenseket kapja bemenetként. Ezek tanításához külön-külön 40k kamera és LiDAR adat párt 
-rögzítettem, és szenzoronként három architektúrát hasonlítottam össze, hogy kiválasszam a legjobbat. 
-A két szenzor jellemzőit saját jellemzőkinyerő hálóval vonom össze, és ehhez fűzöm hozzá a jármű 
-állapotát és a következő útpontokat.
- 
-Munkám legösszetettebb és legkomplexebb részét a jutalomfüggvény megfogalmazása volt, 
-ezért öt változatot készítettem és hasonlítottam össze. 
-Az első a sávtartást és a szabályos előzést jutalmazta. A második függvény 
-ütközésig hátralévő időn (TTC) alapuló büntetéssel egészült ki az előzőhőz képest,a harmadik bátrabb 
-előzésre hangolt volt itt több jutalom járt már az előzés kezdetekor is.
-A negyedik a kézzel formált tagok helyett az útvonal mentén megtett haladást jutalmazza, az ötödik
-ezt potenciál-alapú jutalomformálással egészült ki.
-
-Ezután következtek a modell kiértékelések amelyek, 10 db előre rögzített, összesen 34 km hosszú útszakaszon, 
-végeztem. Itt a forgalom sűrű és minden modellnél azonos volt,
-ezen körülmények között értékeltem ki modelljeim párokba rendezve. 
-A TTC-büntetés óvatosabbá tette az ágenst ez számokban kifejezve, 
-az átlagsebesség 37,7-ről 34,4 km/h-ra csökkent, a sáv
-közepén töltött idő aránya 88%-ról 72%-ra esett. A harmadik függvényben a TTC-küszöböt 7-ről 3 s-ra 
-csökkentettem, az előzés közbeni jutalmat 0,9-ről 1,1-re emeltem, valamint ha beragadt  egy másik 
-autó mögött amikor előzhetne akkor 
-teljes 40 m-en büntettem, és a +5-ös bónuszt +2 (elhaladás) és +3 (visszasorolás) részre bontottam. 
-Ettől a kormányzás simább lett (a lépésenkénti átlagos kormányváltozás 0,036-ról 0,029-re csökkent), 
-az ágens viszont lassabb lett (34,4 → 31,0 km/h).
+Dolgozatomban egy megerősítéses tanulás alapú önvezető ágenst fejlesztettem, 
+amely autópályán és városban egyaránt navigál, és a lassabb járműveket a KRESZ betartásával 
+előzi meg: szaggatott vonal és szabad bal sáv esetén kiáll, majd visszasorol. 
+A kísérleteket a CARLA szimulátor Town04-es pályáján végeztem. Az ágens a Stable-Baselines3 
+SAC algoritmusa folytonos kormány- és gázakcióval. Egy 160×80 pixeles RGB-kamera és
+ 64 csatornás LiDAR nyers adatai helyett saját autoenkóderek látenseit kapja; ezekhez 
+ szenzoronként 40k mintát rögzítettem és három architektúrát hasonlítottam össze. 
+ Az ágenssel együtt tanuló jellemzőkinyerő a LiDAR 16×11×32-es jellemzőtérképét és a 
+ kamera látensét 256 elemre képezi, majd összeadással fuzionálja; ehhez egy MLP-ág 
+ 64 elemű nem szenzoros jellemzőt fűz, így 320 elemű vektor jut az ágenshez
+A legösszetettebb rész a jutalomfüggvény volt: öt változatot értékeltem 10 rögzített, 
+összesen 34 km-es, sűrű forgalmú útvonalon, párokban, egy-egy változtatás hatását mérve.
+ Az első a sávtartást és a szabályos előzést jutalmazta. A második TTC-büntetése
+  óvatosabbá tette az ágenst (37,7 → 34,4 km/h, sávközépen töltött idő 88 → 72%), az 
+  ütközések viszont nem csökkentek szignifikánsan (0,96 → 0,91 db/km). A harmadikban 
+  (TTC-küszöb 7 → 3 s, előzési alaptag 0,3 → 0,4, +5-ös bónusz +2/+3 részre bontva, 
+  büntetés lassabb jármű mögötti haladásra) a várttal ellentétben óvatosabb lett: 
+  simább kormányzás (0,036 → 0,029), de kisebb sebesség (34,4 → 31,0 km/h) és kevesebb 
+  előzés (121 → 104). A negyedik a kézzel formált tagokat egy haladás-alapú taggal 
+  váltotta ki (34,7 km/h, 128 előzés, 0,027-es kormányváltozás). 
+  Az ötödik potenciál-alapú formálással (előzés alatt 2-ről 5-re növő potenciál) 
+  36,3 km/h-t, 97,6%-os útvonalteljesítést (96,1% helyett) és 149 előzést ért el,
+   de ezek az eltérések nem szignifikánsak, összhangban azzal, hogy a formálás 
+   elméletileg csak a tanulást gyorsítja.
