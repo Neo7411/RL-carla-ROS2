@@ -7,70 +7,37 @@ Ezt szerettem volna továbbvinni mozgó forgalomra. Az ágens viselkedését igy
 következőkre tanítani szabályos előzésnek számít
 ha  tőle balra, szaggatott vonal van és szabad a sáv kiállhat előzni, 
 majd visszasorol a művelet végrehajtása után. 
-A kíséreletemhez szükségem volt egy megfelelő szimulációs környezetre erre a célra a 
-CARLA Szimulátor tökéltesen megfelelt.
-Az UnrealEngine alapokon nyugvó szimulátor, Town04 pályáján végeztem a munkát,mivel itt 
+A kíséreletemhez szükségem volt egy megfelelő szimulációs környezetre amely célra a 
+CARLA Szimulátor tökéltesen megfelelt
+Az UnrealEngine ben készített szimulátor, Town04 pályáján végeztem a munkát,mivel itt 
 egyaránt megtalálható városi és autópályás környezet is. 
 A ágens típusának a Stable-Baselines3 Soft Actor-Critic (SAC) algoritmusát választottam, 
 folytonos kormány valamint gázakcióval. 
 A modell környezetéről egy 160×80 pixeles RGB-kamerával valamint  
 egy 64 csatornás LiDAR segítségével gyűjt adatokat. 
-Vezetés során nem a nyers szenzoradatot adom közvetlenül az 
+Vezetés során nem a nyers szenzoradatot nem adom közvetlenül az 
 ágensnek ezen célra saját autoenkódereket tanítottam így az ágnes az összeadással fúzionált 
 szenzor látenseket kapja bemenetként. Ezek tanításához külön-külön 40k kamera és LiDAR adat párt 
 rögzítettem, és szenzoronként három architektúrát hasonlítottam össze, hogy kiválasszam a legjobbat. 
-A két szenzor jellemzőit saját jellemzőkinyerő hálóval vonom össze,a mely azb gensel együtt tanul 
-a LiDAR 16x11x32-es jellemzőtérképét konvolúciós ág, a 
-kamera látens vektorát egy lineáris réteg képezi le
-ugyanarra a 256 elemű hosszra.
-A két vektort elemenkénti összeadással fűzöm össze,
-így az ágens egyetlen közös jellemzőtérben tanul és a
-hálózat paraméterszáma sem növekszik annyival,hogy elnyomja többi jellemzőt.Az összeadás mellett döntöttem mivel a Stable-Baselines3 SAC 
-implementációja eredetileg a jellemzőket konkatenálja így ez volt a legegyszerűbb megoldás.
-Majd egy külön MLP-ág képezi le 64 elemre szenzorokon kivüli jellemzőket, és ezt a 256
-elemű szenzorvektor mellé fűzi,így ez a 320 elemű jellemzővektor kerül az ágenshez.
+A két szenzor jellemzőit saját jellemzőkinyerő hálóval vonom össze, és ehhez fűzöm hozzá a jármű 
+állapotát és a következő útpontokat.
  
-Munkám legösszetettebb és legkomplexebb részét a jutalomfüggvény megfogalmazása volt. 
-Ezért öt változatot készítettem és hasonlítottam össze.
+Munkám legösszetettebb és legkomplexebb részét a jutalomfüggvény megfogalmazása volt, 
+ezért öt változatot készítettem és hasonlítottam össze. 
+Az első a sávtartást és a szabályos előzést jutalmazta. A második függvény 
+ütközésig hátralévő időn (TTC) alapuló büntetéssel egészült ki az előzőhőz képest,a harmadik bátrabb 
+előzésre hangolt volt itt több jutalom járt már az előzés kezdetekor is.
+A negyedik a kézzel formált tagok helyett az útvonal mentén megtett haladást jutalmazza, az ötödik
+ezt potenciál-alapú jutalomformálással egészült ki.
 
-Az első a sávtartást és a szabályos előzést jutalmazta.
-A második ehhez képest az ütközésig hátralévő időn (TTC) alapuló büntetéssel egészült ki.
-A harmadik merészebb előzésre lett állítva: itt már a manőver kezdetekor, alacsony
-sebességen is több jutalom járt, ezzel motiválva az ágenst, hogy jobban merjen előzni.
-A negyedik a kézzel formált tagok helyett az útvonal mentén megtett haladást jutalmazza,
-az ötödik pedig ezt potenciál-alapú jutalomformálással egészíti ki.
-
-
-Ezután következtek a modell kiértékelések, amelyeket 10 db előre rögzített, összesen 34 km
-hosszú útszakaszon végeztem. Itt a forgalom sűrű és minden modellnél azonos volt, ezen
-körülmények között értékeltem ki modelljeim párokba rendezve, hogy lépésenként egyetlen
-változtatás hatása legyen mérhető.
-
-A második függvény TTC-büntetése óvatosabbá tette az ágenst: az átlagsebesség 37,7-ről
-34,4 km/h-ra csökkent, a sáv közepén töltött idő aránya 88%-ról 72%-ra esett, az ütközések
-száma viszont nem csökkent szignifikánsan (0,96 → 0,91 db/km).
-
-A harmadik függvényben a TTC-küszöböt 7-ről 3 s-ra csökkentettem, az előzési jutalom
-alaptagját 0,3-ról 0,4-re emeltem, a +5-ös bónuszt +2 (elhaladás) és +3 (visszasorolás)
-részre bontottam, valamint a gyorsabb haladás és a torlódások elkerülése érdekében negatív
-jutalmat vezettem be arra az esetre, ha az ágens egy nála lassabb jármű mögött
-haladna sokáig. A várakozásommal ellentétben az ágens nem bátrabban, hanem óvatosabban  kezdett előzni.
-A kormányzás ugyan simább lett (a lépésenkénti átlagos kormányváltozás 0,036-ról 0,029-re
-csökkent), de lassabb lett (34,4 → 31,0 km/h), és az előzések száma is visszaesett
-(121 → 104).
-
-A negyedik függvényben kicsit át alakítottam a gondolatmenetem a kézzel formált tagokat (sávközép-szorzó, simaság, TTC,
-sebesség^1,9) egyetlen haladás-alapú tag integrálásával helyettesítettem. 
-Ez az átlagsebességet 31,0-ről
-34,7 km/h-ra, az előzések számát 104-ről 128-ra növelte, a kormányzást tovább simította
-(0,029 → 0,027). 
-Az ötödik változatban ugyanezt potenciál-alapú jutalomformálással egészítettem ki, ahol az
-előzés alatt a potenciál 2-től 5-ig nő az elhaladás előrehaladtával. Ez az átlagsebességet
-34,7-ről 36,3 km/h-ra, az útvonalteljesítést 96,1%-ról 97,6%-ra, az előzések számát
-128-ról 149-re növelte, egyik eltérés sem bizonyult azonban szignifikánsnak, ami a módszer
-elméleti tulajdonságával összhangban van  miszerint a formálás csupán a tanulást gyorsítja.
-
-Összességében elmondható, hogy a jutalomfüggvények finomhangolása jelentős hatással volt az ágens
-viselkedésére, különösen az előzési stratégiákra és a vezetési stílusra. A potenciál-alapú jutalomformálás 
-bevezetése különösen ígéretesnek bizonyult, mivel elősegítette a dinamikusabb és agresszívebb előzési magatartást 
-anélkül, hogy a biztonságot veszélyeztette volna.
+Ezután következtek a modell kiértékelések amelyek, 10 db előre rögzített, összesen 34 km hosszú útszakaszon, 
+végeztem. Itt a forgalom sűrű és minden modellnél azonos volt,
+ezen körülmények között értékeltem ki modelljeim párokba rendezve. 
+A TTC-büntetés óvatosabbá tette az ágenst ez számokban kifejezve, 
+az átlagsebesség 37,7-ről 34,4 km/h-ra csökkent, a sáv
+közepén töltött idő aránya 88%-ról 72%-ra esett. A harmadik függvényben a TTC-küszöböt 7-ről 3 s-ra 
+csökkentettem, az előzés közbeni jutalmat 0,9-ről 1,1-re emeltem, valamint ha beragadt  egy másik 
+autó mögött amikor előzhetne akkor 
+teljes 40 m-en büntettem, és a +5-ös bónuszt +2 (elhaladás) és +3 (visszasorolás) részre bontottam. 
+Ettől a kormányzás simább lett (a lépésenkénti átlagos kormányváltozás 0,036-ról 0,029-re csökkent), 
+az ágens viszont lassabb lett (34,4 → 31,0 km/h).

@@ -3,6 +3,7 @@
   "params": {
     "min_avg_kmh": 10.0,
     "lane_center_tol_m": 0.5,
+    "stuck_min_s": 5.0,
     "stop_on_collision": false
   },
   "traffic": {
