@@ -3,22 +3,22 @@ amely autópályán és városban egyaránt navigál, és a lassabb járműveket
 előzi meg: szaggatott vonal és szabad bal sáv esetén kiáll, majd visszasorol. 
 A kísérleteket a CARLA szimulátor Town04-es pályáján végeztem. Az ágens a Stable-Baselines3 
 SAC algoritmusa folytonos kormány- és gázakcióval. Egy 160×80 pixeles RGB-kamera és
- 64 csatornás LiDAR nyers adatai helyett saját autoenkóderek látenseit kapja; ezekhez 
- szenzoronként 40k mintát rögzítettem és három architektúrát hasonlítottam össze. 
- Az ágenssel együtt tanuló jellemzőkinyerő a LiDAR 16×11×32-es jellemzőtérképét és a 
- kamera látensét 256 elemre képezi, majd összeadással fuzionálja; ehhez egy MLP-ág 
- 64 elemű nem szenzoros jellemzőt fűz, így 320 elemű vektor jut az ágenshez
+64 csatornás LiDAR nyers adatai helyett saját autoenkóderek látenseit kapja; ezekhez 
+szenzoronként 40k mintát rögzítettem és három architektúrát hasonlítottam össze. 
+Az ágenssel együtt tanuló jellemzőkinyerő a LiDAR 16×11×32-es jellemzőtérképét és a 
+kamera látensét 256 elemre képezi, majd összeadással fuzionálja; ehhez egy MLP-ág 
+64 elemű nem szenzoros jellemzőt fűz, így 320 elemű vektor jut az ágenshez
 A legösszetettebb rész a jutalomfüggvény volt: öt változatot értékeltem 10 rögzített, 
 összesen 34 km-es, sűrű forgalmú útvonalon, párokban, egy-egy változtatás hatását mérve.
- Az első a sávtartást és a szabályos előzést jutalmazta. A második TTC-büntetése
-  óvatosabbá tette az ágenst (37,7 → 34,4 km/h, sávközépen töltött idő 88 → 72%), az 
-  ütközések viszont nem csökkentek szignifikánsan (0,96 → 0,91 db/km). A harmadikban 
-  (TTC-küszöb 7 → 3 s, előzési alaptag 0,3 → 0,4, +5-ös bónusz +2/+3 részre bontva, 
-  büntetés lassabb jármű mögötti haladásra) a várttal ellentétben óvatosabb lett: 
-  simább kormányzás (0,036 → 0,029), de kisebb sebesség (34,4 → 31,0 km/h) és kevesebb 
-  előzés (121 → 104). A negyedik a kézzel formált tagokat egy haladás-alapú taggal 
-  váltotta ki (34,7 km/h, 128 előzés, 0,027-es kormányváltozás). 
-  Az ötödik potenciál-alapú formálással (előzés alatt 2-ről 5-re növő potenciál) 
-  36,3 km/h-t, 97,6%-os útvonalteljesítést (96,1% helyett) és 149 előzést ért el,
-   de ezek az eltérések nem szignifikánsak, összhangban azzal, hogy a formálás 
-   elméletileg csak a tanulást gyorsítja.
+Az első a sávtartást és a szabályos előzést jutalmazta. A második TTC-büntetése
+óvatosabbá tette az ágenst (37,7 → 34,4 km/h, sávközépen töltött idő 88 → 72%), az 
+ütközések viszont nem csökkentek szignifikánsan (0,96 → 0,91 db/km). A harmadikban 
+(TTC-küszöb 7 → 3 s, előzési alaptag 0,3 → 0,4, +5-ös bónusz +2/+3 részre bontva, 
+büntetés lassabb jármű mögötti haladásra) a várttal ellentétben óvatosabb lett: 
+simább kormányzás (0,036 → 0,029), de kisebb sebesség (34,4 → 31,0 km/h) és kevesebb 
+előzés (121 → 104). A negyedik a kézzel formált tagokat egy haladás-alapú taggal 
+váltotta ki (34,7 km/h, 128 előzés, 0,027-es kormányváltozás). 
+Az ötödik potenciál-alapú formálással (előzés alatt 2-ről 5-re növő potenciál) 
+36,3 km/h-t, 97,6%-os útvonalteljesítést (96,1% helyett) és 149 előzést ért el,
+de ezek az eltérések nem szignifikánsak, összhangban azzal, hogy a formálás 
+elméletileg csak a tanulást gyorsítja.
