@@ -48,8 +48,10 @@ ENV = dict(
     min_route_length=1500,
     action_smoothing=0.75,
     action_space_type="continuous",
-    activate_spectator=True,
-    activate_render=True,
+    # A hosszu kiertekeleshez kikapcsolva: a render a lepesido nagyobb reszet
+    # vitte (95 ms a 125-bol), a metrikakhoz nem kell.
+    activate_spectator=False,
+    activate_render=False,
     reward_fn="reward_fn_5",
     traffic_vehicles=70,
     traffic_start_m=20.0,

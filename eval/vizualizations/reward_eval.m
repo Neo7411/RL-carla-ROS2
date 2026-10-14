@@ -1,214 +1,289 @@
-%% Reward fejlesztes lepesenkent: mit valtoztattam, es melyik mutato mozdult tole
-% R1 -> R2 -> R3 -> R4 -> R5: minden lepes egy valtoztatas a rewardon. Minden
-% modell ugyanazt a 10 scene-t vezeti (Town04, azonos route, forgalom es
-% seed), igy egy lepes hatasa scene-enkent parositva merheto:
-%   - Wilcoxon elojeles rang teszt a ket egymast koveto modell kozott,
-%   - Holm-korrekcio a 4 lepesre (metrikankent),
-%   - jobb / rosszabb scene: hany scene-ben mozdult a jo / rossz iranyba.
-% Csak az ervenyes mutatok: menetido, atlagsebesseg, route teljesites, sav
-% kozepe, kormany-rangatas, elutott autok, beavatkozasok. Az overtakes oszlop
-% nem csak a szabalyos elozeseket szamolja, ezert kimarad.
-% Kimenet (figs/): steps.csv, summary.csv, fig1_steps.pdf/png, fig2_scene_times.pdf/png
+% =========================================================================
+% Reward 1-5 kiertekelese az eval_scenes.py meresebol.
+%
+% A meres: 5 modell x 10 palya x 5 kor = 250 epizod. Minden modell ugyanazt
+% az 50 (palya, seed) part futotta, ezert az osszehasonlitas tisztessegesl.
+%
+% Ket szamot kozlunk metrikankent:
+%   atlag    - a modell teljesitmenye az osszes epizodon
+%   szoras   - mennyire ingadozik epizodrol epizodra. Ha a szoras nagyobb,
+%              mint a modellek kozti kulonbseg, akkor a kulonbseg nem
+%              megbizhato: egy masik 5 kor mas sorrendet adhatna.
+%
+% A CSV hosszu formatumu: a "row" oszlop donti el, mi a sor (scene = epizod
+% osszesito, fail/hit/overtake/attempt/stuck = esemenyek), az adott
+% sortipushoz nem tartozo oszlopok uresek.
+% =========================================================================
 
-clear; close all; clc;
-here = fileparts(mfilename('fullpath'));
-resDir = fullfile(here, '..', 'results');
-outDir = fullfile(here, 'figs');
-if ~exist(outDir, 'dir'), mkdir(outDir); end
+clear; clc; close all;
 
-% results/ mappanev, rovid nev, mi valtozott az elozo modellhez kepest
-models = {
-    'SAC_reward_1_model_final',       'R1', 'alap: sávtartás + szabályos előzés'
-    'SAC_reward_2_part2_model_final', 'R2', 'TTC-büntetés előzhető helyzetben is'
-    'SAC_reward_3_model_final',       'R3', 'bátrabb előzés (TTC 7→3 s, nagyobb előzési jutalom)'
-    'SAC_reward_4_model_final',       'R4', 'haladás-alapú jutalom a kézi tagok helyett'
-    'SAC_reward_5_model_final',       'R5', 'potenciál-alapú formálás (PBRS) az előzésre'
-};
-nM = size(models, 1);
-nSt = nM - 1;
-short = models(:, 2)';
-
-% Modellenkent rogzitett szin
-C = [0.165 0.471 0.839     % #2a78d6
-     0.922 0.408 0.204     % #eb6834
-     0.106 0.686 0.478     % #1baf7a
-     0.929 0.631 0.000     % #eda100
-     0.910 0.482 0.643];   % #e87ba4
-
-% oszlop, felirat, mertekegyseg, irany (+1: a nagyobb jobb, -1: a kisebb jobb)
-mets = {
-    'rel_time',        'Menetidő',               's',       -1
-    'avg_speed_kmh',   'Átlagsebesség',          'km/h',    +1
-    'completion_pct',  'Route teljesítés',       '%',       +1
-    'lane_center_pct', 'Sávközépen töltött idő', '%',       +1
-    'steer_jerk',      'Kormány-rángatás',       '1/lépés', -1
-    'hits_per_km',     'Elütött autók',          'db/km',   -1
-    'resets_per_km',   'Beavatkozások',          'db/km',   -1
-};
-nK = size(mets, 1);
-
-%% Beolvasas: modellenkent a legutolso futas (idobelyeg mappa) scenes.csv-je
-cols = {'time_s', 'avg_speed_kmh', 'completion_pct', 'lane_center_pct', 'steer_jerk', ...
-        'hit_cars', 'resets', 'reached_b'};
-for m = 1:nM
-    runs = dir(fullfile(resDir, models{m, 1}, '2*'));
-    runs = runs([runs.isdir]);
-    if isempty(runs), error('Nincs futas: %s', models{m, 1}); end
-    runDir = fullfile(runs(end).folder, runs(end).name);   % nev szerint rendezett -> a vege a legujabb
-    s = readtable(fullfile(runDir, 'scenes.csv'), 'TextType', 'string', 'VariableNamingRule', 'preserve');
-    if m == 1
-        scenes = s.scene;
-        nS = numel(scenes);
-        for c = 1:numel(cols), X.(cols{c}) = nan(nS, nM); end
-    end
-    [~, idx] = ismember(scenes, s.scene);
-    for c = 1:numel(cols), X.(cols{c})(:, m) = s.(cols{c})(idx); end
+% A script sajat helyehez kepest, a legfrissebb eredmenyfajl.
+results_dir = fullfile(fileparts(mfilename('fullpath')), '..', 'results');
+d = dir(fullfile(results_dir, 'eval_*.csv'));
+if isempty(d)
+    error('Nincs eredmenyfajl itt: %s', results_dir);
 end
-Done = X.reached_b == 1;
-X.dist_km = X.avg_speed_kmh .* X.time_s / 3600;   % megtett ut, a visszatevesek nelkul
-X.hits_per_km = X.hit_cars ./ X.dist_km;
-X.resets_per_km = X.resets ./ X.dist_km;
-% Menetido a scene leggyorsabb celba ert modelljehez kepest [%]: a scene-ek
-% kulonbozo hosszuak, igy lesznek egy skalan. Ami nem ert celba, kimarad.
-Tdone = X.time_s; Tdone(~Done) = NaN;
-X.rel_time = 100 * Tdone ./ min(Tdone, [], 2);
+[~, newest] = max([d.datenum]);
+csv_path = fullfile(results_dir, d(newest).name);
 
-% Osszesitett ertek modellenkent (mind a 10 scene): ut / ido, idovel sulyozott atlag
-for m = 1:nM
-    tw = X.time_s(:, m) / sum(X.time_s(:, m));
-    Pm.avg_speed_kmh(m) = 3600 * sum(X.dist_km(:, m)) / sum(X.time_s(:, m));
-    Pm.completion_pct(m) = mean(X.completion_pct(:, m));
-    Pm.lane_center_pct(m) = sum(tw .* X.lane_center_pct(:, m));
-    Pm.steer_jerk(m) = sum(tw .* X.steer_jerk(:, m));
-    Pm.hits_per_km(m) = sum(X.hit_cars(:, m)) / sum(X.dist_km(:, m));
-    Pm.resets_per_km(m) = sum(X.resets(:, m)) / sum(X.dist_km(:, m));
+% Minden szoveges oszlop string, a tobbi double: igy az ures cellak NaN-ok.
+% Az "end" oszlopbol a MATLAB "xEnd"-et csinal (kulcsszo), atnevezzuk.
+opts = detectImportOptions(csv_path);
+text_cols = {'model', 'group', 'scene', 'row', 'xEnd', 'reason', 'collision_with', ...
+             'actor_type', 'ego_side', 'illegal_reason', 'attempt_outcome', 'stuck_reason'};
+opts = setvartype(opts, text_cols, 'string');
+opts = setvartype(opts, setdiff(opts.VariableNames, text_cols), 'double');
+opts.EmptyLineRule = 'skip';
+
+warning('off', 'MATLAB:table:ModifiedAndSavedVarnames');
+T = readtable(csv_path, opts);
+T = renamevars(T, 'xEnd', 'end_reason');
+
+% A modellnevbol a reward szama (SAC_reward_3_model_final -> 3).
+T.reward = double(extractBetween(T.model, 'SAC_reward_', '_'));
+
+% Sortipusok kulon tablaba.
+scenes    = T(T.row == "scene",    :);
+fails     = T(T.row == "fail",     :);
+hits      = T(T.row == "hit",      :);
+overtakes = T(T.row == "overtake", :);
+attempts  = T(T.row == "attempt",  :);
+stucks    = T(T.row == "stuck",    :);
+
+% Epizodonkenti megtett ut [km]: az atlagsebessegbol es az idobol.
+scenes.km = scenes.avg_speed_kmh / 3.6 .* scenes.time_s / 1000;
+
+rw  = unique(scenes.reward);
+n   = numel(rw);
+lbl = "R" + string(rw);
+scn = unique(scenes.scene);   % a 10 palya
+
+fprintf('Fajl: %s\n', d(newest).name);
+fprintf('  epizod: %d  (%d modell x %d palya x %d kor)\n', height(scenes), ...
+        n, numel(unique(scenes.scene)), numel(unique(scenes.rep)));
+fprintf('  esemenyek: %d elozes, %d kiserlet, %d beragadas, %d utkozes, %d visszateves\n\n', ...
+        height(overtakes), height(attempts), height(stucks), height(hits), height(fails));
+
+% =========================================================================
+% Osszesito tabla. Ketlepcsos atlagolas: eloszor palyankent (az 5 kor
+% egybevetve), utana a 10 palya atlaga. Igy minden palya egyforma sullyal
+% szamit, nem a hosszuak dominalnak.
+% A szoras a 10 palya kozti ingadozas: mennyire egyenletes a modell.
+% =========================================================================
+M = table(rw, 'VariableNames', {'reward'});
+for i = 1:n
+    s = scenes(scenes.reward == rw(i), :);
+
+    M.epizod(i)   = height(s);
+    M.km(i)       = sum(s.km);
+
+    % Palyankenti ertekek: eloszor az 5 kor egy palyan, utana a 10 palya.
+    % Igy minden palya egyforma sullyal szamit, fuggetlenul attol, hogy
+    % 1 km vagy 6 km hosszu. (Ha mindent egybeontenenk, a hosszu palyak
+    % dominalnak: a legrovidebb 1.05 km, a leghosszabb 6.09 km.)
+    % A per-km es a %-os ertekek palyan belul osszesitve (osszes esemeny /
+    % osszes km), igy egy rovidre leallt epizod nem torzit.
+    P = nan(numel(scn), 6);   % palya x metrika
+    for j = 1:numel(scn)
+        q = s(s.scene == scn(j), :);
+        P(j, 1) = mean(q.avg_speed_kmh);
+        P(j, 2) = sum(q.legal_overtakes) / sum(q.km);
+        P(j, 3) = 100 * sum(q.hit_cars) / sum(q.overtakes);
+        P(j, 4) = sum(q.resets) / sum(q.km);
+        P(j, 5) = mean(q.lane_center_pct);
+        P(j, 6) = mean(q.stuck_s);
+    end
+
+    % Az atlag a 10 palya atlaga, a szoras a palyak kozti ingadozas: ez
+    % mutatja, mennyire egyenletes a modell a kulonbozo palyakon.
+    M.speed(i)    = mean(P(:, 1));   M.speed_sd(i) = std(P(:, 1));
+    M.legal_km(i) = mean(P(:, 2));   M.legal_sd(i) = std(P(:, 2));
+    M.hit_pct(i)  = mean(P(:, 3));   M.hit_sd(i)   = std(P(:, 3));
+    M.reset_km(i) = mean(P(:, 4));   M.reset_sd(i) = std(P(:, 4));
+    M.lane(i)     = mean(P(:, 5));   M.lane_sd(i)  = std(P(:, 5));
+    M.stuck(i)    = mean(P(:, 6));   M.stuck_sd(i) = std(P(:, 6));
+
+    % Elozesi kiserletek: hany volt, es hany szazaleka sikerult.
+    a = attempts(attempts.reward == rw(i), :);
+    M.attempts(i) = height(a);
+    M.success(i)  = 100 * sum(a.attempt_outcome == "success") / height(a);
 end
 
-%% Lepesenkenti osszevetes
-pS = nan(nK, nSt); pH = nan(nK, nSt); nBetter = pS; nWorse = pS; nPair = pS;
-before = pS; after = pS;
-for k = 1:nK
-    col = mets{k, 1};
-    for st = 1:nSt
-        a = X.(col)(:, st); b = X.(col)(:, st + 1);
-        ok = ~isnan(a) & ~isnan(b);
-        d = mets{k, 4} * (b(ok) - a(ok));     % > 0: a jo iranyba mozdult
-        nBetter(k, st) = sum(d > 0); nWorse(k, st) = sum(d < 0); nPair(k, st) = sum(ok);
-        pS(k, st) = signrank(a(ok), b(ok));
-        if col == "rel_time"
-            % Menetido: az osszes ido azokon a scene-eken, ahol mindketto celba ert
-            before(k, st) = sum(X.time_s(ok, st)); after(k, st) = sum(X.time_s(ok, st + 1));
-        else
-            before(k, st) = Pm.(col)(st); after(k, st) = Pm.(col)(st + 1);
-        end
+disp('Osszesites (palyankent atlagolva, majd a 10 palya atlaga):');
+disp(M(:, {'reward', 'epizod', 'km', 'speed', 'legal_km', 'hit_pct', ...
+           'reset_km', 'lane', 'stuck', 'attempts', 'success'}));
+
+% A fo metrikak nev szerint, es hogy a nagyobb-e a jobb.
+met    = {'speed',  'legal_km', 'hit_pct', 'reset_km', 'lane',  'stuck'};
+met_sd = {'speed_sd', 'legal_sd', 'hit_sd', 'reset_sd', 'lane_sd', 'stuck_sd'};
+met_tx = {'Atlagsebesseg [km/h]', 'Szabalyos elozes / km', ...
+          'Utkozes / elhagyott auto [%]', 'Visszateves / km', ...
+          'Sav kozepen toltott ido [%]', 'Beragadas epizodonkent [s]'};
+met_up = [+1, +1, -1, -1, +1, -1];   % +1: a nagyobb a jobb
+
+fprintf('\nAtlag +/- szoras (a 10 palya atlaga; a szoras a palyak kozti\ningadozas: mennyire egyenletes a modell kulonbozo palyakon):\n');
+for k = 1:numel(met)
+    fprintf('  %-30s', met_tx{k});
+    for i = 1:n
+        fprintf('  %s: %6.2f +/-%5.2f', lbl(i), M.(met{k})(i), M.(met_sd{k})(i));
     end
-    % Holm-Bonferroni a 4 lepesre
-    [ps, o] = sort(pS(k, :));
-    pH(k, o) = min(1, cummax((nSt - (0:nSt - 1)) .* ps));
+    fprintf('\n');
 end
 
-% Tabla lepesenkent, azon belul metrikankent
-Lepes = strings(0, 1); Valtoztatas = Lepes; Metrika = Lepes; Eredmeny = Lepes;
-Elotte = []; Utana = []; Valtozas_pct = []; Jobb_scene = []; Rosszabb_scene = []; N_scene = []; P = []; P_Holm = [];
-for st = 1:nSt
-    for k = 1:nK
-        Lepes(end + 1, 1) = sprintf('%s → %s', short{st}, short{st + 1});
-        Valtoztatas(end + 1, 1) = models{st + 1, 3};
-        Metrika(end + 1, 1) = sprintf('%s [%s]', mets{k, 2}, mets{k, 3});
-        Elotte(end + 1, 1) = before(k, st); Utana(end + 1, 1) = after(k, st);
-        Valtozas_pct(end + 1, 1) = 100 * (after(k, st) - before(k, st)) / before(k, st);
-        Jobb_scene(end + 1, 1) = nBetter(k, st); Rosszabb_scene(end + 1, 1) = nWorse(k, st);
-        N_scene(end + 1, 1) = nPair(k, st);
-        P(end + 1, 1) = pS(k, st); P_Holm(end + 1, 1) = pH(k, st);
-        if pH(k, st) >= 0.05
-            Eredmeny(end + 1, 1) = "nem szignifikáns";
-        elseif nBetter(k, st) > nWorse(k, st)
-            Eredmeny(end + 1, 1) = "szignifikánsan javult";
-        else
-            Eredmeny(end + 1, 1) = "szignifikánsan romlott";
-        end
-    end
-end
-Steps = table(Lepes, Valtoztatas, Metrika, Elotte, Utana, Valtozas_pct, Jobb_scene, Rosszabb_scene, ...
-              N_scene, P, P_Holm, Eredmeny);
-writetable(Steps, fullfile(outDir, 'steps.csv'));
-
-% Osszesito modellenkent
-Summary = table(string(short'), sum(Done, 1)', Pm.completion_pct', sum(X.time_s, 1)', Pm.avg_speed_kmh', ...
-                Pm.lane_center_pct', Pm.steer_jerk', sum(X.hit_cars, 1)', Pm.hits_per_km', ...
-                sum(X.resets, 1)', Pm.resets_per_km', ...
-                'VariableNames', {'Modell', 'Celba_ert', 'Teljesites_pct', 'Ossz_ido_s', 'Atlagsebesseg_kmh', ...
-                                  'Savkozep_pct', 'Kormany_rangatas', 'Elutott_autok', 'Elutott_per_km', ...
-                                  'Beavatkozasok', 'Beavatkozas_per_km'});
-writetable(Summary, fullfile(outDir, 'summary.csv'));
-
-%% Konzol
-disp(Summary);
-for st = 1:nSt
-    fprintf('\n%s → %s: %s\n', short{st}, short{st + 1}, models{st + 1, 3});
-    for k = 1:nK
-        fprintf('   %-24s %9.4g → %-9.4g %-8s (%+6.1f%%)  jobb %2d / rosszabb %2d a %2d scene-bol  p=%.4f  pHolm=%.4f  %s\n', ...
-                mets{k, 2}, before(k, st), after(k, st), mets{k, 3}, ...
-                100 * (after(k, st) - before(k, st)) / before(k, st), nBetter(k, st), nWorse(k, st), ...
-                nPair(k, st), pS(k, st), pH(k, st), Steps.Eredmeny((st - 1) * nK + k));
-    end
-end
-fprintf('\n(Menetido: osszes ido azokon a scene-eken, ahol mindket modell celba ert.)\n');
-
-%% 1. abra: a mutatok lepesrol lepesre, scene-enkent (szurke) es a median (fekete)
-% * / ** a ket modell kozott: szignifikans valtozas (Holm p < 0.05 / 0.01).
-panels = [1 2 4 5 6 7];          % a route teljesites szinte mindenhol 100%, kimarad
-f1 = figure('Units', 'centimeters', 'Position', [2 2 16 11], 'Color', 'w'); theme(f1, 'light');
-tl = tiledlayout(f1, 2, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
-for i = 1:numel(panels)
-    k = panels(i);
-    Y = X.(mets{k, 1});
-    ax = nexttile(tl); hold(ax, 'on');
-    for j = 1:nS
-        hS = plot(ax, 1:nM, Y(j, :), '-', 'Color', [0.80 0.80 0.78], 'LineWidth', 0.75);
-    end
-    med = median(Y, 1, 'omitnan');
-    hMed = plot(ax, 1:nM, med, '-', 'Color', [0.2 0.2 0.2], 'LineWidth', 2);
-    scatter(ax, 1:nM, med, 45, C, 'filled', 'MarkerEdgeColor', 'w', 'LineWidth', 1);
-    yl = ylim(ax); ytop = yl(2) + 0.06 * diff(yl);
-    for st = 1:nSt
-        if pH(k, st) < 0.01, txt = '**'; elseif pH(k, st) < 0.05, txt = '*'; else, txt = ''; end
-        text(ax, st + 0.5, ytop, txt, 'HorizontalAlignment', 'center', 'FontSize', 11, 'FontWeight', 'bold');
-    end
-    ylim(ax, [yl(1), ytop + 0.06 * diff(yl)]);
-    xlim(ax, [0.7 nM + 0.3]); xticks(ax, 1:nM); xticklabels(ax, short);
-    if mets{k, 1} == "rel_time"
-        ylabel(ax, 'a scene leggyorsabbjához [%]');
+% Ha a modellek kozti teljes kulonbseg kisebb, mint az atlagos szoras,
+% akkor a sorrend nem megbizhato - ezt kiirjuk, hogy ne lehessen
+% veletlenul tulertelmezni.
+fprintf('\nMegbizhatosag (a modellek kozti kulonbseg vs az ingadozas):\n');
+for k = 1:numel(met)
+    spread = max(M.(met{k})) - min(M.(met{k}));
+    noise  = mean(M.(met_sd{k}));
+    if spread > noise
+        verdict = 'a kulonbseg nagyobb az ingadozasnal';
     else
-        ylabel(ax, mets{k, 3});
+        verdict = 'AZ INGADOZAS NAGYOBB - a sorrend bizonytalan';
     end
-    if mets{k, 4} > 0, dirTxt = '(nagyobb = jobb)'; else, dirTxt = '(kisebb = jobb)'; end
-    title(ax, mets{k, 2}, 'FontWeight', 'normal', 'FontSize', 9);
-    subtitle(ax, dirTxt, 'FontSize', 7, 'Color', [0.32 0.32 0.31]);
-    grid(ax, 'on'); ax.GridAlpha = 0.12; ax.Box = 'off'; ax.FontSize = 8;
-    if i == 1
-        legend(ax, [hS hMed], {'egy scene', 'medián'}, 'Location', 'northwest', 'Box', 'off', 'FontSize', 7);
+    fprintf('  %-30s  kulonbseg %6.2f, ingadozas %6.2f  -> %s\n', ...
+            met_tx{k}, spread, noise, verdict);
+end
+
+% =========================================================================
+% 1. abra - a hat fo metrika, hibasavval (atlag +/- szoras).
+% A zold oszlop a legjobb ertek. Ahol a hibasavok atfednek, ott a
+% kulonbseg nem meggyozo.
+% =========================================================================
+figure('Name', 'Fo metrikak', 'Color', 'w', 'Position', [100 100 1000 620]);
+for k = 1:numel(met)
+    subplot(2, 3, k);
+    hold on; grid on;
+    v  = M.(met{k});
+    sd = M.(met_sd{k});
+    b = bar(v, 'FaceColor', 'flat');
+    b.CData = repmat([0.65 0.65 0.68], n, 1);
+    if met_up(k) > 0
+        [~, best] = max(v);
+    else
+        [~, best] = min(v);
+    end
+    b.CData(best, :) = [0.20 0.65 0.32];
+    errorbar(1:n, v, sd, 'k', 'LineStyle', 'none', 'LineWidth', 1.1, 'CapSize', 8);
+    set(gca, 'XTick', 1:n, 'XTickLabel', lbl);
+    title(met_tx{k}, 'FontSize', 10);
+    ylim([0, max(v + sd) * 1.15]);
+    hold off;
+end
+sgtitle(sprintf('Reward 1-5 (%d epizod/modell, hibasav = palyak kozti szoras)', M.epizod(1)));
+
+% =========================================================================
+% 2. abra - sebesseg vs utkozes. A jobb also sarok a nyero: gyors es
+% biztonsagos. A hibasavok mindket iranyban az ingadozast mutatjak.
+% =========================================================================
+figure('Name', 'Sebesseg vs utkozes', 'Color', 'w', 'Position', [120 120 660 520]);
+hold on; grid on;
+col = lines(n);
+for i = 1:n
+    errorbar(M.speed(i), M.hit_pct(i), M.hit_sd(i), M.hit_sd(i), ...
+             M.speed_sd(i), M.speed_sd(i), 'o', 'MarkerSize', 10, ...
+             'MarkerFaceColor', col(i, :), 'MarkerEdgeColor', 'k', ...
+             'Color', [0.6 0.6 0.6], 'LineWidth', 1.0);
+    text(M.speed(i) + 0.3, M.hit_pct(i) + 0.6, lbl(i), 'FontSize', 12, 'FontWeight', 'bold');
+end
+xlabel('Atlagsebesseg [km/h]');
+ylabel('Utkozes / elhagyott auto [%]');
+title('Sebesseg es biztonsag (hibasav = palyak kozti szoras)');
+hold off;
+
+% =========================================================================
+% 3. abra - koronkenti bontas. Ha egy modell minden korben hasonloan
+% teljesit, a vonala lapos; ha ugral, akkor a modell (vagy a meres)
+% ingadozik, es egyetlen kor eredmenye felrevezetne.
+% =========================================================================
+reps = unique(scenes.rep);
+figure('Name', 'Koronkent', 'Color', 'w', 'Position', [140 140 900 420]);
+for k = 1:2
+    subplot(1, 2, k);
+    hold on; grid on;
+    for i = 1:n
+        y = nan(numel(reps), 1);
+        for j = 1:numel(reps)
+            s = scenes(scenes.reward == rw(i) & scenes.rep == reps(j), :);
+            if k == 1
+                y(j) = sum(s.legal_overtakes) / sum(s.km);
+            else
+                y(j) = mean(s.avg_speed_kmh);
+            end
+        end
+        plot(reps + 1, y, '-o', 'LineWidth', 1.4, 'Color', col(i, :), ...
+             'MarkerFaceColor', col(i, :), 'DisplayName', lbl(i));
+    end
+    xlabel('kor'); xticks(reps + 1);
+    if k == 1
+        ylabel('Szabalyos elozes / km');
+        title('Elozes koronkent');
+        legend('Location', 'best');
+    else
+        ylabel('Atlagsebesseg [km/h]');
+        title('Sebesseg koronkent');
+    end
+    hold off;
+end
+sgtitle('Koronkenti eredmeny: mennyire stabil a modellek sorrendje');
+
+% =========================================================================
+% 4. abra - az elozesi kiserletek kimenetele. Nem csak az latszik, hany
+% sikerul, hanem az is, hogyan romlik el: feladja, utkozik, vagy
+% zarovonalon sorol vissza.
+% =========================================================================
+kinds  = ["success", "aborted", "hit", "solid_line_return"];
+knames = {'sikeres', 'feladta', 'utkozott', 'zarovonalon vissza', 'egyeb'};
+kcol   = [0.20 0.65 0.32; 0.95 0.72 0.20; 0.84 0.25 0.22; 0.45 0.45 0.80; 0.80 0.80 0.80];
+A = zeros(n, numel(kinds) + 1);
+for i = 1:n
+    a = attempts(attempts.reward == rw(i), :);
+    for j = 1:numel(kinds)
+        A(i, j) = 100 * sum(a.attempt_outcome == kinds(j)) / height(a);
+    end
+    A(i, end) = 100 - sum(A(i, 1:end-1));
+end
+
+figure('Name', 'Elozesi kiserletek', 'Color', 'w', 'Position', [160 160 760 500]);
+b = bar(A, 'stacked');
+for j = 1:size(A, 2)
+    b(j).FaceColor = kcol(j, :);
+end
+set(gca, 'XTickLabel', lbl);
+ylabel('Az elozesi kiserletek megoszlasa [%]');
+ylim([0 112]); grid on;
+legend(knames, 'Location', 'eastoutside');
+title('Elozesi kiserletek kimenetele');
+% A darabszam nelkul a szazalekok felrevezetok.
+text(1:n, repmat(103, 1, n), compose('n=%d', M.attempts), ...
+     'HorizontalAlignment', 'center', 'FontSize', 9);
+
+% =========================================================================
+% 5. abra - a ket palyatipus kulon. A varosi szakasz mas feladat, mint az
+% autopalya, es az osszevont atlag elfedheti, ha egy modell csak az
+% egyikben jo.
+% =========================================================================
+gnames = ["highway", "city_to_highway"];
+G = zeros(n, 2); H = zeros(n, 2);
+for i = 1:n
+    for j = 1:2
+        s = scenes(scenes.reward == rw(i) & scenes.group == gnames(j), :);
+        G(i, j) = sum(s.legal_overtakes) / sum(s.km);
+        H(i, j) = 100 * sum(s.hit_cars) / sum(s.overtakes);
     end
 end
-exportgraphics(f1, fullfile(outDir, 'fig1_steps.pdf'), 'ContentType', 'vector');
-exportgraphics(f1, fullfile(outDir, 'fig1_steps.png'), 'Resolution', 200);
 
-%% 2. abra: menetido scene-enkent, a leggyorsabb celba ert csillaggal
-[tBest, iBest] = min(Tdone, [], 2);
-f2 = figure('Units', 'centimeters', 'Position', [2 2 16 7.5], 'Color', 'w'); theme(f2, 'light');
-ax = axes(f2); hold(ax, 'on');
-b = bar(ax, X.time_s, 'grouped', 'BarWidth', 0.85, 'EdgeColor', 'none');
-for m = 1:nM, b(m).FaceColor = C(m, :); end
-xb = reshape([b.XEndPoints], nS, nM);
-hBest = plot(ax, xb(sub2ind([nS nM], (1:nS)', iBest)), tBest + 25, 'p', 'MarkerSize', 7, ...
-             'MarkerFaceColor', [0.2 0.2 0.2], 'MarkerEdgeColor', 'none');
-hFail = plot(ax, xb(~Done), X.time_s(~Done) + 25, 'x', 'MarkerSize', 7, 'LineWidth', 1.5, 'Color', [0.2 0.2 0.2]);
-ylabel(ax, 'Menetidő [s]');
-xticks(ax, 1:nS); xticklabels(ax, strrep(scenes, '_', ' ')); xtickangle(ax, 30);
-legend(ax, [b, hBest, hFail], [short, {'leggyorsabb', 'nem ért célba'}], ...
-       'Location', 'northoutside', 'Orientation', 'horizontal', 'Box', 'off', 'FontSize', 8);
-grid(ax, 'on'); ax.GridAlpha = 0.12; ax.XGrid = 'off'; ax.Box = 'off'; ax.FontSize = 8;
-exportgraphics(f2, fullfile(outDir, 'fig2_scene_times.pdf'), 'ContentType', 'vector');
-exportgraphics(f2, fullfile(outDir, 'fig2_scene_times.png'), 'Resolution', 200);
+figure('Name', 'Palyatipusok', 'Color', 'w', 'Position', [180 180 900 420]);
+subplot(1, 2, 1);
+bar(G); set(gca, 'XTickLabel', lbl); grid on;
+ylabel('Szabalyos elozes / km');
+title('Elozes palyatipusonkent');
+legend({'autopalya', 'varos -> autopalya'}, 'Location', 'northwest');
 
-fprintf('\nKimenet: %s\n', outDir);
+subplot(1, 2, 2);
+bar(H); set(gca, 'XTickLabel', lbl); grid on;
+ylabel('Utkozes / elhagyott auto [%]');
+title('Utkozes palyatipusonkent');
+legend({'autopalya', 'varos -> autopalya'}, 'Location', 'northwest');
+sgtitle('A ket palyatipus kulon');

@@ -8,6 +8,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[magyar]{babel}
 \usepackage{amsmath}
+\usepackage{amssymb}    % \checkmark a jutalomtagok tablazatahoz
 \usepackage{mathptmx}   % Times stílusú matematikai betűk
 \usepackage{tgtermes}   % TeX Gyre Termes: Times New Roman-klón, ő/ű is
 \usepackage{microtype}
@@ -964,9 +965,449 @@ az állapotjelek is külön, saját ágon jutnak el a döntéshozó hálózatig.
 \section{Jutalom függvény}
 \label{sec:reward}
 
+A feladat komplexitása a munka ezen pontján igencsak megnőttt, mivel a jutalom függvény segítségével kell 
+megmagyaráznom az ágensnek az előzés műveletét. Értem ez alatt, hogy az ágensnek biztonságosan, 
+sávot kell tartania, valamint nála lassabb járműveket
+szabályosan, balról kell megelőznie, természetesen ha erre van lehetősége. 
+A feladat megfelelő körbejárására és felderítésére, 5db különböző jutalom függvényt készítettem amelyek a kesőbbiekben a különböző
+modelleket is jelölik.  
+Az (R1--R3)  függvények részletesebben minden forgalmi helyzetre külön, kézzel általam formált tagot tartalmaznak ahol midne tagnak saját 
+célja van. Az utolsó két esertben egy másféle megközelítést alkalmaztam (R4--R5) amely elhagyja a kézi tagokat, egyetlen 
+fizikai mennyiséget jutalmaz.
+
+Ugyanakkor a különböző ágensek tanítása során voltak közös konstans metrikák mint például, az epizódzáró büntetés. A járművel 
+való ütközés esetén $-30$, a többi esetben (az útról való letérés, megállás, a sebességhatár túllépése) $-10$.
+Minden modell esetén közös a kormányrángatásért kiszabott büntetés, amelyet a kormányjel lépésenkénti
+változásának kétszereséből számolok. Az előzési manővert felismerő állapotgép, ahol csak következő van engedélyezve a balra,
+szaggatott vonalon áthaladás ha szabad a sáv kihúzódhat és megkísérelheti az előzési manővert.
+
+\subsection{R1: sávtartás és szabályos előzés}
+\label{subsec:reward1}
+
+Az alapjutalom amit kap szabad úton négy, nullától egyig terjedő tényező szorzata:
+\begin{equation}
+  r = v^{1,9} \cdot c \cdot a \cdot s,
+  \label{eq:r1_free}
+\end{equation}
+ahol $v$ a sebesség (50~km/h-nál 1, alatta lineáris), $c$ a sávközép-tényező
+(a sáv közepén 1, 2~m-re tőle 0), $a$ az irányszög-tényező (az útvonal irányába nézve
+1), $s$ pedig a simasági tényező, amely azért felelős hogy a modell ne végezzen hírtelen fölösleges kormány mozdulatokat 
+amikor a sávjában közlekedik.  
+A tagokat szorzás utolján fuzionálom ennek oka, hogy bármelyik kiesése
+nullázza a jutalmat. Az ágnest így kényszerítem arra, hogy egyszerre kell mindegyiket teljesítenie. 
+Az 1.9 es kivehető oka a követkző, az 1-nél nagyobb kitevő hatása az, hogy a lassú
+haladás aránytalanul keveset ér: 25~km/h sebességnél $v = 0{,}5$, a sebességtag értéke
+viszont már csak $0{,}5^{1,9} \approx 0{,}27$, nem pedig a fele. Ez erősebben ösztönöz
+a sebesség kihasználására, mint egy lineáris tag tenné, ugyanakkor az előzéskor is hatékonyabb mert vonzobbá 
+teszi mert végsősoron a cél, hogy az ágens elkerülje a lassan forgalmirésztvevőket.
+
+A következő eset, amikor az ágens előtt van egy forgalmi szereplő de nem engedélyezett az előzés.
+A saját sávjában 40~m-en belül lassabb jármű megy előtte(foglalt vagy záróvonallal elválasztott szomszédos sáv), 
+akkor követnie kell nem sazbad baleset történjen. Ilyenkor a sebesség helyett 
+helyett a biztonságos követési távolság megtalálását jutalamzom, hogy az ágens megfelelően kövesse aki előtte van.
+
+\begin{equation}
+  r_{\text{követés}} = 0{,}8 \, g(h) \, m \cdot c \cdot a \cdot s + p_{\text{TTC}},
+  \label{eq:r1_follow}
+\end{equation}
+ahol $h$ a követési időköz (a távolság és a saját sebesség hányadosa az előtte haladóhoz képest), $g$ pedig egy
+lognormális alakú függvény, amelynek maximuma 2~s-nál van. A $0{,}8$-as szorzót azért
+alkalmazom, hogy a tökéletes követés is kevesebbet érjen a szabad haladásnáL. A sáv
+közepén, 2~s-os időközzel, az előtte haladóval azonos sebességgel követve a
+lépésjutalom $0{,}8$, míg szabad úton 50~km/h-val $1{,}0$. Így az akkor is
+megéri előzni ha egyébként hibátlanul követ, ezzel kiküszöbölve, hogy szabad ó
+út esetén merjen előzni.
+
+Az $m$ az ágens és az előtte levő jármű sebesség hányadosa ami fentről 1re van korlátozva:
+\begin{equation}
+  m = \min\!\left(\frac{v_{\text{ego}} + 1}{v_{\text{lead}} + 1},\; 1\right).
+  \label{eq:r1_match}
+\end{equation}
+
+alapból  a $g$ egymagában kijátszható. A $h$ követési időköz a
+távolság és a \emph{saját} sebesség hányadosa, ezért lassítással is növelhető: ha az
+ágens lefékezne és lemaradna, $h$ 2~s fölé nőne, a jutalma mégsem csökkenne. 
+Az $m$ ezt hivatott javítani  a lassabb haladás arányosan bünteti, az előtte haladó
+sebességét elérve, hogy kövesse amíg kell utána már ne érje meg követni. A két tényező együtt azt várja
+el, hogy az ügynök tartsa a kétmásodperces követési időt, és közben haladjon ugyanolyan
+gyorsan, mint az előtte lévő jármű. 
+A számlálóban és a nevezőben szereplő +1es 
+eltolás technikai okból kell, nélküle álló jármű esetén nullával kellene osztani.
+
+A kétmásodperces optimum és a $g$ lognormális alakját a szakirodalomból vettem. A $h$
+időköz csak pozitív lehet, eloszlása pedig jobbra ferde,mivel ayz autóvezetők nagyrészt inkább közelebb haladnak 
+az előttük haladóhhoz mint lemaradjanak.
+Az empirikus forgalmi mérések kimutatják ezt amit a lognormális eloszlás írj le a legjobban~\cite{mei1993lognormal},
+a $g$-ben szereplő $\sigma = 0{,}4365$ szórás pedig az NGSIM adathalmazon, 1341 valós
+követési eseményre illesztett eloszlás becsült paramétere~\cite{zhu2020velocity}. A
+jutalom így a tényleges emberi vezetői viselkedéshez igazodik.
+
+A $p_{\text{TTC}}$ (Time to collision) büntetés azt a helyzetet kezeli, amit a $g$ nem lát. A pillanatnyi
+követési időköz lehet ideális úgy is, hogy az ego jármű közben gyorsan közeledik az előtte
+haladóhoz, tehát ütközés veszélye áll fenn. 
+A büntetés az ütközésig hátralévő idő alapján jár,
+7~s alatt lép életbe $0{,}3 \cdot \ln(t/7)$ alakban, és 1,5~s-nál éri el a $-0{,}46$-os
+maximumát. Ha az ügynök nem közeledik az előtte haladóhoz, ez az idő végtelen, és
+büntetés sem jár.
+
+
+Előzési manőver végrehajtása közben adott lépésenkénti jutalom
+\begin{equation}
+  r_{\text{előzés}} = (0{,}3 + 0{,}6\,v^{1,9}) \cdot l \cdot k,
+  \label{eq:r1_overtake}
+\end{equation}
+ahol $l$ a célsáv közepétől mért távolságot bünteti, $k$ pedig az elhúzódó manővert:
+15~s után, illetve az elhaladást követően sávonként 3~s után négy másodperc alatt
+1-ről 0,3-ra esik. A 0,3-as alaptag biztosítja, hogy a lassú előzés is jobban
+megérje, mint a lassabb jármű mögötti kullogás. A szabályosan befejezett előzésért
+járművenként egyszer $+5$ bónusz jár.
+
+Külön tag bünteti azt, ha az ágens előzhetne, de nem teszi. Mely szerint ha 25~m-en belül halad az
+előtte lévő mögött, nem gyorsabb nála legalább 5~km/h-val, lépésenként $-0{,}10$ és
+$-0{,}18$ közötti büntetést kap, amely az idő múlásával nő. Ez az egyetlen eset, amikor
+a lépésjutalom nem szorzódik a sávtartási tényezőkkel: ellenkező esetben a rossz
+sávtartás csökkentené a büntetés mértékét.
+
+
+
+%-----------------------------------------------------------------------------------------------------------------------------------------------------
+\subsection{R2: ütközésidő-büntetés előzhető helyzetben}
+\label{subsec:reward2}
+
+Az R1-ben a $p_{\text{TTC}}$ büntetés csak akkor járt, ha az előzés nem volt lehetséges.
+Előzhető helyzetben hiányzott, ezért megérte teljes sebességgel ráfutni az előttünk
+haladó járműre, és csak az utolsó pillanatban kihúzódni. Az R2 egyetlen változtatása,
+hogy ugyanezt a büntetést (7~s küszöb, 0,3 súly) az előzhető állapotra is kiterjeszti.
+A büntetés a kihúzódás első méterén fokozatosan szűnik meg, így a már megkezdett
+manővert nem akadályozza.
+
+\subsection{R3: hangolás bátrabb előzésre}
+\label{subsec:reward3}
+
+Az R2-vel tanított modell nem mert határozottan előzni. A \ref{tab:reward_steps}.~táblázat
+felső része megmutatja, miért: a lassabb jármű mögött 25--40~m-rel lemaradva haladni
+büntetlen, sőt pozitív jutalmat adott, miközben az előzés a legjobb esetben is csak
+0,90-et ért, kevesebbet, mint a saját sávban elérhető 1,00. Az R3 ezen négy ponton
+változtat:
+
+\begin{enumerate}
+  \item Az előzhető helyzetben járó ütközésidő-büntetés küszöbe 7~s-ról 3~s-ra csökken,
+        súlya viszont 0,3-ról 0,6-ra nő. Így csak a tényleges késlekedést bünteti, a
+        gyors ráfutást nem.
+  \item Az előzés lépésjutalma $(0{,}3 + 0{,}6\,v^{1,9})$ helyett
+        $(0{,}4 + 0{,}7\,v^{1,9})$, vagyis 50~km/h-nál 0,90 helyett 1,10. Ezzel a
+        kihúzódás értékesebb lesz, mint a saját sávban maradás.
+  \item A lemaradás büntetése már nem csak 25~m-en belül jár, hanem a teljes 40~m-es
+        érzékelési tartományban.
+  \item A $+5$ bónusz két részre bomlik: $+2$ az elhaladáskor és $+3$ a szabályos
+        visszasoroláskor. A 0,98-as diszkonttényező mellett az eredeti, csak a manőver
+        végén érkező bónusz a kihúzódás pillanatában mindössze 0,66-ot ért; a
+        kettébontás ezt körülbelül 1,13-ra növeli.
+\end{enumerate}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Lépésjutalmak egy 25~km/h sebességgel haladó jármű mögött, szabad bal sáv
+           mellett. Az értékek a sáv közepén, egyenes haladásnál, kormánybüntetés
+           nélkül érvényesek.}
+  \label{tab:reward_steps}
+  \begin{tabular}{lrr}
+    \toprule
+    Helyzet & R2 & R3 \\
+    \midrule
+    Kullogás 25~km/h-val, 25~m-en belül & $-0{,}12$ & $-0{,}12$ \\
+    Lemaradás 25--40~m-rel, 25~km/h-val & $+0{,}27$ & $-0{,}12$ \\
+    Ráfutás 50~km/h-val, 30~m-re        & $0{,}86$ & $1{,}00$ \\
+    Ráfutás 50~km/h-val, 15~m-re        & $0{,}65$ & $0{,}80$ \\
+    Előzés 50~km/h-val a bal sáv közepén & $0{,}90$ & $1{,}10$ \\
+    Előzés 25~km/h-val a bal sáv közepén & $0{,}46$ & $0{,}59$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{R4: haladásalapú jutalom}
+\label{subsec:reward4}
+
+Az R1--R3 változatok minden forgalmi helyzetre külön, kézzel hangolt tagot
+tartalmaznak. Az R4 ezek helyett egyetlen fizikai mennyiséget jutalmaz: az útvonal
+mentén megtett elmozdulást. A lépésjutalom minden megengedett sávban
+\begin{equation}
+  r = v \cdot \cos\vartheta \cdot l \cdot k,
+  \label{eq:r4}
+\end{equation}
+ahol $v$ a sebességtényező, $\vartheta$ az útvonal irányától való eltérés szöge,
+$l$ és $k$ pedig a \eqref{eq:r1_overtake} egyenletből ismert sávtartási és
+elhúzódás-tényező. A koszinuszos tag a ferde haladást veszi figyelembe, visszafelé
+haladva negatív. A sebességben lineáris, tehát 25~km/h-nál feleannyi jutalom jár, mint
+50-nél.
+
+A feltételezés az, hogy a lassabb jármű mögött a haladás magától kisebb, ezért az
+előzés kézi formálás nélkül is megéri. Kimarad a követési távolság jutalmazása, az
+ütközésidő-büntetés, a lemaradás büntetése, a sávközép- és a simasági szorzó, valamint
+az 1,9-es kitevő. Megmarad viszont minden, ami a feladat szabálya és nem formálás: az
+epizódzáró büntetések, az előzési állapotgép, a rossz sávért járó $-0{,}5$, a
+kormányrángatás büntetése és a szabályos előzésért járó $+5$ bónusz. Az ütközést így
+kizárólag a $-30$ terminális büntetés tanítja.
+
+\subsection{R5: potenciálalapú jutalomformálás}
+\label{subsec:reward5}
+
+Az R5 az R4 kiegészítése Ng, Harada és Russell potenciálalapú
+formálásával~\cite{ng1999}. A módszer szerint a
+\begin{equation}
+  F(s, s') = \gamma\,\Phi(s') - \Phi(s)
+  \label{eq:shaping}
+\end{equation}
+alakú tag, ahol $\Phi$ csak az állapottól függ, bizonyítottan nem változtatja meg,
+melyik stratégia optimális: a diszkontált összegben kiejti magát, csak előbbre hozza a
+jutalmat. Az R3 bónuszkettébontása ugyanezt próbálta kézzel elérni, itt elméletileg
+megalapozott formában történik.
+
+A potenciál előzés közben
+\begin{equation}
+  \Phi = 2 + 3\,\varphi, \qquad
+  \varphi = \mathrm{clip}\!\left(\frac{d_0 - d}{d_0 + 5}, 0, 1\right),
+  \label{eq:phi}
+\end{equation}
+előzésen kívül pedig nulla. Itt $d_0$ a megelőzendő jármű távolsága a kihúzódás
+pillanatában, $d$ pedig az aktuális távolság, így $\varphi$ az elhaladás előrehaladását
+méri. A kihúzódáskor $\Phi = 2$, az elhaladás befejeztével $\Phi = 5$. Ennek
+következményei:
+\begin{itemize}
+  \item a kihúzódás pillanatában $F = +1{,}96$, vagyis a bónusz értékének egy része
+        azonnal megérkezik, nem csak mintegy öt másodperccel később;
+  \item amíg $\Phi > 0$, lépésenként $-(1-\gamma)\Phi$ is jár, ezért az elhúzódó előzés
+        azonnal rosszabbnak látszik;
+  \item a visszasoroláskor $F = -5$, amit a $+5$ bónusz pontosan kiegyenlít;
+  \item a feladott vagy ütközéssel végződő előzés visszaveszi a korábban kapott
+        jutalmat.
+\end{itemize}
+A $\gamma = 0{,}98$ érték megegyezik a tanítás diszkonttényezőjével.
+
+Megjegyzendő, hogy a formáló tag miatt az epizódonként gyűjtött, diszkontálatlan
+jutalomösszeg előzésenként mintegy tízzel kisebb, mint az R4 esetében. A futásokat
+ezért nem a jutalomösszeggel, hanem feladatszintű mérőszámokkal kell összehasonlítani,
+amint azt a~\ref{sec:modells}.~fejezet teszi.
+
 \section{Elkészült modellek összehasonlítása}
 \label{sec:modells}
 
+\subsection{A kiértékelés módszertana}
+\label{subsec:eval_method}
+
+A megerősítéses tanulásban egyetlen futás eredménye valószínűségi változó: ugyanaz a
+betanított modell ugyanazon az útvonalon más eredményt ad, ha a forgalom elhelyezése
+megváltozik. Ezt a saját mérésem is megerősítette. Az egyik modell ugyanazon az
+útvonalon az egyik forgalmi elrendezésben 32,5~km/h átlagsebességgel és két szabályos
+előzéssel ért célba, egy másikban 41,0~km/h-val és tízzel. A szakirodalom éppen ezért
+többszöri mérést és a bizonytalanság közlését várja el~\cite{agarwal2021}, a CARLA-alapú
+munkák pedig jellemzően útvonalanként több ismétlést futtatnak~\cite{carl2025}.
+
+Ennek megfelelően a kiértékelés tíz rögzített útvonalon történt, amelyekből öt tisztán
+autópályás, öt pedig városi szakaszról autópályára vezet
+(\ref{fig:routes}.~ábra). Mind az öt modell mind a tíz
+útvonalat ötször járta be, egymástól független forgalmi elrendezésekkel, ami összesen
+250 lefutást jelent.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{minipage}{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{pictures/eval/routes_highway.pdf}\\[2pt]
+    {\small (a) autópályás útvonalak}
+  \end{minipage}\hfill
+  \begin{minipage}{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{pictures/eval/routes_city_to_highway.pdf}\\[2pt]
+    {\small (b) városból autópályára vezető útvonalak}
+  \end{minipage}
+  \caption{A kiértékeléshez használt tíz útvonal a Town04 térképen. A fehér körök az
+           indulási pontokat jelölik, az útvonalak hossza 1,05 és 6,09~km között
+           változik.}
+  \label{fig:routes}
+\end{figure} A véletlenszám-generátor kezdőértékeit úgy választottam meg, hogy
+a modellek körönként pontosan ugyanazt a forgalmi helyzetet kapják: így az
+összehasonlítás párosított, és a különbségekben nem jelenik meg az, hogy melyik
+modellnek jutott könnyebb forgalom.
+
+A kiértékelés nem áll le az első hibánál. Ha a jármű lehagyja az utat, megáll vagy
+ütközik, a hibát rögzítem, a járművet visszateszem az útvonal utolsó érintett pontjára,
+és a bejárás folytatódik. Ez a CARLA Leaderboard logikája: az útvonal végigmegy, a
+szabálysértések pedig számlálódnak. Így minden modell ugyanannyi lépést vezet, és a
+sebességre, sávtartásra, előzésre vonatkozó mérőszámok ténylegesen összevethetők.
+
+Az útvonalak hossza 1,05 és 6,09~km között változik, ezért az eredményeket két lépésben
+átlagoltam. Először útvonalanként vontam össze az öt bejárást, majd a tíz útvonal
+átlagát képeztem. Így minden útvonal azonos súllyal szerepel, és nem a hosszabb
+szakaszok határozzák meg az eredményt. A táblázatokban és az ábrákon közölt szórás a tíz
+útvonal közötti ingadozást mutatja, vagyis azt, mennyire egyenletes a modell
+teljesítménye eltérő körülmények között.
+
+Fontos megjegyzés a jutalomértékekről: mivel az öt modell eltérő jutalomfüggvénnyel
+tanult, az általuk gyűjtött jutalom skálája és összetétele különbözik, ezért a
+jutalomösszeg modellek közötti összehasonlításra nem alkalmas. Az értékelés ezért
+kizárólag feladatszintű, a jutalomfüggvénytől független mérőszámokra épül. Ezek a
+mérőszámok minden modellnél azonos módon keletkeznek, mert az előzést felismerő
+állapotgép mind az öt jutalomfüggvényben ugyanaz a kód.
+
+\subsection{A vizsgált jutalomváltozatok}
+\label{subsec:reward_variants}
+
+Az összehasonlított öt jutalomváltozat részletes leírása a~\ref{sec:reward}.~fejezetben
+található; az áttekinthetőség kedvéért a köztük lévő eltéréseket
+a~\ref{tab:reward_variants}.~táblázat foglalja össze.
+
+\begin{table}[htbp]
+  \centering
+  \caption{A jutalomváltozatok felépítése. A \checkmark{} azt jelöli, hogy az adott tag
+           szerepel a jutalomban.}
+  \label{tab:reward_variants}
+  \begin{tabular}{lccccc}
+    \toprule
+    Jutalomtag & R1 & R2 & R3 & R4 & R5 \\
+    \midrule
+    Előzési állapotgép            & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+    Követési távolság (headway)   & \checkmark & \checkmark & \checkmark & --- & --- \\
+    Ütközésidő-büntetés követésnél & \checkmark & \checkmark & \checkmark & --- & --- \\
+    Ütközésidő-büntetés előzésnél  & ---        & \checkmark & \checkmark & --- & --- \\
+    Lemaradás büntetése            & 25 m-en belül & 25 m-en belül & teljes 40 m & --- & --- \\
+    Sávközép- és simasági szorzó   & \checkmark & \checkmark & \checkmark & --- & --- \\
+    Haladásalapú alapjutalom       & ---        & ---        & ---        & \checkmark & \checkmark \\
+    Előzési bónusz                 & $+5$       & $+5$       & $+2$ és $+3$ & $+5$ & $+5$ \\
+    Potenciálalapú formálás        & ---        & ---        & ---        & ---  & \checkmark \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Eredmények}
+\label{subsec:eval_results}
+
+Az öt modell mérőszámait a~\ref{tab:model_compare}.~táblázat tartalmazza, a hozzá tartozó
+ábrázolás pedig a~\ref{fig:eval_metrics}.~ábrán látható.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Az öt jutalomváltozat összehasonlítása. Minden érték a tíz útvonal átlaga,
+           útvonalanként öt bejárásból; a $\pm$ utáni szám az útvonalak közötti szórás.
+           A félkövér érték az adott oszlop legjobb eredménye.}
+  \label{tab:model_compare}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    & Sebesség & Előzés & Ütközés & Visszatevés & Sávtartás & Beragadás \\
+    & [km/h] & [1/km] & [\%] & [1/km] & [\%] & [s] \\
+    \midrule
+    R1 & \textbf{40,2}\,$\pm$\,2,7 & \textbf{5,22}\,$\pm$\,2,18 & 17,0\,$\pm$\,3,2 & 0,22\,$\pm$\,0,28 & \textbf{86,5}\,$\pm$\,3,5 & 92,1\,$\pm$\,67,6 \\
+    R2 & 36,0\,$\pm$\,2,5 & 3,91\,$\pm$\,1,79 & \textbf{16,9}\,$\pm$\,6,4 & \textbf{0,16}\,$\pm$\,0,29 & 73,4\,$\pm$\,6,2 & 92,6\,$\pm$\,48,3 \\
+    R3 & 31,8\,$\pm$\,3,0 & 2,46\,$\pm$\,1,03 & 22,7\,$\pm$\,6,8 & 0,37\,$\pm$\,0,36 & 60,7\,$\pm$\,5,0 & 124,0\,$\pm$\,97,8 \\
+    R4 & 39,8\,$\pm$\,2,7 & 4,82\,$\pm$\,1,78 & 18,5\,$\pm$\,6,3 & 0,33\,$\pm$\,0,42 & 73,2\,$\pm$\,3,0 & \textbf{80,5}\,$\pm$\,41,3 \\
+    R5 & 38,5\,$\pm$\,2,5 & 4,73\,$\pm$\,1,64 & 17,8\,$\pm$\,5,6 & 0,41\,$\pm$\,0,58 & 69,8\,$\pm$\,3,2 & 87,7\,$\pm$\,49,0 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{pictures/eval/metrics.pdf}
+  \caption{A hat mérőszám jutalomváltozatonként. A hibasáv az útvonalak közötti szórás,
+           a zöld oszlop az adott mérőszám legjobb értéke.}
+  \label{fig:eval_metrics}
+\end{figure}
+
+A mérőszámok mellett az előzési kísérletek kimenetele is tanulságos
+(\ref{tab:attempts}.~táblázat). Ez nem csak azt mutatja meg, hány előzés sikerült, hanem
+azt is, hogyan romlott el: a jármű feladta a megkezdett manővert, ütközött, vagy
+záróvonalon sorolt vissza.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Az előzési kísérletek kimenetelének megoszlása. Az $n$ oszlop a kísérletek
+           száma mind a 250 lefutásban.}
+  \label{tab:attempts}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    & $n$ & Sikeres [\%] & Feladta [\%] & Ütközött [\%] & Záróvonalon [\%] \\
+    \midrule
+    R1 & 440 & 70,5 & 9,5 & 10,0 & 6,4 \\
+    R2 & 422 & 63,5 & 21,1 & \textbf{7,3} & \textbf{4,5} \\
+    R3 & 345 & 46,4 & 25,8 & 13,6 & 7,8 \\
+    R4 & 404 & \textbf{73,0} & \textbf{7,4} & 8,9 & 6,4 \\
+    R5 & 437 & 71,6 & 8,7 & 9,2 & 8,0 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{A módosítások értékelése}
+\label{subsec:eval_discussion}
+
+\paragraph{R1 $\rightarrow$ R2: ütközésidő-büntetés előzhető helyzetben.}
+A módosítás elérte a célját, de magas áron. A megkezdett, majd feladott előzések aránya
+9,5\%-ról 21,1\%-ra nőtt, a sikeres kísérleteké 70,5\%-ról 63,5\%-ra csökkent, a
+sebesség pedig 40,2~km/h-ról 36,0~km/h-ra esett. Cserébe az ütközéssel végződő
+kísérletek aránya 10,0\%-ról 7,3\%-ra, a visszatevések száma pedig 0,22-ről 0,16-ra
+csökkent kilométerenként. A magyarázat a küszöbérték nagyságrendjében keresendő: a 7~s-os
+ütközésidő 50 és 25~km/h sebességkülönbségnél mintegy 48~m-es távolságnak felel meg,
+vagyis a büntetés már akkor hatott, amikor a jármű az előtte haladót egyáltalán
+észlelte. A modell ezért inkább lassított, mint előzött.
+
+\paragraph{R2 $\rightarrow$ R3: hangolás bátrabb előzésre.}
+Ez a változat a szándékolttal ellentétes eredményt hozott, és ez a kísérletsorozat
+legtanulságosabb megfigyelése. A négy módosítás célja a határozottabb előzés volt, ehhez
+képest az R3 minden mérőszámban a leggyengébb: 2,46 szabályos előzés kilométerenként
+(az R1 értékének fele), 31,8~km/h átlagsebesség, 60,7\%-os sávtartás és 22,7\%-os
+ütközési arány. Az előzési kísérletek száma is a legalacsonyabb (345 a többi modell
+400 feletti értékével szemben), és ezek kevesebb mint fele sikerült.
+
+A visszatevések okai mutatják meg, mi történt. Míg a többi modellnél a hibák túlnyomó
+része az útról való letérés, az R3-nál 20 esetben a sebességhatár túllépése, 31 esetben
+pedig a jármű megállása okozta a beavatkozást. A megemelt előzési lépésjutalom (1,1, ami
+meghaladja a saját sávban elérhető 1,0-t) és a kétszeres súlyú ütközésidő-büntetés
+együtt szélsőséges viselkedést tanított meg: a modell vagy gyorsított a megengedett
+sebesség fölé, vagy megállt. A beragadással töltött idő is itt a legmagasabb
+(124,0~s bejárásonként).
+
+\paragraph{R3 $\rightarrow$ R4: áttérés haladásalapú jutalomra.}
+A kézzel formált tagok teljes elhagyása visszanyerte az elveszített teljesítményt:
+4,82 előzés kilométerenként, 39,8~km/h sebesség, és a legmagasabb sikerarány az előzési
+kísérletekben (73,0\%). Ez a legfontosabb eredmény a jutalomtervezés szempontjából,
+mert azt mutatja, hogy a követési távolságot, az ütközésidőt, a lemaradást és a
+sávközepet külön kezelő tagok nem javították, hanem rontották a viselkedést. Az egyetlen
+fizikai mennyiség, az útvonal menti haladás jutalmazása elegendőnek bizonyult. Az
+R4 emellett a legkevesebbet ragadt be (80,5~s).
+
+\paragraph{R4 $\rightarrow$ R5: potenciálalapú formálás.}
+A két változat gyakorlatilag egyenértékű: a mérőszámok eltérése minden esetben kisebb,
+mint az útvonalak közötti szórás. Ez összhangban van az elmélettel, amely szerint a
+potenciálalapú formálás nem változtatja meg az optimális stratégiát~\cite{ng1999}. A
+formálás így ebben a feladatban nem hozott mérhető javulást a végső teljesítményben.
+
+\paragraph{A sávtartás ára.}
+Az R1 sávtartása kiemelkedik (86,5\%), és ez a legmegbízhatóbb különbség az egész
+mérésben: az értékek szórása 3,0 és 6,2 között van, miközben a legjobb és a legrosszabb
+modell között 25,8 százalékpont a különbség. Az R1 jutalmában szerepel a sávközép- és a
+simasági szorzó, amely az R4 és R5 változatból kimaradt. A lazább sávtartás ugyanakkor
+nem járt több tényleges hibával: a visszatevések száma a négy változatnál egy
+nagyságrendbe esik.
+
+\subsection{Az eredmények megbízhatósága}
+\label{subsec:eval_reliability}
+
+Az egyes mérőszámok nem egyformán alkalmasak a modellek rangsorolására. A sebesség, a
+szabályos előzések száma és a sávtartás esetében a modellek közötti különbség nagyobb,
+mint az útvonalak közötti ingadozás, ezért ezekre megállapítás építhető. A visszatevések
+számánál és a beragadással töltött időnél azonban az ingadozás meghaladja a modellek
+közötti eltérést (0,25 ellenében 0,39, illetve 43,5~s ellenében 60,8~s), ezért ezeknél a
+sorrend nem tekinthető megalapozottnak. Az ütközési arány határesetet képez.
+
+Ezt a bizonytalanságot érdemes kiemelni, mert jól szemlélteti az ismételt mérés
+szükségességét. Egy korábbi, útvonalanként egyszeri méréssorozat alapján az R5 tűnt a
+legjobb modellnek minden mérőszámban; a teljes, 250 lefutásos mérés ezt nem erősítette
+meg. Az egyetlen bejáráson alapuló összehasonlítás tehát félrevezető lett volna.
+
+Végül meg kell jegyezni, hogy mindegyik jutalomváltozathoz egyetlen betanított modell
+tartozik. A fenti megállapítások ezért az öt konkrét modellre vonatkoznak, és nem
+választják szét a jutalomfüggvény hatását a tanítás véletlenszerűségétől. Ennek
+tisztázásához változatonként több, eltérő kezdőértékkel betanított modellre lenne
+szükség~\cite{agarwal2021}.
 
 \section{Összegzés}
 
