@@ -1310,35 +1310,6 @@ A végén összesítem ezeket a hibákat is ez által még egy mérőszámot kap
 % modellnél ugyanúgy számolódnak, mert az előzést felismerő állapotgép mind az öt
 % jutalomfüggvényben ugyanaz a kód.
 
-\subsection{A vizsgált jutalomváltozatok}
-\label{subsec:reward_variants}
-
-Az összehasonlított öt jutalomváltozat részletes leírása a~\ref{sec:reward}.~fejezetben
-található; az áttekinthetőség kedvéért a köztük lévő eltéréseket
-a~\ref{tab:reward_variants}.~táblázat foglalja össze.
-
-\begin{table}[htbp]
-  \centering
-  \caption{A jutalomváltozatok felépítése. A \checkmark{} azt jelöli, hogy az adott tag
-           szerepel a jutalomban.}
-  \label{tab:reward_variants}
-  \begin{tabular}{lccccc}
-    \toprule
-    Jutalomtag & R1 & R2 & R3 & R4 & R5 \\
-    \midrule
-    Előzési állapotgép            & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
-    Követési távolság (headway)   & \checkmark & \checkmark & \checkmark & --- & --- \\
-    Ütközésidő-büntetés követésnél & \checkmark & \checkmark & \checkmark & --- & --- \\
-    Ütközésidő-büntetés előzésnél  & ---        & \checkmark & \checkmark & --- & --- \\
-    Lemaradás büntetése            & 25 m-en belül & 25 m-en belül & teljes 40 m & --- & --- \\
-    Sávközép- és simasági szorzó   & \checkmark & \checkmark & \checkmark & --- & --- \\
-    Haladásalapú alapjutalom       & ---        & ---        & ---        & \checkmark & \checkmark \\
-    Előzési bónusz                 & $+5$       & $+5$       & $+2$ és $+3$ & $+5$ & $+5$ \\
-    Potenciálalapú formálás        & ---        & ---        & ---        & ---  & \checkmark \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
 \subsection{Eredmények}
 \label{subsec:eval_results}
 

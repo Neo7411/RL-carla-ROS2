@@ -1,13 +1,13 @@
 # Fdb version 3
-["biber main"] 1792094960 "main.bcf" "main.bbl" "main" 1792097704
-  "main.bcf" 1792097704 110056 f1569dc3acb0c77dbdb8a61901d9a123 "pdflatex"
+["biber main"] 1792094960 "main.bcf" "main.bbl" "main" 1792097945
+  "main.bcf" 1792097945 110056 f1569dc3acb0c77dbdb8a61901d9a123 "pdflatex"
   "refs.bib" 1792094957 13041 c68ff4a40d36528f13a08639aefbf1c0 ""
   (generated)
   "main.bbl"
   "main.blg"
-["pdflatex"] 1792097702 "/home/xavier11/CARLA/RL/RL-carla-ROS2/tdk/main.tex" "main.pdf" "main" 1792097704
+["pdflatex"] 1792097944 "/home/xavier11/CARLA/RL/RL-carla-ROS2/tdk/main.tex" "main.pdf" "main" 1792097945
   "/etc/texmf/web2c/texmf.cnf" 1782307841 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/home/xavier11/CARLA/RL/RL-carla-ROS2/tdk/main.tex" 1792097700 88215 b733b1b79dd2a8da4bbd0c76dbee8479 ""
+  "/home/xavier11/CARLA/RL/RL-carla-ROS2/tdk/main.tex" 1792097942 86684 81cc37dc940ef5e64a0e8abc3d73b613 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/adobe/symbol/psyr.tfm" 1136768653 1408 5937f58aa508ea2cea4901c07d10f5fe ""
@@ -34,7 +34,6 @@
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb" 1248133631 36299 5f9df58c2139e7edcf37c8fca4bd384d ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb" 1248133631 35752 024fb6c41858982481f6968b5fc26508 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb" 1248133631 32569 5e5ddc8df908dea60932f3c484a54c0d ""
-  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb" 1248133631 31764 459c573c03a4949a528c2cc7f557e217 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/rsfs/rsfs10.pfb" 1229303445 16077 4737ac34f0fb5608550f3780a0202c22 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/urw/symbol/usyr.pfb" 1136849748 33709 b09d2e140b7e807d3a97058263ab6693 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb" 1136849748 46026 6dab18b61c907687b520c72847215a68 ""
@@ -222,12 +221,12 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1644012257 39432 7155514e09a3d69036fac785183a21c2 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1782315899 4379155 98693266ff65f58d9f98aff394de12d2 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1782315940 2801005 0771dffcf1e59e64d47e12d0a157eccf ""
-  "main.aux" 1792097704 23078 b0748a464e92ad82061bc9d90e4fca65 "pdflatex"
+  "main.aux" 1792097945 22391 d625d50a6243e6124d49a126d3e053f9 "pdflatex"
   "main.bbl" 1792094960 54915 914983f4b5a896864db253bc3826b461 "biber main"
-  "main.out" 1792097704 5977 1e691bcb842d690314702b8cfa56a498 "pdflatex"
-  "main.run.xml" 1792097704 2339 3779b4268cced4951cf78cb9dc7f8ff6 "pdflatex"
-  "main.tex" 1792097700 88215 b733b1b79dd2a8da4bbd0c76dbee8479 ""
-  "main.toc" 1792097704 4742 6cfd1c746be7efabe5859f8b6a7c6e5c "pdflatex"
+  "main.out" 1792097945 5767 10d7520463337e09d2a17c2a0d270bc3 "pdflatex"
+  "main.run.xml" 1792097945 2339 3779b4268cced4951cf78cb9dc7f8ff6 "pdflatex"
+  "main.tex" 1792097942 86684 81cc37dc940ef5e64a0e8abc3d73b613 ""
+  "main.toc" 1792097945 4619 9e8527f14222c37dd797ccd9cc8f40f1 "pdflatex"
   "pictures/carla_sim.jpeg" 1790864003 28015 325f046e5f117f3500e81a6908f20301 ""
   "pictures/eval/metrics.pdf" 1792084120 22371 5d4b6f0c67f87611ec844ef8fd77563d ""
   "pictures/eval/routes_city_to_highway.pdf" 1792096114 119270 e46305256d6d6699555ed3d36038f48a ""
