@@ -48,13 +48,6 @@
 % A dolgozat címe (a címlapon és a PDF adataiban is ez szerepel)
 % ---------------------------------------------------------------------
 \newcommand{\dolgozatcim}{Dinamikus objektumelkerülés megerősítéses tanulással\\a CARLA szimulátorban}
-% \newcommand{\dolgozatalcim}{Kamera- és LiDAR-autoenkóderre épülő\\Soft Actor-Critic ágens fejlesztése}
-
-% \hypersetup{
-%   pdftitle   = {Autonóm járművezetés megerősítéses tanulással a CARLA szimulátorban},
-%   pdfauthor  = {Angi Dávid},
-%   pdfsubject = {TDK dolgozat},
-% }
 
 \begin{document}
 
@@ -977,8 +970,13 @@ fizikai mennyiséget jutalmaz.
 
 Ugyanakkor a különböző ágensek tanítása során voltak közös konstans metrikák mint például, az epizódzáró büntetés. A járművel 
 való ütközés esetén $-30$, a többi esetben (az útról való letérés, megállás, a sebességhatár túllépése) $-10$.
+Már az is büntetés az ágensnek, hogy véget ér az epizód, mert onnantól nem kap több jutalmat,
+a $-10$ ezt még megtoldja. Az ütközést tartom a legsúlyosabb hibának, ezért annak háromszoros
+a büntetése, így az előzésért járó $+5$ miatt sem éri meg kockáztatni.
 Minden modell esetén közös a kormányrángatásért kiszabott büntetés, amelyet a kormányjel lépésenkénti
-változásának kétszereséből számolok. Az előzési manővert felismerő állapotgép, ahol csak következő van engedélyezve a balra,
+változásának kétszereséből számolok. A kettes szorzót úgy választottam, hogy
+egy hirtelen 0,1-es kormánymozdulat $0{,}2$ levonással járjon, ez a szabad haladásért kapott
+lépésjutalom ötöde. A kis korrekciókért viszont alig von le valamit. Az előzési manővert felismerő állapotgép, ahol csak következő van engedélyezve a balra,
 szaggatott vonalon áthaladás ha szabad a sáv kihúzódhat és megkísérelheti az előzési manővert.
 
 \subsection{R1: sávtartás és szabályos előzés}
@@ -990,9 +988,13 @@ Az alapjutalom amit kap szabad úton négy, nullától egyig terjedő tényező 
   \label{eq:r1_free}
 \end{equation}
 ahol $v$ a sebesség (50~km/h-nál 1, alatta lineáris), $c$ a sávközép-tényező
-(a sáv közepén 1, 2~m-re tőle 0), $a$ az irányszög-tényező (az útvonal irányába nézve
-1), $s$ pedig a simasági tényező, amely azért felelős hogy a modell ne végezzen hírtelen fölösleges kormány mozdulatokat 
-amikor a sávjában közlekedik.  
+(a sáv közepén 1, 2~m-re tőle 0, közte lineáris), $a$ az irányszög-tényező (az útvonal irányába nézve
+1, arra merőlegesen 0, közte lineáris), $s$ pedig a simasági tényező, amely azért felelős hogy a modell ne végezzen hírtelen fölösleges kormány mozdulatokat
+amikor a sávjában közlekedik. Az $s$-t úgy számolom, hogy veszem a sávközéptől mért
+távolság szórását az utolsó 30 lépésben (1,5~s): ha a szórás 0, akkor $s = 1$, 0,35~m-nél pedig
+már 0. A 2~m azért jó határ, mert ez kicsit több a fél sávszélességnél (kb. 1,75~m), tehát ott
+már a szomszéd sávban van az autó. 0,35~m-es szórásnál pedig már szemmel is látszik, hogy
+cikázik a sávon belül.  
 A tagokat szorzás utolján fuzionálom ennek oka, hogy bármelyik kiesése
 nullázza a jutalmat. Az ágnest így kényszerítem arra, hogy egyszerre kell mindegyiket teljesítenie. 
 Az 1.9 es kivehető oka a követkző, az 1-nél nagyobb kitevő hatása az, hogy a lassú
@@ -1004,19 +1006,23 @@ teszi mert végsősoron a cél, hogy az ágens elkerülje a lassan forgalmirész
 A következő eset, amikor az ágens előtt van egy forgalmi szereplő de nem engedélyezett az előzés.
 A saját sávjában 40~m-en belül lassabb jármű megy előtte(foglalt vagy záróvonallal elválasztott szomszédos sáv), 
 akkor követnie kell nem sazbad baleset történjen. Ilyenkor a sebesség helyett 
-helyett a biztonságos követési távolság megtalálását jutalamzom, hogy az ágens megfelelően kövesse aki előtte van.
+helyett a biztonságos követési távolság megtalálását jutalamzom, hogy az ágens 
+megfelelően kövesse aki előtte van.
+A 40~m 50~km/h-nál nagyjából 3~s, ez több, mint a 2~s-os (kb. 28~m) követési távolság,
+így az ágensnek van ideje eldönteni, hogy követ vagy előz.
 
 \begin{equation}
   r_{\text{követés}} = 0{,}8 \, g(h) \, m \cdot c \cdot a \cdot s + p_{\text{TTC}},
   \label{eq:r1_follow}
 \end{equation}
-ahol $h$ a követési időköz (a távolság és a saját sebesség hányadosa az előtte haladóhoz képest), $g$ pedig egy
-lognormális alakú függvény, amelynek maximuma 2~s-nál van. A $0{,}8$-as szorzót azért
-alkalmazom, hogy a tökéletes követés is kevesebbet érjen a szabad haladásnáL. A sáv
+ahol $h$ a követési időköz (a távolság és a saját sebesség hányadosa az 
+előtte haladóhoz képest), $g$ pedig egy lognormális alakú függvény, 
+amelynek maximuma 2~s-nál van. A $0{,}8$-as szorzót azért
+alkalmazom, hogy a tökéletes követés kevesebbet érjen a szabad haladásnáL. A sáv
 közepén, 2~s-os időközzel, az előtte haladóval azonos sebességgel követve a
 lépésjutalom $0{,}8$, míg szabad úton 50~km/h-val $1{,}0$. Így az akkor is
-megéri előzni ha egyébként hibátlanul követ, ezzel kiküszöbölve, hogy szabad ó
-út esetén merjen előzni.
+megéri előzni ha egyébként hibátlanul követ, ezzel kiküszöbölve, hogy szabad 
+út esetén merjen előzni az ágnes.
 
 Az $m$ az ágens és az előtte levő jármű sebesség hányadosa ami fentről 1re van korlátozva:
 \begin{equation}
@@ -1024,8 +1030,8 @@ Az $m$ az ágens és az előtte levő jármű sebesség hányadosa ami fentről 
   \label{eq:r1_match}
 \end{equation}
 
-alapból  a $g$ egymagában kijátszható. A $h$ követési időköz a
-távolság és a \emph{saját} sebesség hányadosa, ezért lassítással is növelhető: ha az
+ez szükséges mivel alapból  a $g$ kijátszható. A $h$ követési időköz a
+távolság és a \emph{saját} sebesség hányadosa, ezért lassítással is növelhető. Ha az
 ágens lefékezne és lemaradna, $h$ 2~s fölé nőne, a jutalma mégsem csökkenne. 
 Az $m$ ezt hivatott javítani  a lassabb haladás arányosan bünteti, az előtte haladó
 sebességét elérve, hogy kövesse amíg kell utána már ne érje meg követni. A két tényező együtt azt várja
@@ -1048,7 +1054,12 @@ haladóhoz, tehát ütközés veszélye áll fenn.
 A büntetés az ütközésig hátralévő idő alapján jár,
 7~s alatt lép életbe $0{,}3 \cdot \ln(t/7)$ alakban, és 1,5~s-nál éri el a $-0{,}46$-os
 maximumát. Ha az ügynök nem közeledik az előtte haladóhoz, ez az idő végtelen, és
-büntetés sem jár.
+büntetés sem jár. Ha az ágens 50~km/h-val megy egy 25~km/h-s autó mögött,
+a 7~s kb. 48~m, tehát a büntetés már akkor elindul, amikor meglátja az előtte lévőt (40~m).
+A logaritmus miatt minél kisebb a TTC, annál gyorsabban nő a büntetés, ezért 1,5~s-nál
+levágom, különben nulla közelében végtelen lenne. A 0,3-as súlyt úgy állítottam be, hogy a
+legnagyobb büntetés ($-0{,}46$) kb. a fele legyen a jó követésért járó $0{,}8$-nak, így a
+követési jutalom marad a fontosabb.
 
 
 Előzési manőver végrehajtása közben adott lépésenkénti jutalom
@@ -1058,53 +1069,67 @@ Előzési manőver végrehajtása közben adott lépésenkénti jutalom
 \end{equation}
 ahol $l$ a célsáv közepétől mért távolságot bünteti, $k$ pedig az elhúzódó manővert:
 15~s után, illetve az elhaladást követően sávonként 3~s után négy másodperc alatt
-1-ről 0,3-ra esik. A 0,3-as alaptag biztosítja, hogy a lassú előzés is jobban
+1-ről 0,3-ra esik. A 15~s-ot szándékosan hagytam bőre: 25~km/h-s sebességkülönbségnél egy
+előzés kihúzódással és visszasorolással együtt nagyjából 8~s, így egy rendes előzést ez még nem
+büntet. Az elhaladás után sávonként 3~s elég arra, hogy nyugodtan visszasoroljon, a 4~s alatti
+fokozatos csökkenés pedig azért van, hogy a jutalom ne essen le egyszerre. A $k$ azért nem megy
+0,3 alá, mert néha a forgalom miatt tényleg nem tud rögtön visszamenni, ilyenkor nem akarom
+büntetni, csak kevesebbet kap, mint a saját sávjában.
+A képletben szereplő 0,3-as alaptag biztosítja, hogy a lassú előzés is jobban
 megérje, mint a lassabb jármű mögötti kullogás. A szabályosan befejezett előzésért
-járművenként egyszer $+5$ bónusz jár.
+járművenként egyszer $+5$ bónusz jár. Ez jóval kevesebb a $-30$-as ütközési
+büntetésnél, így egy kockázatos előzés miatt nem éri meg. Azért jár csak egyszer
+járművenként, hogy az ágens ne tudja ki-be sorolgatással gyűjtögetni.
 
-Külön tag bünteti azt, ha az ágens előzhetne, de nem teszi. Mely szerint ha 25~m-en belül halad az
-előtte lévő mögött, nem gyorsabb nála legalább 5~km/h-val, lépésenként $-0{,}10$ és
-$-0{,}18$ közötti büntetést kap, amely az idő múlásával nő. Ez az egyetlen eset, amikor
+Külön tag bünteti azt, ha az ágens előzhetne, de nem teszi: ha 25~m-en belül halad az
+előtte lévő mögött, és nem gyorsabb nála legalább 5~km/h-val, lépésenként
+\begin{equation}
+  r_{\text{kullogás}} = -0{,}1 \cdot \bigl(1 + 0{,}4\,(1 - v) + 0{,}4 \cdot \min(t_{\text{k}}/3,\ 1)\bigr)
+  \label{eq:r1_lag}
+\end{equation}
+büntetést kap, ahol $t_{\text{k}}$ az egyhuzamban kullogással töltött idő másodpercben.
+A büntetés így $-0{,}10$ (teljes sebességnél, a kullogás elején) és $-0{,}18$ (álló helyzetben,
+legalább 3~s kullogás után) között van: minél lassabb az ágens és minél tovább ragad be, annál
+nagyobb. Az együtthatókat kézzel hangoltam be. A $-0{,}1$ kicsi a szabad haladásért járó
+legfeljebb $1{,}0$-hoz képest, így nem a büntetés irányítja az ágenst, csak nem hagyja, hogy
+beragadjon a lassabb autó mögé. A lassúság és a beragadás ideje külön-külön legfeljebb
+40\%-kal növeli a büntetést. Az időtag 3~s alatt éri el a maximumát, így egy rövid lassítás
+alig számít, a hosszú kullogás viszont már igen. Az 5~km/h-s határral azt választom szét, hogy
+az ágens tényleg felzárkózik az előtte lévőre, vagy csak beállt mögé, 25~m-en belül pedig már
+nem közeledik hozzá, hanem mögötte megy.
+Ez az egyetlen eset, amikor
 a lépésjutalom nem szorzódik a sávtartási tényezőkkel: ellenkező esetben a rossz
 sávtartás csökkentené a büntetés mértékét.
 
+Ha az ágens rossz sávba megy, vagyis jobbra húzódik ki, vagy előzés nélkül átmegy a bal sávba,
+lépésenként $-0{,}5$ büntetést kap. Ez sokkal több, mint a kullogás legnagyobb büntetése
+($-0{,}18$), tehát inkább kullogjon, mint hogy szabálytalanul menjen. A jelenetet viszont nem
+zárom le, hogy meg tudja tanulni, hogyan jöjjön vissza a saját sávjába.
 
 
-%-----------------------------------------------------------------------------------------------------------------------------------------------------
+
 \subsection{R2: ütközésidő-büntetés előzhető helyzetben}
 \label{subsec:reward2}
 
-Az R1-ben a $p_{\text{TTC}}$ büntetés csak akkor járt, ha az előzés nem volt lehetséges.
-Előzhető helyzetben hiányzott, ezért megérte teljes sebességgel ráfutni az előttünk
-haladó járműre, és csak az utolsó pillanatban kihúzódni. Az R2 egyetlen változtatása,
-hogy ugyanezt a büntetést (7~s küszöb, 0,3 súly) az előzhető állapotra is kiterjeszti.
-A büntetés a kihúzódás első méterén fokozatosan szűnik meg, így a már megkezdett
-manővert nem akadályozza.
+Következőkben itt a második függvény hangolásom, R1-ben a $p_{\text{TTC}}$ 
+büntetés csak akkor járt, ha az előzés nem volt lehetséges.
+A TTC jutalom definiciót megprobáltam átültetni, hogy előzési manőver során
+is alkalmazható legyen. Az R2 egyetlen változtatása,
+hogy ugyanezt a büntetést (7~s küszöb, 0,3 súly) az előzhető állapotra is kiterjesztem.
+A büntetés a kihúzódás első méterén fokozatosan szűnik meg, így ha már megkezdi a
+manővert jutalamzom.
+%-----------------------------------------------------------------------------------------------------------------------------------------------------
 
 \subsection{R3: hangolás bátrabb előzésre}
 \label{subsec:reward3}
 
-Az R2-vel tanított modell nem mert határozottan előzni. A \ref{tab:reward_steps}.~táblázat
-felső része megmutatja, miért: a lassabb jármű mögött 25--40~m-rel lemaradva haladni
-büntetlen, sőt pozitív jutalmat adott, miközben az előzés a legjobb esetben is csak
-0,90-et ért, kevesebbet, mint a saját sávban elérhető 1,00. Az R3 ezen négy ponton
-változtat:
+Harmadik jutalom függvényem azt hivatott javítani ami az előzőben problémává vált.
+Az ágens nem mert előzni vagy csak nagyon későn, az R2-vel tanított modell 
+gyakorlatilag nem mert előzni. 
 
-\begin{enumerate}
-  \item Az előzhető helyzetben járó ütközésidő-büntetés küszöbe 7~s-ról 3~s-ra csökken,
-        súlya viszont 0,3-ról 0,6-ra nő. Így csak a tényleges késlekedést bünteti, a
-        gyors ráfutást nem.
-  \item Az előzés lépésjutalma $(0{,}3 + 0{,}6\,v^{1,9})$ helyett
-        $(0{,}4 + 0{,}7\,v^{1,9})$, vagyis 50~km/h-nál 0,90 helyett 1,10. Ezzel a
-        kihúzódás értékesebb lesz, mint a saját sávban maradás.
-  \item A lemaradás büntetése már nem csak 25~m-en belül jár, hanem a teljes 40~m-es
-        érzékelési tartományban.
-  \item A $+5$ bónusz két részre bomlik: $+2$ az elhaladáskor és $+3$ a szabályos
-        visszasoroláskor. A 0,98-as diszkonttényező mellett az eredeti, csak a manőver
-        végén érkező bónusz a kihúzódás pillanatában mindössze 0,66-ot ért; a
-        kettébontás ezt körülbelül 1,13-ra növeli.
-\end{enumerate}
-
+Ahogy a \ref{tab:reward_steps}.~táblázat
+megmutatja, a lassabb jármű mögött 25--40~m-rel lemaradva haladni jobban megérte az ágensnek
+büntetlen volt, sőt pozitív jutalmat adott. 
 \begin{table}[htbp]
   \centering
   \caption{Lépésjutalmak egy 25~km/h sebességgel haladó jármű mögött, szabad bal sáv
@@ -1125,12 +1150,35 @@ változtat:
   \end{tabular}
 \end{table}
 
+Miközben az előzés a legjobb esetben is csak
+0,90-et ért, kevesebbet, mint a saját sávban elérhető 1,00. 
+
+Ezeket elnézve a Következő 4 ponton változtat az R3:
+
+\begin{enumerate}
+  \item Az előzhető helyzetben járó ütközésidő-büntetés küszöbe 7~s-ról 3~s-ra csökken,
+        súlya viszont 0,3-ról 0,6-ra nő. Így csak a tényleges késlekedést bünteti, a
+        gyors ráfutást nem.
+  \item Az előzés lépésjutalma $(0{,}3 + 0{,}6\,v^{1,9})$ helyett
+        $(0{,}4 + 0{,}7\,v^{1,9})$, vagyis 50~km/h-nál 0,90 helyett 1,10. Így problámon a 
+        kihuzódást előzés helyzetre jobban jutalamzni
+  \item A lemaradás büntetése mnem csak 25~m-en belül jár, hanem 40~m-en már ez a teljes
+        érzékelési tartomány.
+  \item A $+5$ bónusz két részre bontottam így megkapja de máson lesz a hangsúly.
+        A $+2$--t az elhaladáskor és $+3$ a szabályos
+        visszasoroláskor. A 0,98-as diszkonttényező mellett az eredeti, csak a manőver
+        végén érkező bónusz a kihúzódás pillanatában mindössze 0,66-ot ért; a
+        kettébontás ezt körülbelül 1,13-ra növeli.
+\end{enumerate}
+
+
+
 \subsection{R4: haladásalapú jutalom}
 \label{subsec:reward4}
-
-Az R1--R3 változatok minden forgalmi helyzetre külön, kézzel hangolt tagot
-tartalmaznak. Az R4 ezek helyett egyetlen fizikai mennyiséget jutalmaz: az útvonal
-mentén megtett elmozdulást. A lépésjutalom minden megengedett sávban
+Negyedik függvény esetén úgy döntöttem, teljesen átszabom a modell jutalmazási logikáját.
+Az R1--R3 függvények minden forgalmi helyzet esetén, kézzel hangolt tagot
+tartalmaztak. Az R4 ezekkel ellentétben egyetlen fizikai mennyiséget jutalmaz. Ez a következő
+az útvonal mentén megtett elmozdulást. A lépésjutalom minden megengedett sávban
 \begin{equation}
   r = v \cdot \cos\vartheta \cdot l \cdot k,
   \label{eq:r4}
@@ -1141,53 +1189,66 @@ elhúzódás-tényező. A koszinuszos tag a ferde haladást veszi figyelembe, vi
 haladva negatív. A sebességben lineáris, tehát 25~km/h-nál feleannyi jutalom jár, mint
 50-nél.
 
-A feltételezés az, hogy a lassabb jármű mögött a haladás magától kisebb, ezért az
-előzés kézi formálás nélkül is megéri. Kimarad a követési távolság jutalmazása, az
-ütközésidő-büntetés, a lemaradás büntetése, a sávközép- és a simasági szorzó, valamint
-az 1,9-es kitevő. Megmarad viszont minden, ami a feladat szabálya és nem formálás: az
+A feltételezésem szerint így a lassabb jármű mögött a haladás magától kisebb, ezért az
+előzés kézi formálás nélkül is megéri.
+Ezek által a kézzel formált jutalmakat kivettem az egyenletből 
+, ami megmaradt az a feladat szabálya nem pedig formálás. Az
 epizódzáró büntetések, az előzési állapotgép, a rossz sávért járó $-0{,}5$, a
 kormányrángatás büntetése és a szabályos előzésért járó $+5$ bónusz. Az ütközést így
 kizárólag a $-30$ terminális büntetés tanítja.
 
+Ebben a függvényben a bal sáv önmagában nem ér többet a sajátnál. Például 
+egy 25~km/h-s autó mögött lépésenként 0,5 jár, előzés közben 50~km/h-val 1,0, 
+az ágens azért előz, mivel ez által 
+gyorsabban halad. Külön csak a $+5$ jutalmazza az előzést, ez viszont csak a célt jelöli ki,
+a módját nem. Meglátásom szerint az eljárás jobb lehet mivel,
+nincsenek a kézi tagok esetében előfordulhat, hogy a jutalmak bizonyos esetekben
+kioltják egymást.
+
 \subsection{R5: potenciálalapú jutalomformálás}
 \label{subsec:reward5}
 
-Az R5 az R4 kiegészítése Ng, Harada és Russell potenciálalapú
-formálásával~\cite{ng1999}. A módszer szerint a
+Az ötödik függvény az elzőre épül csak kiegészíti egy darab plus taggal 
+Az ötletet, Ng, Harada és Russell 1999-es
+cikkéből vettem~\cite{ng1999}. Ez a cikk azt vizsgálja,
+hogy lehet az ágensnek plusz jutalmat adni úgy, hogy közben ne tanuljon rossz
+viselkedést. Ez alatt értem, hogy a kézi segítő tagok amik az előző 3 függvényben vannak 
+felmerülhet a probléma, hogy az ágens megkerüli a jutalomszerzés menetét. Az
+R2-ben például a 25--40~m-es lemaradás még jutalmat is ért, így előzés helyett megérte
+lemaradni, tehát nem tudott hatékonyan előzni.
+
+Azt bizonyítják, hogy ha a plusz jutalom
 \begin{equation}
   F(s, s') = \gamma\,\Phi(s') - \Phi(s)
   \label{eq:shaping}
 \end{equation}
-alakú tag, ahol $\Phi$ csak az állapottól függ, bizonyítottan nem változtatja meg,
-melyik stratégia optimális: a diszkontált összegben kiejti magát, csak előbbre hozza a
-jutalmat. Az R3 bónuszkettébontása ugyanezt próbálta kézzel elérni, itt elméletileg
-megalapozott formában történik.
+alakú, ahol $s$ az aktuális, $s'$ a következő állapot, $\gamma$ a diszkonttényező, a $\Phi$
+potenciál pedig egy szám, amit minden állapothoz hozzárendelek, és azt méri, mennyire jó
+helyzetben van az ágens (nálam azt, hogy hol tart az előzésben), akkor az ágens ugyanazt a
+viselkedést tanulja meg a legjobbnak, mint e tag nélkül. A $\Phi$ úgy viselkedik, mint egy szint: ha nő, az
+ágens jutalmat kap, ha csökken, ugyanannyit elveszít. Ha visszaér oda, ahonnan indult,
+összesen nem nyert semmit. 
+Így ezen tag nem viheti rossz irányba a tanulást, csak annyit csinál, hogy a
+jutalom hamarabb megérkezik és csak akkor amikor a helyzet ugy hozza.
 
-A potenciál előzés közben
+A módszer implementálására szükségem volt, mert az előző függvényben a $+5$ csak az előzés végén jár, nagyjából 5~s-mal
+a kihúzódás után. A 0,98-as diszkonttényező mellett ez a kihúzódás pillanatában már csak kb.
+0,66-ot ér, vagyis az ágens alig érzi a kihuzódást így nem merte annyira alkalmazni sem.
+
+A potenciált úgy választottam, hogy előzés közben
 \begin{equation}
   \Phi = 2 + 3\,\varphi, \qquad
   \varphi = \mathrm{clip}\!\left(\frac{d_0 - d}{d_0 + 5}, 0, 1\right),
   \label{eq:phi}
 \end{equation}
-előzésen kívül pedig nulla. Itt $d_0$ a megelőzendő jármű távolsága a kihúzódás
-pillanatában, $d$ pedig az aktuális távolság, így $\varphi$ az elhaladás előrehaladását
-méri. A kihúzódáskor $\Phi = 2$, az elhaladás befejeztével $\Phi = 5$. Ennek
-következményei:
-\begin{itemize}
-  \item a kihúzódás pillanatában $F = +1{,}96$, vagyis a bónusz értékének egy része
-        azonnal megérkezik, nem csak mintegy öt másodperccel később;
-  \item amíg $\Phi > 0$, lépésenként $-(1-\gamma)\Phi$ is jár, ezért az elhúzódó előzés
-        azonnal rosszabbnak látszik;
-  \item a visszasoroláskor $F = -5$, amit a $+5$ bónusz pontosan kiegyenlít;
-  \item a feladott vagy ütközéssel végződő előzés visszaveszi a korábban kapott
-        jutalmat.
-\end{itemize}
-A $\gamma = 0{,}98$ érték megegyezik a tanítás diszkonttényezőjével.
+legyen, előzésen kívül pedig nulla. A $d_0$ a megelőzendő autó távolsága a kihúzódáskor,
+a $d$ az aktuális távolsága, így a $\varphi$ azt mutatja, hol tart az elhaladásban: a
+kihúzódáskor 0, és akkor lesz 1, amikor a megelőzött autó már 5~m-rel mögötte van (ezért
+van a nevezőben $+5$~m). A potenciál így kihúzódáskor 2, az elhaladás végén 5, ami
+pont a $+5$ bónusz. 
 
-Megjegyzendő, hogy a formáló tag miatt az epizódonként gyűjtött, diszkontálatlan
-jutalomösszeg előzésenként mintegy tízzel kisebb, mint az R4 esetében. A futásokat
-ezért nem a jutalomösszeggel, hanem feladatszintű mérőszámokkal kell összehasonlítani,
-amint azt a~\ref{sec:modells}.~fejezet teszi.
+Az R4-hez képest tehát nem a cél változik, hanem az, hogy az ágens mikor kapja meg a
+jutalmat. Ettől elvárásaim alapján gyorsabban és határozottabban tanul meg előzni.
 
 \section{Elkészült modellek összehasonlítása}
 \label{sec:modells}
@@ -1195,19 +1256,24 @@ amint azt a~\ref{sec:modells}.~fejezet teszi.
 \subsection{A kiértékelés módszertana}
 \label{subsec:eval_method}
 
-A megerősítéses tanulásban egyetlen futás eredménye valószínűségi változó: ugyanaz a
-betanított modell ugyanazon az útvonalon más eredményt ad, ha a forgalom elhelyezése
-megváltozik. Ezt a saját mérésem is megerősítette. Az egyik modell ugyanazon az
-útvonalon az egyik forgalmi elrendezésben 32,5~km/h átlagsebességgel és két szabályos
-előzéssel ért célba, egy másikban 41,0~km/h-val és tízzel. A szakirodalom éppen ezért
-többszöri mérést és a bizonytalanság közlését várja el~\cite{agarwal2021}, a CARLA-alapú
-munkák pedig jellemzően útvonalanként több ismétlést futtatnak~\cite{carl2025}.
+A gépitanuló megoldások és módszerek esetén a kiértékelés
+sosem egy futás eredménye. Mivel a módszerek valószínűségeken alapunak
+tehát egyrészt a véletlentől függnek. Ugyanazon modell
+ugyanazon az útvonalon esetenként másképp viselkedik. 
+Például esetemben máshol vannak a forgalom többi résztvevői. 
+Pont ezen helyzetekből kiindulva egyetlen futásból nem lehet elég reprezentatív 
+a modellekre nézve ezért többször futtatam őket ugyanazon útszakaszokon.
 
-Ennek megfelelően a kiértékelés tíz rögzített útvonalon történt, amelyekből öt tisztán
-autópályás, öt pedig városi szakaszról autópályára vezet
-(\ref{fig:routes}.~ábra). Mind az öt modell mind a tíz
-útvonalat ötször járta be, egymástól független forgalmi elrendezésekkel, ami összesen
-250 lefutást jelent.
+Az útszakaszok a következők tíz rögzített szakasz a térképről, 
+ebből öt csak autópályát tartalmaz, öt pedig városból vezet fel
+az autópályára (\ref{fig:routes}.~ábra). 
+
+Mind az öt modell a tíz útvonalat ötször
+járta be valamint amelyek közül a legrövidebb 1,05 de a legterjedelmesebb eléri 6,09~km et is.
+Minden futás során más forgalmi elrendezés, így a végén összesen 250 bejárást mértem. 
+A véletlen-generátor kezdőértékeit magam állítottam be, így adott körben minden modell
+pontosan ugyanazt a forgalmat kapja. 
+Így mindegyik ugyanazokon a helyzeteken mérődik, és nem az dönt, hogy melyiknek jutott könnyebb forgalom.
 
 \begin{figure}[htbp]
   \centering
@@ -1225,30 +1291,24 @@ autópályás, öt pedig városi szakaszról autópályára vezet
            indulási pontokat jelölik, az útvonalak hossza 1,05 és 6,09~km között
            változik.}
   \label{fig:routes}
-\end{figure} A véletlenszám-generátor kezdőértékeit úgy választottam meg, hogy
-a modellek körönként pontosan ugyanazt a forgalmi helyzetet kapják: így az
-összehasonlítás párosított, és a különbségekben nem jelenik meg az, hogy melyik
-modellnek jutott könnyebb forgalom.
+\end{figure}
 
-A kiértékelés nem áll le az első hibánál. Ha a jármű lehagyja az utat, megáll vagy
-ütközik, a hibát rögzítem, a járművet visszateszem az útvonal utolsó érintett pontjára,
-és a bejárás folytatódik. Ez a CARLA Leaderboard logikája: az útvonal végigmegy, a
-szabálysértések pedig számlálódnak. Így minden modell ugyanannyi lépést vezet, és a
-sebességre, sávtartásra, előzésre vonatkozó mérőszámok ténylegesen összevethetők.
+A kiértékelések a tanító eljárásokkal ellentétben nem állnak le bizonyos esetekben. 
+Ezek a következők ha az autó letér az útról, megáll vagy ütközik. Az eljárás során felírom 
+a hibát, majf visszateszem az útvonal utolsó elért pontjára, és megy tovább a jelenet. 
+A végén összesítem ezeket a hibákat is ez által még egy mérőszámot kapok.
 
-Az útvonalak hossza 1,05 és 6,09~km között változik, ezért az eredményeket két lépésben
-átlagoltam. Először útvonalanként vontam össze az öt bejárást, majd a tíz útvonal
-átlagát képeztem. Így minden útvonal azonos súllyal szerepel, és nem a hosszabb
-szakaszok határozzák meg az eredményt. A táblázatokban és az ábrákon közölt szórás a tíz
-útvonal közötti ingadozást mutatja, vagyis azt, mennyire egyenletes a modell
-teljesítménye eltérő körülmények között.
+% Mivel az útvonalak , két lépésben átlagoltam: először
+% útvonalanként az öt bejárást, aztán a tíz útvonalat. Így minden útvonal ugyanannyit
+% számít, és nem a hosszabbak döntik el az eredményt. A táblázatokban és az ábrákon a szórás
+% a tíz útvonal közötti eltérést mutatja, vagyis azt, mennyire egyenletesen teljesít a modell
+% különböző helyzetekben.
 
-Fontos megjegyzés a jutalomértékekről: mivel az öt modell eltérő jutalomfüggvénnyel
-tanult, az általuk gyűjtött jutalom skálája és összetétele különbözik, ezért a
-jutalomösszeg modellek közötti összehasonlításra nem alkalmas. Az értékelés ezért
-kizárólag feladatszintű, a jutalomfüggvénytől független mérőszámokra épül. Ezek a
-mérőszámok minden modellnél azonos módon keletkeznek, mert az előzést felismerő
-állapotgép mind az öt jutalomfüggvényben ugyanaz a kód.
+% A jutalomösszeget nem használom az összehasonlításhoz: mivel minden modell más
+% jutalomfüggvénnyel tanult, a jutalmak más skálán vannak, így nem összevethetők. Helyette
+% csak olyan mérőszámokat nézek, amik nem függenek a jutalomfüggvénytől. Ezek minden
+% modellnél ugyanúgy számolódnak, mert az előzést felismerő állapotgép mind az öt
+% jutalomfüggvényben ugyanaz a kód.
 
 \subsection{A vizsgált jutalomváltozatok}
 \label{subsec:reward_variants}
