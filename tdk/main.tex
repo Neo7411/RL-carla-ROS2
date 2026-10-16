@@ -1256,24 +1256,25 @@ jutalmat. Ettől elvárásaim alapján gyorsabban és határozottabban tanul meg
 \subsection{A kiértékelés módszertana}
 \label{subsec:eval_method}
 
-A gépitanuló megoldások és módszerek esetén a kiértékelés
-sosem egy futás eredménye. Mivel a módszerek valószínűségeken alapunak
-tehát egyrészt a véletlentől függnek. Ugyanazon modell
-ugyanazon az útvonalon esetenként másképp viselkedik. 
-Például esetemben máshol vannak a forgalom többi résztvevői. 
-Pont ezen helyzetekből kiindulva egyetlen futásból nem lehet elég reprezentatív 
-a modellekre nézve ezért többször futtatam őket ugyanazon útszakaszokon.
+A gépi tanuló megoldások kiértékelése sosem egyetlen futás eredménye. Ugyanazon modell
+ugyanazon az útvonalon is futásról futásra másképp viselkedik, mert mindig máshol vannak a
+forgalom többi résztvevői. Egyetlen futás ezért nem jellemzi a modellt, a méréseket
+többször megismételtem ugyanazokon az útszakaszokon.
 
-Az útszakaszok a következők tíz rögzített szakasz a térképről, 
-ebből öt csak autópályát tartalmaz, öt pedig városból vezet fel
-az autópályára (\ref{fig:routes}.~ábra). 
+A tanítás minden elemét azonosnak hagytam, csak a jutalomfüggvény különbözik: ugyanaz a
+jellemzőkinyerő, ugyanazok a SAC hiperparaméterek ($\gamma = 0{,}98$), 20~Hz-es szimuláció,
+ugyanazok az epizódzáró szabályok, és minden modell kb. 1 millió lépést tanult a 100-as
+kezdőértékkel. A kiértékelésben a tanítás végén mentett súlyokat használom, determinisztikus
+akciókkal. Két modell tanítása nem egy menetben készült: az R1 egy korábbi kísérlet 401
+ezredik lépésénél mentett súlyaiból folytatódott, az R2 pedig két részben tanult (608 ezer
+lépés, majd innen folytatva, üres visszajátszási pufferrel).
 
-Mind az öt modell a tíz útvonalat ötször
-járta be valamint amelyek közül a legrövidebb 1,05 de a legterjedelmesebb eléri 6,09~km et is.
-Minden futás során más forgalmi elrendezés, így a végén összesen 250 bejárást mértem. 
-A véletlen-generátor kezdőértékeit magam állítottam be, így adott körben minden modell
-pontosan ugyanazt a forgalmat kapja. 
-Így mindegyik ugyanazokon a helyzeteken mérődik, és nem az dönt, hogy melyiknek jutott könnyebb forgalom.
+Az útszakaszok a térkép tíz rögzített szakasza: ebből öt csak autópályát tartalmaz, öt pedig
+városból vezet fel az autópályára (\ref{fig:routes}.~ábra). A legrövidebb 1,05, a
+leghosszabb 6,09~km. Mind az öt modell a tíz útvonalat ötször járta be, ez összesen 250
+bejárás. A véletlengenerátor kezdőértékeit magam állítottam be, így adott körben minden
+modell pontosan ugyanazt a forgalmat kapja. Így mindegyik ugyanazokon a helyzeteken
+mérődik, és nem az dönt, hogy melyiknek jutott könnyebb forgalom.
 
 \begin{figure}[htbp]
   \centering
@@ -1293,152 +1294,435 @@ pontosan ugyanazt a forgalmat kapja.
   \label{fig:routes}
 \end{figure}
 
-A kiértékelések a tanító eljárásokkal ellentétben nem állnak le bizonyos esetekben. 
-Ezek a következők ha az autó letér az útról, megáll vagy ütközik. Az eljárás során felírom 
-a hibát, majf visszateszem az útvonal utolsó elért pontjára, és megy tovább a jelenet. 
-A végén összesítem ezeket a hibákat is ez által még egy mérőszámot kapok.
+A kiértékelés a tanítással ellentétben nem áll le az első hibánál. Ha az autó letér az
+útról, 5~s-ig áll, vagy 60~km/h fölé gyorsul, felírom a hibát, visszateszem az útvonal
+utolsó elért pontjára, és megy tovább a jelenet. A járművel való ütközést is felírom, de az
+nem jár visszatevéssel. A visszatevések száma így egy újabb mérőszám: azt mutatja, hányszor
+kellett volna beavatkozni. Tíz visszatevés után a bejárás leáll (250-ből 9 esetben történt
+meg), ezért a bejárások nem egyforma hosszúak, és az eseményeket a ténylegesen megtett
+kilométerre vetítem. Az útvonal teljesítése emiatt nem informatív: a visszatevés miatt az
+autó szinte mindig célba ér, a modellek 96--99\%-ot értek el.
 
-% Mivel az útvonalak , két lépésben átlagoltam: először
-% útvonalanként az öt bejárást, aztán a tíz útvonalat. Így minden útvonal ugyanannyit
-% számít, és nem a hosszabbak döntik el az eredményt. A táblázatokban és az ábrákon a szórás
-% a tíz útvonal közötti eltérést mutatja, vagyis azt, mennyire egyenletesen teljesít a modell
-% különböző helyzetekben.
+A jutalomösszeget nem használom az összehasonlításhoz: mivel minden modell más
+jutalomfüggvénnyel tanult, a jutalmak más skálán vannak, így nem összevethetők. Helyette
+csak olyan mérőszámokat nézek, amelyek nem függenek a jutalomfüggvénytől. Ezek minden
+modellnél ugyanúgy számolódnak, mert az előzést felismerő állapotgép mind az öt
+jutalomfüggvényben ugyanaz a kód.
 
-% A jutalomösszeget nem használom az összehasonlításhoz: mivel minden modell más
-% jutalomfüggvénnyel tanult, a jutalmak más skálán vannak, így nem összevethetők. Helyette
-% csak olyan mérőszámokat nézek, amik nem függenek a jutalomfüggvénytől. Ezek minden
-% modellnél ugyanúgy számolódnak, mert az előzést felismerő állapotgép mind az öt
-% jutalomfüggvényben ugyanaz a kód.
+Két lépésben átlagoltam: először útvonalanként az öt bejárást (az összes esemény osztva az
+összes megtett kilométerrel), aztán a tíz útvonalat. Így minden útvonal ugyanannyit számít,
+és nem a hosszabbak döntik el az eredményt. Két modell különbségét párosítva számolom:
+mivel adott útvonalon és körben mindkét modell ugyanazt a forgalmat kapta, a különbség
+ugyanazon a helyzeten mérődik. A különbség 95\%-os konfidenciaintervallumát bootstrappal
+becsültem: útvonalanként az öt kört 10\,000-szer újra mintavételeztem visszatevéssel,
+mindkét modellnél ugyanazokat a köröket. Ha az intervallum nem tartalmazza a nullát, a
+különbség szignifikáns. A négy egymást követő lépést (R1$\rightarrow$R2, \ldots,
+R4$\rightarrow$R5) mérőszámonként Holm-korrekcióval vizsgáltam, hogy a több
+összehasonlítás miatt ne tűnjön véletlenül valami szignifikánsnak.
 
 \subsection{Eredmények}
 \label{subsec:eval_results}
 
-Az öt modell mérőszámait a~\ref{tab:model_compare}.~táblázat tartalmazza, a hozzá tartozó
-ábrázolás pedig a~\ref{fig:eval_metrics}.~ábrán látható.
+Az alábbi alfejezetek témánként veszik sorra a mérőszámokat. Az egyes mérőszámok jelentése
+és célja:
+\begin{itemize}
+  \item \textbf{Átlagsebesség [km/h]:} a megtett út és az eltelt idő hányadosa. Azt mutatja,
+        mennyire halad hatékonyan a modell, illetve mennyit lassít vagy áll a lassabb
+        járművek mögött.
+  \item \textbf{Szabályos előzés [1/km]:} azok az előzések, amelyeket az előzési állapotgép
+        szabályosnak zárt le (balra, szaggatott vonalon át, szabad sávba húzódott ki,
+        elhaladt, és szaggatott vonalon sorolt vissza). Ez a feladat fő mérőszáma.
+  \item \textbf{Sikeres előzési kísérlet [\%]:} a megkezdett előzések hány százaléka zárult
+        szabályosan, ütközés nélkül. Megmutatja, hogy a modell végig is viszi-e, amibe
+        belekezd.
+  \item \textbf{Kormányváltozás [1/lépés]:} a kormányjel lépésenkénti átlagos abszolút
+        változása. Minél kisebb, annál simábban kormányoz a modell, nagy értéke
+        kormányrángatást jelez.
+  \item \textbf{Sávközépen [\%]:} az idő hány százalékában volt az autó a sáv közepétől
+        0,5~m-en belül. A sávtartás pontosságát méri.
+  \item \textbf{Kihagyott előzés [1/km]:} hányszor haladt a modell legalább 5~s-ig ugyanazon
+        lassabb jármű mögött úgy, hogy közben előzhetett volna (szaggatott vonal, szabad bal
+        sáv). Azt méri, mennyire használja ki a modell a lehetőséget.
+  \item \textbf{Szabálytalan elhaladás [1/km] és arány [\%]:} olyan elhaladás egy jármű
+        mellett, amely nem szabályos előzés (például jobbról, vagy amikor nem szabadott
+        volna kihúzódni). Azt méri, betartja-e a modell az előzés szabályait.
+  \item \textbf{Járműütközés [1/km]:} hány járművet ütött el a modell kilométerenként,
+        minden jármű egyszer számít. A biztonság fő mérőszáma.
+  \item \textbf{Visszatevés [1/km]:} hányszor kellett az autót visszatenni az útvonalra
+        (letért az útról, megállt, vagy túl gyorsan ment), vagyis hányszor kellett volna
+        egy embernek beavatkoznia.
+\end{itemize}
+
+A táblázatokban minden érték a tíz útvonal átlaga, útvonalanként öt bejárásból. A $\pm$ utáni
+szám az útvonalak közötti szórás, ami azt mutatja, mennyire egyenletesen teljesít a modell a
+különböző útvonalakon; ez nem konfidenciaintervallum. A $\Delta$ oszlop a különbség az előző
+modellhez képest (újabb mínusz régebbi), szögletes zárójelben a 95\%-os
+konfidenciaintervallummal. A $^{*}$ jelzi, ha a különbség Holm-korrekció után is
+szignifikáns.
+
+Az ábrákon minden mérőszám egy sor. Balra a modellek értékei láthatók: a szürke vonalak
+egy-egy útvonalat jelölnek (öt bejárásból), a fekete pontok a tíz útvonal átlagát. Jobbra
+a változás az előző modellhez képest: a pont a különbség, a vonal a 95\%-os
+konfidenciaintervallum. A kék, kitöltött pont Holm-korrekció után is szignifikáns
+különbséget jelöl, az üres pont nem szignifikánsat. Ha a vonal átlépi a függőleges nullát,
+a különbség nem bizonyított.
+
+\subsection{A modellek összehasonlítása}
+\label{subsec:eval_discussion}
+
+\subsubsection{Sebesség}
 
 \begin{table}[htbp]
   \centering
-  \caption{Az öt jutalomváltozat összehasonlítása. Minden érték a tíz útvonal átlaga,
-           útvonalanként öt bejárásból; a $\pm$ utáni szám az útvonalak közötti szórás.
-           A félkövér érték az adott oszlop legjobb eredménye.}
-  \label{tab:model_compare}
-  \begin{tabular}{lrrrrrr}
+  \caption{Átlagsebesség.}
+  \label{tab:speed}
+  \small
+  \begin{tabular}{lrl}
     \toprule
-    & Sebesség & Előzés & Ütközés & Visszatevés & Sávtartás & Beragadás \\
-    & [km/h] & [1/km] & [\%] & [1/km] & [\%] & [s] \\
+    & Sebesség [km/h] & $\Delta$ \\
     \midrule
-    R1 & \textbf{40,2}\,$\pm$\,2,7 & \textbf{5,22}\,$\pm$\,2,18 & 17,0\,$\pm$\,3,2 & 0,22\,$\pm$\,0,28 & \textbf{86,5}\,$\pm$\,3,5 & 92,1\,$\pm$\,67,6 \\
-    R2 & 36,0\,$\pm$\,2,5 & 3,91\,$\pm$\,1,79 & \textbf{16,9}\,$\pm$\,6,4 & \textbf{0,16}\,$\pm$\,0,29 & 73,4\,$\pm$\,6,2 & 92,6\,$\pm$\,48,3 \\
-    R3 & 31,8\,$\pm$\,3,0 & 2,46\,$\pm$\,1,03 & 22,7\,$\pm$\,6,8 & 0,37\,$\pm$\,0,36 & 60,7\,$\pm$\,5,0 & 124,0\,$\pm$\,97,8 \\
-    R4 & 39,8\,$\pm$\,2,7 & 4,82\,$\pm$\,1,78 & 18,5\,$\pm$\,6,3 & 0,33\,$\pm$\,0,42 & 73,2\,$\pm$\,3,0 & \textbf{80,5}\,$\pm$\,41,3 \\
-    R5 & 38,5\,$\pm$\,2,5 & 4,73\,$\pm$\,1,64 & 17,8\,$\pm$\,5,6 & 0,41\,$\pm$\,0,58 & 69,8\,$\pm$\,3,2 & 87,7\,$\pm$\,49,0 \\
+    R1 & 39,7\,$\pm$\,3,1 & -- \\
+    R2 & 36,0\,$\pm$\,2,5 & $-3{,}7^{*}$ {\scriptsize[$-5{,}1$; $-2{,}5$]} \\
+    R3 & 31,9\,$\pm$\,3,2 & $-4{,}1^{*}$ {\scriptsize[$-5{,}0$; $-3{,}3$]} \\
+    R4 & 39,8\,$\pm$\,2,8 & $+7{,}9^{*}$ {\scriptsize[$+6{,}5$; $+9{,}3$]} \\
+    R5 & 38,7\,$\pm$\,2,1 & $-1{,}1$ {\scriptsize[$-2{,}9$; $+0{,}6$]} \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=\linewidth]{pictures/eval/metrics.pdf}
-  \caption{A hat mérőszám jutalomváltozatonként. A hibasáv az útvonalak közötti szórás,
-           a zöld oszlop az adott mérőszám legjobb értéke.}
-  \label{fig:eval_metrics}
+  \includegraphics[width=\linewidth]{pictures/eval/eval_speed.pdf}
+  \caption{Átlagsebesség. Balra: értékek útvonalanként (szürke) és átlaguk (fekete). Jobbra: változás
+           az előző modellhez képest 95\%-os konfidenciaintervallummal (kék: szignifikáns).}
+  \label{fig:eval_speed}
 \end{figure}
 
-A mérőszámok mellett az előzési kísérletek kimenetele is tanulságos
-(\ref{tab:attempts}.~táblázat). Ez nem csak azt mutatja meg, hány előzés sikerült, hanem
-azt is, hogyan romlott el: a jármű feladta a megkezdett manővert, ütközött, vagy
-záróvonalon sorolt vissza.
+Az R1 és az R4 a leggyorsabb (39,7 és 39,8~km/h), az R3 a leglassabb (31,9~km/h)
+(\ref{tab:speed}.~táblázat). Az R1$\rightarrow$R2 lépésben a sebesség 3,7~km/h-val esett. Az
+R2 egyetlen változtatása, hogy az ütközésidő-büntetés előzhető helyzetben is él, 7~s-os
+küszöbbel. Ez 25~km/h sebességkülönbségnél kb. 48~m, vagyis a büntetés már akkor hat, amikor
+a modell az előtte haladót egyáltalán észleli. A modell ezért inkább lassított és a lassabb
+jármű mögött maradt. Az R2$\rightarrow$R3 lépésben a sebesség további 4,1~km/h-val csökkent:
+az R3 gyakran megállt, a megállás miatti visszatevések száma kilométerenként 0,10-ről
+0,23-ra nőtt (\ref{fig:eval_outcomes}.~ábra, jobbra). Az R3$\rightarrow$R4 lépés hozta a
+legnagyobb változást, $+7{,}9$~km/h-t. Az R4 jutalma lineárisan nő a sebességgel, így a
+lassabb jármű mögött haladás magától kevesebbet ér, és a modellnek megéri előzni. Az
+R4$\rightarrow$R5 különbség nem szignifikáns.
+
+\subsubsection{Előzések}
 
 \begin{table}[htbp]
   \centering
-  \caption{Az előzési kísérletek kimenetelének megoszlása. Az $n$ oszlop a kísérletek
-           száma mind a 250 lefutásban.}
-  \label{tab:attempts}
-  \begin{tabular}{lrrrrr}
+  \caption{Szabályos előzések kilométerenként és a sikeres előzési kísérletek aránya.}
+  \label{tab:overtakes}
+  \small
+  \begin{tabular}{lrlrl}
     \toprule
-    & $n$ & Sikeres [\%] & Feladta [\%] & Ütközött [\%] & Záróvonalon [\%] \\
+    & Szab. előzés [1/km] & $\Delta$ & Sikeres kísérlet [\%] & $\Delta$ \\
     \midrule
-    R1 & 440 & 70,5 & 9,5 & 10,0 & 6,4 \\
-    R2 & 422 & 63,5 & 21,1 & \textbf{7,3} & \textbf{4,5} \\
-    R3 & 345 & 46,4 & 25,8 & 13,6 & 7,8 \\
-    R4 & 404 & \textbf{73,0} & \textbf{7,4} & 8,9 & 6,4 \\
-    R5 & 437 & 71,6 & 8,7 & 9,2 & 8,0 \\
+    R1 & 5,22\,$\pm$\,2,18 & -- & 70,4\,$\pm$\,11,0 & -- \\
+    R2 & 3,91\,$\pm$\,1,79 & $-1{,}30^{*}$ {\scriptsize[$-2{,}03$; $-0{,}67$]} & 61,9\,$\pm$\,9,5 & $-8{,}4^{*}$ {\scriptsize[$-14{,}4$; $-3{,}0$]} \\
+    R3 & 2,46\,$\pm$\,1,03 & $-1{,}46^{*}$ {\scriptsize[$-1{,}94$; $-1{,}01$]} & 45,3\,$\pm$\,11,7 & $-16{,}6^{*}$ {\scriptsize[$-21{,}3$; $-10{,}0$]} \\
+    R4 & 4,82\,$\pm$\,1,78 & $+2{,}37^{*}$ {\scriptsize[$+1{,}78$; $+3{,}00$]} & 71,9\,$\pm$\,10,3 & $+26{,}7^{*}$ {\scriptsize[$+18{,}7$; $+34{,}0$]} \\
+    R5 & 4,73\,$\pm$\,1,64 & $-0{,}10$ {\scriptsize[$-0{,}62$; $+0{,}43$]} & 71,1\,$\pm$\,8,1 & $-0{,}8$ {\scriptsize[$-7{,}1$; $+5{,}0$]} \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\subsection{A módosítások értékelése}
-\label{subsec:eval_discussion}
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{pictures/eval/eval_overtakes.pdf}
+  \caption{Szabályos előzések és sikeres előzési kísérletek. Balra: értékek útvonalanként (szürke) és átlaguk (fekete). Jobbra: változás
+           az előző modellhez képest 95\%-os konfidenciaintervallummal (kék: szignifikáns).}
+  \label{fig:eval_overtakes}
+\end{figure}
 
-\paragraph{R1 $\rightarrow$ R2: ütközésidő-büntetés előzhető helyzetben.}
-A módosítás elérte a célját, de magas áron. A megkezdett, majd feladott előzések aránya
-9,5\%-ról 21,1\%-ra nőtt, a sikeres kísérleteké 70,5\%-ról 63,5\%-ra csökkent, a
-sebesség pedig 40,2~km/h-ról 36,0~km/h-ra esett. Cserébe az ütközéssel végződő
-kísérletek aránya 10,0\%-ról 7,3\%-ra, a visszatevések száma pedig 0,22-ről 0,16-ra
-csökkent kilométerenként. A magyarázat a küszöbérték nagyságrendjében keresendő: a 7~s-os
-ütközésidő 50 és 25~km/h sebességkülönbségnél mintegy 48~m-es távolságnak felel meg,
-vagyis a büntetés már akkor hatott, amikor a jármű az előtte haladót egyáltalán
-észlelte. A modell ezért inkább lassított, mint előzött.
+\begin{table}[htbp]
+  \centering
+  \caption{Az előzési kísérletek kimenetelének megoszlása, mind az 50 bejárást
+           összesítve. Az $n$ oszlop a kísérletek száma, mellette a kilométerenkénti szám.}
+  \label{tab:attempts}
+  \small
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    & $n$ & [1/km] & Sikeres [\%] & Feladta [\%] & Ütközött [\%] & Záróvonalon [\%] \\
+    \midrule
+    R1 & 440 & 2,61 & 70,5 & 9,5  & 10,0 & 6,4 \\
+    R2 & 422 & 2,52 & 63,5 & 21,1 & 7,3  & 4,5 \\
+    R3 & 345 & 2,07 & 46,4 & 25,8 & 13,6 & 7,8 \\
+    R4 & 404 & 2,46 & 73,0 & 7,4  & 8,9  & 6,4 \\
+    R5 & 437 & 2,65 & 71,6 & 8,7  & 9,2  & 8,0 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
-\paragraph{R2 $\rightarrow$ R3: hangolás bátrabb előzésre.}
-Ez a változat a szándékolttal ellentétes eredményt hozott, és ez a kísérletsorozat
-legtanulságosabb megfigyelése. A négy módosítás célja a határozottabb előzés volt, ehhez
-képest az R3 minden mérőszámban a leggyengébb: 2,46 szabályos előzés kilométerenként
-(az R1 értékének fele), 31,8~km/h átlagsebesség, 60,7\%-os sávtartás és 22,7\%-os
-ütközési arány. Az előzési kísérletek száma is a legalacsonyabb (345 a többi modell
-400 feletti értékével szemben), és ezek kevesebb mint fele sikerült.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{pictures/eval/outcomes.pdf}
+  \caption{Balra: az előzési kísérletek kimenetelének megoszlása, a modell neve alatt a
+           kísérletek száma. Jobbra: a visszatevések száma kilométerenként, ok szerint
+           bontva.}
+  \label{fig:eval_outcomes}
+\end{figure}
 
-A visszatevések okai mutatják meg, mi történt. Míg a többi modellnél a hibák túlnyomó
-része az útról való letérés, az R3-nál 20 esetben a sebességhatár túllépése, 31 esetben
-pedig a jármű megállása okozta a beavatkozást. A megemelt előzési lépésjutalom (1,1, ami
-meghaladja a saját sávban elérhető 1,0-t) és a kétszeres súlyú ütközésidő-büntetés
-együtt szélsőséges viselkedést tanított meg: a modell vagy gyorsított a megengedett
-sebesség fölé, vagy megállt. A beragadással töltött idő is itt a legmagasabb
-(124,0~s bejárásonként).
+A szabályos előzések száma ugyanazt a mintát követi, mint a sebesség
+(\ref{tab:overtakes}.~táblázat): az első három modellnél minden lépés szignifikánsan
+csökkentette, az R4 pedig kilométerenként 2,37-tel növelte. A különbség nem csak abból
+adódik, hogy hányszor kezdett előzésbe a modell, hanem abból is, hogy a megkezdett előzések
+mekkora része sikerült (\ref{tab:attempts}.~táblázat és \ref{fig:eval_outcomes}.~ábra).
 
-\paragraph{R3 $\rightarrow$ R4: áttérés haladásalapú jutalomra.}
-A kézzel formált tagok teljes elhagyása visszanyerte az elveszített teljesítményt:
-4,82 előzés kilométerenként, 39,8~km/h sebesség, és a legmagasabb sikerarány az előzési
-kísérletekben (73,0\%). Ez a legfontosabb eredmény a jutalomtervezés szempontjából,
-mert azt mutatja, hogy a követési távolságot, az ütközésidőt, a lemaradást és a
-sávközepet külön kezelő tagok nem javították, hanem rontották a viselkedést. Az egyetlen
-fizikai mennyiség, az útvonal menti haladás jutalmazása elegendőnek bizonyult. Az
-R4 emellett a legkevesebbet ragadt be (80,5~s).
+Az R1$\rightarrow$R2 lépésben a kísérletek száma alig változott (2,61-ről 2,52-re
+kilométerenként), a sikeres kísérletek aránya viszont 8,4 százalékponttal esett, a feladott
+előzéseké pedig 9,5\%-ról 21,1\%-ra nőtt. Az R2 tehát ugyanannyiszor kezdett bele az
+előzésbe, de minden ötödiket félbehagyta: kihúzódás után is érte az ütközésidő-büntetés, és
+visszasorolt. Az R2$\rightarrow$R3 lépésben a kísérletek száma is csökkent (2,07/km), és a
+sikeres arány további 16,6 százalékponttal, 45,3\%-ra esett, ez a legrosszabb érték. Az R3
+négy változtatása közül az előzési lépésjutalom emelése és a lemaradásbüntetés kiterjesztése
+kifejezetten az előzést akarta erősíteni, mégis ez lett a legkevésbé sikeres. Mivel négy
+tényező változott egyszerre, a mérésből nem lehet megmondani, melyik okozta. Az
+R3$\rightarrow$R4 lépésben a sikeres arány 26,7 százalékponttal nőtt, a feladott
+kísérleteké 7,4\%-ra csökkent. A haladásalapú jutalomban nincs olyan tag, ami előzés közben
+büntetne, így a modell a megkezdett előzést végig is viszi. Az R5 kimenetelei
+gyakorlatilag az R4-éval egyeznek.
 
-\paragraph{R4 $\rightarrow$ R5: potenciálalapú formálás.}
-A két változat gyakorlatilag egyenértékű: a mérőszámok eltérése minden esetben kisebb,
-mint az útvonalak közötti szórás. Ez összhangban van az elmélettel, amely szerint a
-potenciálalapú formálás nem változtatja meg az optimális stratégiát~\cite{ng1999}. A
-formálás így ebben a feladatban nem hozott mérhető javulást a végső teljesítményben.
+\subsubsection{Kormányrángatás és sávtartás}
 
-\paragraph{A sávtartás ára.}
-Az R1 sávtartása kiemelkedik (86,5\%), és ez a legmegbízhatóbb különbség az egész
-mérésben: az értékek szórása 3,0 és 6,2 között van, miközben a legjobb és a legrosszabb
-modell között 25,8 százalékpont a különbség. Az R1 jutalmában szerepel a sávközép- és a
-simasági szorzó, amely az R4 és R5 változatból kimaradt. A lazább sávtartás ugyanakkor
-nem járt több tényleges hibával: a visszatevések száma a négy változatnál egy
-nagyságrendbe esik.
+\begin{table}[htbp]
+  \centering
+  \caption{A kormányjel lépésenkénti átlagos abszolút változása és a sáv közepétől
+           0,5~m-en belül töltött idő aránya.}
+  \label{tab:steer}
+  \small
+  \begin{tabular}{lrlrl}
+    \toprule
+    & Kormányváltozás & $\Delta$ & Sávközépen [\%] & $\Delta$ \\
+    \midrule
+    R1 & 0,028\,$\pm$\,0,004 & -- & 86,7\,$\pm$\,3,5 & -- \\
+    R2 & 0,038\,$\pm$\,0,003 & $+0{,}010^{*}$ {\scriptsize[$+0{,}008$; $+0{,}011$]} & 73,4\,$\pm$\,6,0 & $-13{,}3^{*}$ {\scriptsize[$-14{,}9$; $-11{,}8$]} \\
+    R3 & 0,031\,$\pm$\,0,003 & $-0{,}007^{*}$ {\scriptsize[$-0{,}008$; $-0{,}006$]} & 60,6\,$\pm$\,5,2 & $-12{,}8^{*}$ {\scriptsize[$-14{,}6$; $-10{,}9$]} \\
+    R4 & 0,028\,$\pm$\,0,002 & $-0{,}003^{*}$ {\scriptsize[$-0{,}004$; $-0{,}002$]} & 73,0\,$\pm$\,3,1 & $+12{,}4^{*}$ {\scriptsize[$+10{,}3$; $+14{,}6$]} \\
+    R5 & 0,030\,$\pm$\,0,002 & $+0{,}002^{*}$ {\scriptsize[$+0{,}001$; $+0{,}002$]} & 69,5\,$\pm$\,3,3 & $-3{,}5^{*}$ {\scriptsize[$-5{,}2$; $-1{,}9$]} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{pictures/eval/eval_steer.pdf}
+  \caption{Kormányváltozás és sávtartás. Balra: értékek útvonalanként (szürke) és átlaguk (fekete). Jobbra: változás
+           az előző modellhez képest 95\%-os konfidenciaintervallummal (kék: szignifikáns).}
+  \label{fig:eval_steer}
+\end{figure}
+
+A kormányrángatást a kormányjel lépésenkénti átlagos abszolút változásával mérem
+(\ref{tab:steer}.~táblázat). Az R1 és az R4 kormányoz a legsimábban (0,028). Az
+R1$\rightarrow$R2 lépésben a kormányváltozás 0,010-zel, kb. 35\%-kal nőtt, ez a
+legnagyobb ugrás. Ez egybevág a gyakran félbehagyott előzésekkel: minden félbehagyott
+kihúzódás egy plusz kormánymozdulat oda és vissza. Az R3 simábban kormányoz az R2-nél
+($-0{,}007$), de ennek fő oka, hogy kevesebbet próbálkozott előzéssel. Az R4 tovább
+simult ($-0{,}003$), holott a jutalmából kimaradt a simasági szorzó; a simaságot nála csak a
+mind az öt modellben közös kormányrángatás-büntetés tartja. Az R5 kormányzása 0,002-vel
+idegesebb, ez kicsi, de szignifikáns eltérés.
+
+A sávtartásban az R1 kiemelkedik (86,7\%), és ez az egyetlen modell, amelynek jutalmában a
+sávközép- és a simasági szorzó is szerepel szabad úton. Az R2 13,3, az R3 további 12,8
+százalékponttal rosszabb, az R4 12,4-gyel jobb az R3-nál, az R5 3,5-tel rosszabb az R4-nél.
+Mind a négy lépés szignifikáns. A lazább sávtartás ugyanakkor nem járt több letéréssel: az
+R2 és az R3 a legrosszabb sávtartás mellett is a legkevesebbszer tért le az útról.
+
+\subsubsection{Kihagyott előzési lehetőségek}
+
+Kihagyott előzésnek azt tekintem, amikor a modell legalább 5~s-ig egyhuzamban ugyanazon
+lassabb jármű mögött haladt, és ennek az időnek a nagyobb részében előzhetett volna: a bal
+oldali sávot szaggatott vonal választotta el, és a sáv szabad volt. A
+\ref{tab:missed}.~táblázat ezeknek a számát mutatja kilométerenként, valamint azt, hogy az
+összes beragadás hány százaléka volt ilyen. A többi beragadásnál nem lehetett előzni (foglalt
+volt a bal sáv, záróvonal volt, vagy nem volt bal sáv).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Kihagyott előzési lehetőségek kilométerenként, és arányuk az összes
+           beragadáson belül (összesítve).}
+  \label{tab:missed}
+  \small
+  \begin{tabular}{lrlr}
+    \toprule
+    & Kihagyott előzés [1/km] & $\Delta$ & A beragadások közül [\%] \\
+    \midrule
+    R1 & 0,66\,$\pm$\,0,44 & -- & 50,5 \\
+    R2 & 0,66\,$\pm$\,0,36 & $0{,}00$ {\scriptsize[$-0{,}16$; $+0{,}14$]} & 48,2 \\
+    R3 & 0,80\,$\pm$\,0,46 & $+0{,}15$ {\scriptsize[$0{,}00$; $+0{,}30$]} & 52,1 \\
+    R4 & 0,39\,$\pm$\,0,35 & $-0{,}42^{*}$ {\scriptsize[$-0{,}58$; $-0{,}26$]} & 33,3 \\
+    R5 & 0,41\,$\pm$\,0,31 & $+0{,}03$ {\scriptsize[$-0{,}07$; $+0{,}12$]} & 31,7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{pictures/eval/eval_missed.pdf}
+  \caption{Kihagyott előzési lehetőségek. Balra: értékek útvonalanként (szürke) és átlaguk (fekete). Jobbra: változás
+           az előző modellhez képest 95\%-os konfidenciaintervallummal (kék: szignifikáns).}
+  \label{fig:eval_missed}
+\end{figure}
+
+Az R1, az R2 és az R3 beragadásainak kb. fele kihagyott lehetőség volt, kilométerenként
+0,66--0,80 alkalommal. Az R1$\rightarrow$R2 lépés ezen nem változtatott, az R3-nál
+kilométerenként 0,15-tel nőtt, de ez nem szignifikáns. Az R3 lemaradásbüntetése (40~m-ig)
+éppen ezt a viselkedést akarta büntetni, a mérés szerint hatás nélkül. Az R3$\rightarrow$R4
+lépésben a kihagyott lehetőségek száma kilométerenként 0,42-vel, kb. a felére csökkent, és a
+beragadásoknak már csak egyharmada volt ilyen. Az R4-nél a lassabb jármű mögött haladás
+egyszerűen kevesebb jutalmat ad, mint az előzés, így nincs szükség külön büntetésre ahhoz,
+hogy a modell kihasználja a lehetőséget. Az R5 itt sem tér el az R4-től.
+
+\subsubsection{Szabálytalan előzések}
+
+Szabálytalan elhaladásnak azt tekintem, amikor a modell elhaladt egy jármű mellett, de ezt
+az előzési állapotgép nem zárta le szabályos előzésként. Ennek négy fajtája van: jobbról
+haladt el a jármű mellett; előzési kísérleten kívül, vagyis olyan helyzetben haladt el,
+amikor nem szabadott volna kihúzódni (záróvonal, foglalt sáv); záróvonalon át sorolt vissza;
+valamint egyéb esetek (feladott vagy visszatevéssel megszakadt előzés közben került mögé a
+jármű).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Szabálytalan elhaladások kilométerenként, és arányuk az összes elhaladáson
+           belül.}
+  \label{tab:illegal}
+  \small
+  \begin{tabular}{lrlrl}
+    \toprule
+    & Szabálytalan [1/km] & $\Delta$ & Az elhaladásokból [\%] & $\Delta$ \\
+    \midrule
+    R1 & 0,98\,$\pm$\,0,31 & -- & 17,5\,$\pm$\,7,1 & -- \\
+    R2 & 0,84\,$\pm$\,0,28 & $-0{,}15$ {\scriptsize[$-0{,}33$; $+0{,}03$]} & 20,0\,$\pm$\,10,3 & $+2{,}5$ {\scriptsize[$-2{,}0$; $+7{,}3$]} \\
+    R3 & 0,80\,$\pm$\,0,33 & $-0{,}04$ {\scriptsize[$-0{,}22$; $+0{,}15$]} & 27,4\,$\pm$\,15,3 & $+7{,}4^{*}$ {\scriptsize[$+1{,}8$; $+12{,}6$]} \\
+    R4 & 1,41\,$\pm$\,0,55 & $+0{,}61^{*}$ {\scriptsize[$+0{,}41$; $+0{,}83$]} & 24,2\,$\pm$\,11,6 & $-3{,}1$ {\scriptsize[$-8{,}5$; $+1{,}7$]} \\
+    R5 & 1,24\,$\pm$\,0,36 & $-0{,}17$ {\scriptsize[$-0{,}43$; $+0{,}08$]} & 22,0\,$\pm$\,6,9 & $-2{,}2$ {\scriptsize[$-6{,}9$; $+2{,}3$]} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{pictures/eval/eval_illegal_rate.pdf}
+  \caption{Szabálytalan elhaladások. Balra: értékek útvonalanként (szürke) és átlaguk (fekete). Jobbra: változás
+           az előző modellhez képest 95\%-os konfidenciaintervallummal (kék: szignifikáns).}
+  \label{fig:eval_illegal_rate}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{pictures/eval/illegal.pdf}
+  \caption{Balra: a szabálytalan elhaladások kilométerenként, fajta szerint bontva. Jobbra:
+           az elhaladások hány százalékánál ütötte el a modell az adott járművet, szabályos
+           és szabálytalan elhaladásnál (összesítve).}
+  \label{fig:eval_illegal}
+\end{figure}
+
+Minden modellnél az elhaladások 17--27\%-a szabálytalan (\ref{tab:illegal}.~táblázat). A
+leggyakoribb fajta mindegyik modellnél a jobbról elhaladás (kilométerenként 0,52--0,71,
+\ref{fig:eval_illegal}.~ábra), vagyis amikor a modell a saját sávjában maradt, és a bal
+sávban lassabban haladó jármű mellett ment el. Az R1$\rightarrow$R2 és az R2$\rightarrow$R3
+lépésben a szabálytalan elhaladások száma nem változott szignifikánsan. Az R3-nál viszont
+az arányuk 7,4 százalékponttal, 27,4\%-ra nőtt: nem azért, mert több lett belőlük, hanem
+mert a szabályos előzések száma csökkent. Az R3$\rightarrow$R4 lépésben a szabálytalan
+elhaladások száma kilométerenként 0,61-gyel nőtt, de a szabályos előzéseké is, így az
+arányuk nem változott szignifikánsan. Az R4 többletét főként a kísérleten kívüli
+elhaladások adják (0,07-ről 0,37-re kilométerenként): az R4-ben nincs követési jutalom,
+amely a lassabb jármű mögött tartaná, ha nem szabad előzni, így néha akkor is elmegy
+mellette. Az R5 kevéssel kevesebb szabálytalan elhaladást tett, de ez nem szignifikáns.
+
+A szabálytalan elhaladás veszélyesebb is. A szabályos előzéseknél a modellek a megelőzött
+járművek 6,7--13,6\%-át ütötték el, a szabálytalanoknál 18,0--20,5\%-át
+(\ref{fig:eval_illegal}.~ábra, jobbra). Ez az arány a modellek között nem változott
+szignifikánsan, vagyis a szabálytalan elhaladás minden modellnél kb. kétszer-háromszor
+nagyobb ütközési kockázattal jár.
+
+\subsubsection{Ütközések és visszatevések}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Járműütközések és visszatevések kilométerenként.}
+  \label{tab:safety}
+  \small
+  \begin{tabular}{lrlrl}
+    \toprule
+    & Járműütközés [1/km] & $\Delta$ & Visszatevés [1/km] & $\Delta$ \\
+    \midrule
+    R1 & 0,68\,$\pm$\,0,11 & -- & 0,22\,$\pm$\,0,28 & -- \\
+    R2 & 0,50\,$\pm$\,0,17 & $-0{,}18$ {\scriptsize[$-0{,}34$; $-0{,}02$]} & 0,16\,$\pm$\,0,29 & $-0{,}06$ {\scriptsize[$-0{,}20$; $+0{,}24$]} \\
+    R3 & 0,52\,$\pm$\,0,12 & $+0{,}02$ {\scriptsize[$-0{,}15$; $+0{,}19$]} & 0,37\,$\pm$\,0,36 & $+0{,}21^{*}$ {\scriptsize[$+0{,}10$; $+0{,}31$]} \\
+    R4 & 0,77\,$\pm$\,0,24 & $+0{,}24^{*}$ {\scriptsize[$+0{,}10$; $+0{,}39$]} & 0,33\,$\pm$\,0,42 & $-0{,}04$ {\scriptsize[$-0{,}44$; $+0{,}32$]} \\
+    R5 & 0,69\,$\pm$\,0,19 & $-0{,}07$ {\scriptsize[$-0{,}23$; $+0{,}09$]} & 0,41\,$\pm$\,0,58 & $+0{,}08$ {\scriptsize[$-0{,}34$; $+0{,}77$]} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{pictures/eval/eval_safety.pdf}
+  \caption{Járműütközések és visszatevések. Balra: értékek útvonalanként (szürke) és átlaguk (fekete). Jobbra: változás
+           az előző modellhez képest 95\%-os konfidenciaintervallummal (kék: szignifikáns).}
+  \label{fig:eval_safety}
+\end{figure}
+
+A járműütközések száma kilométerenként az R2-nél és az R3-nál a legkisebb (0,50 és 0,52),
+az R4-nél a legnagyobb (0,77) (\ref{tab:safety}.~táblázat). Az R1$\rightarrow$R2 lépésben
+0,18-cal csökkent, ami az óvatosabb, lassabb vezetéssel magyarázható, de a Holm-korrekció
+után ez nem szignifikáns. Az R3$\rightarrow$R4 lépésben 0,24-gyel nőtt. Az ütközések száma
+azonban attól is függ, hány jármű mellett halad el a modell. Az elhaladásokra vetítve az
+ütközési arány az R3 kivételével 17--19\% (R3: 22,7\%), és egyik lépésben sem változott
+szignifikánsan. Az R4 tehát nem előz veszélyesebben, mint az R1 vagy az R2, csak többet
+előz, és több szabálytalan elhaladást tesz, így több ütközést gyűjt kilométerenként. Az
+R4-ben az ütközést kizárólag a $-30$-as terminális büntetés tanítja, nincs ütközésidő-tag,
+amely előre figyelmeztetne.
+
+A visszatevések száma kilométerenként 0,16 (R2) és 0,41 (R5) között van, de a négy lépés
+közül csak az R2$\rightarrow$R3 változás szignifikáns ($+0{,}21$/km). A hibák oka
+modellenként eltér (\ref{fig:eval_outcomes}.~ábra, jobbra). Az R1, az R4 és az R5 főként
+letér az útról (0,14, 0,22 és 0,17/km), az R2 és az R3 inkább megáll. Az R3 az egyetlen
+modell, amely rendszeresen 60~km/h fölé gyorsít (0,08/km). Az R3 tehát vagy megállt, vagy
+túl gyorsan ment: az 1,0-nál nagyobb előzési lépésjutalom (50~km/h-nál 1,10) a gyorsítást,
+a kétszeres súlyú ütközésidő-büntetés a megállást ösztönözhette.
+
+\subsubsection{R4 és R5}
+
+A két modell sem a sebességben, sem az előzésekben, sem az ütközésekben, sem a kihagyott
+vagy szabálytalan előzésekben nem tér el szignifikánsan. Csak a sávtartás (3,5
+százalékpont) és a kormányváltozás (0,002) különbsége szignifikáns, de ezek kicsik. Ez
+összhangban van az elmélettel, amely szerint a potenciálalapú formálás nem változtatja meg
+az optimális stratégiát~\cite{ng1999}. A formálás így ebben a feladatban nem hozott mérhető
+javulást a végső teljesítményben. Hogy a tanulást gyorsította-e, azt ez a mérés nem
+vizsgálja, mert csak a végső modelleket értékeltem ki.
 
 \subsection{Az eredmények megbízhatósága}
 \label{subsec:eval_reliability}
 
-Az egyes mérőszámok nem egyformán alkalmasak a modellek rangsorolására. A sebesség, a
-szabályos előzések száma és a sávtartás esetében a modellek közötti különbség nagyobb,
-mint az útvonalak közötti ingadozás, ezért ezekre megállapítás építhető. A visszatevések
-számánál és a beragadással töltött időnél azonban az ingadozás meghaladja a modellek
-közötti eltérést (0,25 ellenében 0,39, illetve 43,5~s ellenében 60,8~s), ezért ezeknél a
-sorrend nem tekinthető megalapozottnak. Az ütközési arány határesetet képez.
+A legmegbízhatóbb megállapítások a sebességre, a szabályos előzésekre és a sávtartásra
+vonatkoznak: ezeknél a konfidenciaintervallumok messze vannak a nullától, és ellenőrzésként
+elvégzett párosított $t$-próba is ugyanazt az eredményt adja. Az ütközéseknél és a
+beragadásnál a két módszer nem mindig ért egyet: az R3$\rightarrow$R4 ütközésnövekedést a
+bootstrap szignifikánsnak mutatja, a $t$-próba nem ($p = 0{,}08$). Ezeket a különbségeket
+ezért óvatosan kell kezelni. Útvonalanként csak öt kör van, ami a bootstrap
+intervallumot a valóságosnál kissé szűkebbé teheti.
 
 Ezt a bizonytalanságot érdemes kiemelni, mert jól szemlélteti az ismételt mérés
 szükségességét. Egy korábbi, útvonalanként egyszeri méréssorozat alapján az R5 tűnt a
 legjobb modellnek minden mérőszámban; a teljes, 250 lefutásos mérés ezt nem erősítette
 meg. Az egyetlen bejáráson alapuló összehasonlítás tehát félrevezető lett volna.
 
+Az R3 négy tényezőt változtat egyszerre, az R4 pedig az egész jutalomszerkezetet lecseréli,
+ezért ezeknél a lépéseknél a hatás nem bontható az egyes változtatásokra. Az R1 egy korábbi
+kísérlet súlyaiból folytatódott, az R2 két részben tanult, ami a többi modellhez képest
+eltérő tanítási előzményt jelent.
+
 Végül meg kell jegyezni, hogy mindegyik jutalomváltozathoz egyetlen betanított modell
 tartozik. A fenti megállapítások ezért az öt konkrét modellre vonatkoznak, és nem
 választják szét a jutalomfüggvény hatását a tanítás véletlenszerűségétől. Ennek
 tisztázásához változatonként több, eltérő kezdőértékkel betanított modellre lenne
-szükség~\cite{agarwal2021}.
+szükség.
 
 \section{Összegzés}
 

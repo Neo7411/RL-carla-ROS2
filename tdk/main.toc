@@ -28,13 +28,15 @@
 \select@language {magyar} \contentsline {subsection}{\numberline {5.5}R5: potenciálalapú jutalomformálás}{29}{subsection.5.5}%
 \select@language {magyar} \contentsline {section}{\numberline {6}Elkészült modellek összehasonlítása}{30}{section.6}%
 \select@language {magyar} \contentsline {subsection}{\numberline {6.1}A kiértékelés módszertana}{30}{subsection.6.1}%
-\select@language {magyar} \contentsline {subsection}{\numberline {6.2}Eredmények}{30}{subsection.6.2}%
-\select@language {magyar} \contentsline {subsection}{\numberline {6.3}A módosítások értékelése}{33}{subsection.6.3}%
-\select@language {magyar} \contentsline {paragraph}{R1 $\rightarrow $ R2: ütközésidő-büntetés előzhető helyzetben.}{33}{paragraph*.5}%
-\select@language {magyar} \contentsline {paragraph}{R2 $\rightarrow $ R3: hangolás bátrabb előzésre.}{33}{paragraph*.6}%
-\select@language {magyar} \contentsline {paragraph}{R3 $\rightarrow $ R4: áttérés haladásalapú jutalomra.}{33}{paragraph*.7}%
-\select@language {magyar} \contentsline {paragraph}{R4 $\rightarrow $ R5: potenciálalapú formálás.}{33}{paragraph*.8}%
-\select@language {magyar} \contentsline {paragraph}{A sávtartás ára.}{34}{paragraph*.9}%
-\select@language {magyar} \contentsline {subsection}{\numberline {6.4}Az eredmények megbízhatósága}{34}{subsection.6.4}%
-\select@language {magyar} \contentsline {section}{\numberline {7}Összegzés}{34}{section.7}%
-\select@language {magyar} \contentsline {section}{Hivatkozások}{35}{section.7}%
+\select@language {magyar} \contentsline {subsection}{\numberline {6.2}Eredmények}{31}{subsection.6.2}%
+\select@language {magyar} \contentsline {subsection}{\numberline {6.3}A modellek összehasonlítása}{33}{subsection.6.3}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.1}Sebesség}{33}{subsubsection.6.3.1}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.2}Előzések}{33}{subsubsection.6.3.2}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.3}Kormányrángatás és sávtartás}{35}{subsubsection.6.3.3}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.4}Kihagyott előzési lehetőségek}{37}{subsubsection.6.3.4}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.5}Szabálytalan előzések}{38}{subsubsection.6.3.5}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.6}Ütközések és visszatevések}{40}{subsubsection.6.3.6}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.7}R4 és R5}{41}{subsubsection.6.3.7}%
+\select@language {magyar} \contentsline {subsection}{\numberline {6.4}Az eredmények megbízhatósága}{41}{subsection.6.4}%
+\select@language {magyar} \contentsline {section}{\numberline {7}Összegzés}{42}{section.7}%
+\select@language {magyar} \contentsline {section}{Hivatkozások}{43}{section.7}%
