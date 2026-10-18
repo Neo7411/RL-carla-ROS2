@@ -310,45 +310,6 @@ set(groot, 'defaultAxesFontSize', 9, 'defaultAxesXColor', muted, 'defaultAxesYCo
     'defaultAxesGridColor', grid_, 'defaultAxesGridAlpha', 1, 'defaultAxesBox', 'off', ...
     'defaultTextColor', ink, 'defaultAxesTitleFontWeight', 'normal');
 
-% 1-2. abra - temankent kulon abra. Soronkent egy metrika: balra az ertekek
-% (szurke vonal: egy palya, fekete pont: a 10 palya atlaga), jobbra a
-% kulonbseg az elozo modellhez kepest 95%-os CI-vel (kek, kitoltott:
-% Holm utan is szignifikans).
-grp_id  = {'speed', 'overtakes', 'steer', 'missed', 'illegal_rate', 'safety'};
-grp_met = {4, [3, 9], [7, 5], 10, [11, 13], [2, 1]};
-clbl = lbl(1:nC) + "→" + lbl(2:n);
-for g = 1:numel(grp_id)
-    mm = grp_met{g};
-    fg = figure('Color', 'w', 'Units', 'centimeters', 'Position', [2 2 16 5.2 * numel(mm)]);
-    tl = tiledlayout(fg, numel(mm), 2, 'TileSpacing', 'loose', 'Padding', 'compact');
-    for r = 1:numel(mm)
-        m = mm(r);
-        ax = nexttile(tl); hold(ax, 'on'); grid(ax, 'on'); ax.XGrid = 'off';
-        plot(ax, 1:n, V{m}, '-', 'Color', [grid_ 0.9], 'LineWidth', 0.6);
-        plot(ax, 1:n, MU(:, m), '-o', 'Color', ink, 'LineWidth', 1.5, ...
-             'MarkerSize', 5, 'MarkerFaceColor', ink);
-        ax.XTick = 1:n; ax.XTickLabel = lbl; xlim(ax, [0.6, n + 0.4]);
-        title(ax, met_tx{m}, 'FontSize', 10);
-
-        ax = nexttile(tl); hold(ax, 'on'); grid(ax, 'on'); ax.YGrid = 'off';
-        xline(ax, 0, '-', 'Color', muted, 'LineWidth', 0.8);
-        for c = 1:nC
-            y = nC + 1 - c;
-            sig = PH(c, m) < 0.05;
-            col = muted; if sig, col = acc; end
-            plot(ax, [LO(c, m), HI(c, m)], [y, y], '-', 'Color', col, 'LineWidth', 1.5);
-            if sig
-                plot(ax, DELTA(c, m), y, 'o', 'MarkerSize', 6, 'MarkerFaceColor', acc, 'MarkerEdgeColor', 'w');
-            else
-                plot(ax, DELTA(c, m), y, 'o', 'MarkerSize', 6, 'MarkerFaceColor', 'w', 'MarkerEdgeColor', muted);
-            end
-        end
-        ax.YTick = 1:nC; ax.YTickLabel = flip(clbl); ylim(ax, [0.5, nC + 0.5]);
-        title(ax, "Változás: " + met_tx{m}, 'FontSize', 10);
-    end
-    exportgraphics(fg, fullfile(fig_dir, ['eval_' grp_id{g} '.pdf']), 'ContentType', 'vector');
-end
-
 % 3. abra - hogyan romlik el: az elozesi kiserletek kimenetele, es a
 % visszatevesek oka kilometerenkent.
 f3 = figure('Color', 'w', 'Units', 'centimeters', 'Position', [2 2 18 7]);
@@ -395,5 +356,186 @@ ax.XTickLabel = lbl; grid(ax, 'on'); ax.XGrid = 'off';
 ylabel(ax, 'Elütött autó [%]');
 legend(ax, {'szabályos', 'szabálytalan'}, 'Location', 'eastoutside', 'Box', 'off');
 exportgraphics(f4, fullfile(fig_dir, 'illegal.pdf'), 'ContentType', 'vector');
+
+% 5-6. abra - mind az 5 modell egymas mellett, utvonaltipusonkent. Sebesseg:
+% a tipus 25 bejarasanak atlaga. Menetido: utvonalankent a celba ert
+% bejarasok atlagos ideje, ezek osszege tipusonkent. Elozesek: a tipus
+% osszes bejarasat osszesitve.
+gt    = ["highway", "city_to_highway"];
+gt_tx = {'autópálya', 'városból autópályára'};
+SPD = nan(n, 2); TIM = nan(n, 2); LEG = nan(n, 2); SUC = nan(n, 2);
+SJ = nan(n, 2); LC = nan(n, 2); HIT = nan(n, 2); RES = nan(n, 2); NP = nan(n, 2);
+for i = 1:n
+    for g = 1:2
+        s = scenes(scenes.reward == rw(i) & scenes.group == gt(g), :);
+        SPD(i, g) = mean(s.avg_speed_kmh);
+        SJ(i, g)  = mean(s.steer_jerk);
+        LC(i, g)  = mean(s.lane_center_pct);
+        HIT(i, g) = sum(s.hit_cars);
+        RES(i, g) = sum(s.resets);
+        r = s(s.reached_b == 1, :);
+        [~, ~, k] = unique(r.scene);
+        TIM(i, g) = sum(accumarray(k, r.time_s, [], @mean));
+        SUC(i, g) = 100 * sum(s.overtake_success) / sum(s.overtake_attempts);
+        o = overtakes(overtakes.reward == rw(i) & overtakes.group == gt(g), :);
+        LEG(i, g) = 100 * mean(o.legal == 1);
+        NP(i, g)  = height(o);
+    end
+end
+fprintf('\nUtvonaltipusonkent (autopalya | varosbol autopalyara):\n');
+for i = 1:n
+    fprintf(['  %s  seb %.1f | %.1f  ido %.0f | %.0f  szab %.1f | %.1f  sik %.1f | %.1f' ...
+             '  korm %.4f | %.4f  savk %.1f | %.1f  utk %d | %d  vissza %d | %d  elhal %d | %d\n'], ...
+            lbl(i), SPD(i, :), TIM(i, :), LEG(i, :), SUC(i, :), SJ(i, :), LC(i, :), HIT(i, :), RES(i, :), NP(i, :));
+end
+
+f5 = figure('Color', 'w', 'Units', 'centimeters', 'Position', [2 2 18 7]);
+tl = tiledlayout(f5, 1, 2, 'TileSpacing', 'loose', 'Padding', 'compact');
+ax = nexttile(tl);
+b = bar(ax, SPD, 'BarWidth', 0.8, 'EdgeColor', 'w', 'LineWidth', 1);
+for q = 1:2, b(q).FaceColor = cat3(q, :); end
+ax.XTickLabel = lbl; grid(ax, 'on'); ax.XGrid = 'off';
+ylabel(ax, 'Átlagsebesség [km/h]');
+legend(ax, gt_tx, 'Location', 'southoutside', 'Orientation', 'horizontal', 'Box', 'off');
+ax = nexttile(tl);
+b = bar(ax, TIM, 'stacked', 'BarWidth', 0.6, 'EdgeColor', 'w', 'LineWidth', 1);
+for q = 1:2, b(q).FaceColor = cat3(q, :); end
+text(ax, 1:n, sum(TIM, 2), compose('%d s', round(sum(TIM, 2))), ...
+     'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontSize', 8, 'Color', ink);
+ylim(ax, [0, 1.12 * max(sum(TIM, 2))]);
+ax.XTickLabel = lbl; grid(ax, 'on'); ax.XGrid = 'off';
+ylabel(ax, 'Menetidő [s]');
+legend(ax, gt_tx, 'Location', 'southoutside', 'Orientation', 'horizontal', 'Box', 'off');
+exportgraphics(f5, fullfile(fig_dir, 'eval_speed.pdf'), 'ContentType', 'vector');
+
+f6 = figure('Color', 'w', 'Units', 'centimeters', 'Position', [2 2 18 7]);
+tl = tiledlayout(f6, 1, 2, 'TileSpacing', 'loose', 'Padding', 'compact');
+ax = nexttile(tl);
+b = bar(ax, LEG, 'BarWidth', 0.8, 'EdgeColor', 'w', 'LineWidth', 1);
+for q = 1:2, b(q).FaceColor = cat3(q, :); end
+ax.XTickLabel = lbl; ylim(ax, [0 100]); grid(ax, 'on'); ax.XGrid = 'off';
+ylabel(ax, 'Szabályos elhaladás [%]');
+legend(ax, gt_tx, 'Location', 'southoutside', 'Orientation', 'horizontal', 'Box', 'off');
+ax = nexttile(tl);
+b = bar(ax, SUC, 'BarWidth', 0.8, 'EdgeColor', 'w', 'LineWidth', 1);
+for q = 1:2, b(q).FaceColor = cat3(q, :); end
+ax.XTickLabel = lbl; ylim(ax, [0 100]); grid(ax, 'on'); ax.XGrid = 'off';
+ylabel(ax, 'Sikeres előzési kísérlet [%]');
+legend(ax, gt_tx, 'Location', 'southoutside', 'Orientation', 'horizontal', 'Box', 'off');
+exportgraphics(f6, fullfile(fig_dir, 'eval_overtakes.pdf'), 'ContentType', 'vector');
+
+% 7. abra - kormanyzas es savtartas utvonaltipusonkent.
+f7 = figure('Color', 'w', 'Units', 'centimeters', 'Position', [2 2 18 7]);
+tl = tiledlayout(f7, 1, 2, 'TileSpacing', 'loose', 'Padding', 'compact');
+ax = nexttile(tl);
+b = bar(ax, SJ, 'BarWidth', 0.8, 'EdgeColor', 'w', 'LineWidth', 1);
+for q = 1:2, b(q).FaceColor = cat3(q, :); end
+ax.XTickLabel = lbl; grid(ax, 'on'); ax.XGrid = 'off';
+ylabel(ax, 'Kormányváltozás / lépés');
+legend(ax, gt_tx, 'Location', 'southoutside', 'Orientation', 'horizontal', 'Box', 'off');
+ax = nexttile(tl);
+b = bar(ax, LC, 'BarWidth', 0.8, 'EdgeColor', 'w', 'LineWidth', 1);
+for q = 1:2, b(q).FaceColor = cat3(q, :); end
+ax.XTickLabel = lbl; ylim(ax, [0 100]); grid(ax, 'on'); ax.XGrid = 'off';
+ylabel(ax, 'Sávközépen [%]');
+legend(ax, gt_tx, 'Location', 'southoutside', 'Orientation', 'horizontal', 'Box', 'off');
+exportgraphics(f7, fullfile(fig_dir, 'eval_steer.pdf'), 'ContentType', 'vector');
+
+% 8. abra - jarmuutkozesek es visszatevesek szama utvonaltipusonkent, a
+% tipus 25 bejarasat osszesitve.
+f8 = figure('Color', 'w', 'Units', 'centimeters', 'Position', [2 2 18 7]);
+tl = tiledlayout(f8, 1, 2, 'TileSpacing', 'loose', 'Padding', 'compact');
+ax = nexttile(tl);
+b = bar(ax, HIT, 'stacked', 'BarWidth', 0.6, 'EdgeColor', 'w', 'LineWidth', 1);
+for q = 1:2, b(q).FaceColor = cat3(q, :); end
+text(ax, 1:n, sum(HIT, 2), compose('%d', sum(HIT, 2)), ...
+     'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontSize', 8, 'Color', ink);
+ylim(ax, [0, 1.12 * max(sum(HIT, 2))]);
+ax.XTickLabel = lbl; grid(ax, 'on'); ax.XGrid = 'off';
+ylabel(ax, 'Elütött jármű [db]');
+legend(ax, gt_tx, 'Location', 'southoutside', 'Orientation', 'horizontal', 'Box', 'off');
+ax = nexttile(tl);
+b = bar(ax, RES, 'stacked', 'BarWidth', 0.6, 'EdgeColor', 'w', 'LineWidth', 1);
+for q = 1:2, b(q).FaceColor = cat3(q, :); end
+text(ax, 1:n, sum(RES, 2), compose('%d', sum(RES, 2)), ...
+     'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontSize', 8, 'Color', ink);
+ylim(ax, [0, 1.12 * max(sum(RES, 2))]);
+ax.XTickLabel = lbl; grid(ax, 'on'); ax.XGrid = 'off';
+ylabel(ax, 'Visszatevés [db]');
+legend(ax, gt_tx, 'Location', 'southoutside', 'Orientation', 'horizontal', 'Box', 'off');
+exportgraphics(f8, fullfile(fig_dir, 'eval_safety.pdf'), 'ContentType', 'vector');
+
+% 9. abra - a celba nem ert bejarasok: hol tortentek a visszatevesek a
+% terkepen. Balra a megallasok, jobbra a leteresek kornyeke; szurke: az
+% osszes utvonal, sotetebb: az erintett utvonal, a pontok modellenkent.
+routes = readtable(fullfile(results_dir, 'routes.csv'), 'TextType', 'string');
+fails  = T(T.row == "fail", :);
+nf     = scenes(scenes.reached_b == 0, :);
+mcol   = hex2rgb(["#2a78d6", "#eb6834", "#1baf7a", "#6250d6", "#e34948"]);
+fprintf('\nCelba nem ert bejarasok:\n');
+for r = 1:height(nf)
+    d = fails(fails.reward == nf.reward(r) & fails.scene == nf.scene(r) & fails.rep == nf.rep(r), :);
+    fprintf('  %s  %-15s kor %d  %.1f%%  %.2f-%.2f km  letert %d  megallt %d\n', lbl(rw == nf.reward(r)), ...
+            nf.scene(r), nf.rep(r) + 1, nf.completion_pct(r), min(d.route_m) / 1000, max(d.route_m) / 1000, ...
+            sum(d.reason == "Off-track"), sum(d.reason == "Vehicle stopped"));
+end
+
+f9 = figure('Color', 'w', 'Units', 'centimeters', 'Position', [2 2 18 8.5]);
+tl = tiledlayout(f9, 1, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
+kinds_f = ["Vehicle stopped", "Off-track"];
+box_f   = {[20 290 -215 -90], [-400 20 -280 0]};
+tt_f    = {'Megállás egy álló jármű mögött', 'Letérés az útról'};
+mk_f    = {'o', 'x'};
+for p = 1:2
+    ax = nexttile(tl); hold(ax, 'on');
+    for s = unique(routes.scene)'
+        rr = routes(routes.scene == s, :);
+        plot(ax, rr.x, rr.y, '-', 'Color', grid_, 'LineWidth', 2.5);
+    end
+    sel = nf(ismember(nf.scene, unique(fails.scene(fails.reason == kinds_f(p)))), :);
+    for s = unique(sel.scene)'
+        rr = routes(routes.scene == s, :);
+        plot(ax, rr.x, rr.y, '-', 'Color', muted, 'LineWidth', 1.2);
+    end
+    h = gobjects(0); hl = strings(0);
+    for i = 1:n
+        % Csak a celba nem ert bejarasok visszatevesei.
+        d = fails(fails.reward == rw(i) & fails.reason == kinds_f(p), :);
+        d = d(ismember(string(d.reward) + d.scene + d.rep, string(nf.reward) + nf.scene + nf.rep), :);
+        bx = box_f{p};
+        d = d(d.x >= bx(1) & d.x <= bx(2) & d.y >= bx(3) & d.y <= bx(4), :);
+        if isempty(d), continue; end
+        h(end + 1) = plot(ax, d.x, d.y, mk_f{p}, 'Color', mcol(i, :), 'MarkerFaceColor', 'none', ...
+                          'MarkerSize', 7, 'LineWidth', 1.5);
+        hl(end + 1) = lbl(i);
+    end
+    % Utvonalnev a pontcsoportok melle; az egymashoz kozeli csoportok
+    % (ugyanott akadt el ket utvonal) egy kozos feliratot kapnak.
+    bx = box_f{p};
+    lx = []; ly = []; lt = strings(0);
+    [~, ord_f] = sort(nf.scene);
+    for r = ord_f'
+        d = fails(fails.reward == nf.reward(r) & fails.scene == nf.scene(r) & fails.rep == nf.rep(r) & ...
+                  fails.reason == kinds_f(p), :);
+        d = d(d.x >= bx(1) & d.x <= bx(2) & d.y >= bx(3) & d.y <= bx(4), :);
+        if isempty(d), continue; end
+        nm = extractAfter(nf.scene(r), "city_highway_");
+        % A leteresek egy hosszu szakaszon szorodnak, ott nagyobb a sugar.
+        k = find(hypot(lx - mean(d.x), ly - mean(d.y)) < 80 + 320 * (p == 2), 1);
+        if isempty(k)
+            lx(end + 1) = mean(d.x); ly(end + 1) = mean(d.y);
+            lt(end + 1) = "V→A " + nm;
+        elseif ~contains(lt(k), nm)
+            lt(k) = lt(k) + ", " + nm;
+        end
+    end
+    text(ax, lx, ly - 12, lt, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', ...
+         'FontSize', 8, 'Color', ink);
+    axis(ax, 'equal'); axis(ax, box_f{p}); ax.YDir = 'reverse';
+    ax.XTick = []; ax.YTick = []; ax.XColor = 'none'; ax.YColor = 'none';
+    title(ax, tt_f{p}, 'FontSize', 10);
+    legend(ax, h, hl, 'Location', 'southoutside', 'Orientation', 'horizontal', 'Box', 'off');
+end
+exportgraphics(f9, fullfile(fig_dir, 'eval_fail.pdf'), 'ContentType', 'vector');
 
 fprintf('\nAbrak: %s\n', fig_dir);

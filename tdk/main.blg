@@ -1,16 +1,16 @@
 [0] Config.pm:307> INFO - This is Biber 2.17
 [0] Config.pm:310> INFO - Logfile is 'main.blg'
-[29] biber:340> INFO - === Fri Oct 16, 2026, 17:42:52
+[29] biber:340> INFO - === Sun Oct 18, 2026, 16:58:32
 [35] Biber.pm:418> INFO - Reading 'main.bcf'
 [60] Biber.pm:972> INFO - Found 28 citekeys in bib section 0
-[66] Biber.pm:4383> INFO - Processing section 0
-[70] Biber.pm:4574> INFO - Looking for bibtex file 'refs.bib' for section 0
-[71] bibtex.pm:1713> INFO - LaTeX decoding ...
-[82] bibtex.pm:1518> INFO - Found BibTeX data source 'refs.bib'
-[193] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'variable = shifted' with 'variable = non-ignorable'
-[193] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'normalization = NFD' with 'normalization = prenormalized'
-[193] Biber.pm:4203> INFO - Sorting list 'none/global//global/global' of type 'entry' with template 'none' and locale 'hu-HU'
-[201] bbl.pm:654> INFO - Writing 'main.bbl' with encoding 'UTF-8'
-[214] bbl.pm:757> INFO - Output to main.bbl
-[214] Biber.pm:130> WARN - I didn't find a database entry for 'terapaptommakol2022obstacle' (section 0)
-[214] Biber.pm:132> INFO - WARNINGS: 1
+[65] Biber.pm:4383> INFO - Processing section 0
+[69] Biber.pm:4574> INFO - Looking for bibtex file 'refs.bib' for section 0
+[70] bibtex.pm:1713> INFO - LaTeX decoding ...
+[80] bibtex.pm:1518> INFO - Found BibTeX data source 'refs.bib'
+[185] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'variable = shifted' with 'variable = non-ignorable'
+[186] UCollate.pm:68> INFO - Overriding locale 'hu-HU' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[186] Biber.pm:4203> INFO - Sorting list 'none/global//global/global' of type 'entry' with template 'none' and locale 'hu-HU'
+[193] bbl.pm:654> INFO - Writing 'main.bbl' with encoding 'UTF-8'
+[206] bbl.pm:757> INFO - Output to main.bbl
+[206] Biber.pm:130> WARN - I didn't find a database entry for 'terapaptommakol2022obstacle' (section 0)
+[206] Biber.pm:132> INFO - WARNINGS: 1

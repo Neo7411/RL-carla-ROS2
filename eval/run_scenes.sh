@@ -1,6 +1,9 @@
 set -u -o pipefail
 
 REPEATS="${1:-5}"
+# Masodik argumentum: scene-fajl (pl. eval/scenes_city.json csak a varosi
+# utvonalakhoz). Ha nincs megadva, a teljes eval/scenes.json fut.
+SCENES="${2:-eval/scenes.json}"
 
 # A script helyehez kepest, hogy mindegy legyen, honnan inditjuk.
 EVAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,7 +39,7 @@ echo
 # A kimenet a kepernyore ES a logba is megy (tee), hogy kozben is lehessen
 # kovetni. A PIPESTATUS a pythone, nem a tee-e.
 conda run --no-capture-output -n carla_rl \
-    python eval/eval_scenes.py --repeats "$REPEATS" --model "${MODELS[@]}" 2>&1 | tee "$LOG"
+    python eval/eval_scenes.py --repeats "$REPEATS" --scenes "$SCENES" --model "${MODELS[@]}" 2>&1 | tee "$LOG"
 status="${PIPESTATUS[0]}"
 
 echo

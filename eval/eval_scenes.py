@@ -351,6 +351,17 @@ def main():
                         # route-waypointra, es a scene megy tovabb.
                         if terminated:
                             reason = env.terminal_reason or "Terminated"
+                            # Allo auto mogott (10 m-en belul a savomban) varakozni
+                            # helyes viselkedes, nem hiba: nem szamit visszatevesnek,
+                            # es nem tesszuk vissza (ugyanoda, ugyanazon auto moge
+                            # kerulne, es 10-szer megismetlodne). Csak a "Vehicle
+                            # stopped" timert nullazzuk, es varunk tovabb.
+                            if (reason == "Vehicle stopped" and surr["front_id"] is not None
+                                    and surr["front_dist"] < 10.0):
+                                env.terminal_state = False
+                                env.terminal_reason = ""
+                                rewards._low_speed_timer = 0.0
+                                continue
                             wp = env.route_waypoints[env.current_waypoint_index][0]
                             # A route savjanak kozepetol elojeles oldaltavolsag
                             # (+ balra), es hogy hanyadik savban van - ebbol latszik,
