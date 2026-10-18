@@ -368,7 +368,7 @@ def create_observation_space(cam_ae, lidar_latent_shape):
 
 
 
-def launch_simulator(sim_path, docker_image=None, container_name="carla_sim"):
+def launch_simulator(sim_path, docker_image=None, container_name="carla_sim", port=2000):
     if docker_image:
         # Ha nincs meg lokalisan az image, leszedjuk (sokaig tart, ezert latszik a kimenet)
         if subprocess.run(["docker", "image", "inspect", docker_image],
@@ -380,9 +380,11 @@ def launch_simulator(sim_path, docker_image=None, container_name="carla_sim"):
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         command = ["docker", "run", "--rm", "--name", container_name,
                    "--gpus", "all", "-e", "NVIDIA_DRIVER_CAPABILITIES=all", "--net=host",
-                   docker_image, "bash", "CarlaUE4.sh", "-RenderOffScreen", "-nosound"]
+                   docker_image, "bash", "CarlaUE4.sh", "-RenderOffScreen", "-nosound",
+                   f"-carla-rpc-port={port}"]
     else:
-        command = ["bash", sim_path + "/CarlaUE4.sh", "-prefernvidia", "-RenderOffScreen"]
+        command = ["bash", sim_path + "/CarlaUE4.sh", "-prefernvidia", "-RenderOffScreen",
+                   f"-carla-rpc-port={port}"]
     print(command)
     process = subprocess.Popen( 
         command,

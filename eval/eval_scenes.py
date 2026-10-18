@@ -63,6 +63,10 @@ def main():
     # konfidenciaintervallumot szamolni. A CARLA leaderboard 5 ismetlest hasznal.
     parser.add_argument("--repeats", type=int, default=1,
                         help="scene-enkenti ismetlesek szama, mindegyik mas seeddel")
+    # Parhuzamos futashoz: minden folyamat sajat CARLA szervert indit ezen a
+    # porton (a traffic manager a port + 6000-en), es sajat CSV-be ir.
+    parser.add_argument("--port", type=int, default=CONFIG["env"]["port"])
+    parser.add_argument("--out", default=None, help="eredmeny CSV (alapbol results/eval_<ido>.csv)")
     args = parser.parse_args()
 
     with open(args.scenes) as f:
@@ -74,7 +78,7 @@ def main():
     # Scene-enkent irjuk, igy Ctrl+C utan is megmarad, ami kesz. A futas
     # idobelyege a nevben, igy egy ujrafuttatas nem irja felul a regit.
     results_dir = os.path.join(EVAL_DIR, "results")
-    results_csv = os.path.join(results_dir, f"eval_{time.strftime('%Y%m%d-%H%M%S')}.csv")
+    results_csv = args.out or os.path.join(results_dir, f"eval_{time.strftime('%Y%m%d-%H%M%S')}.csv")
 
     env_cfg = CONFIG["env"]
     sim_proc = None
@@ -82,7 +86,8 @@ def main():
         sim_proc = launch_simulator(
             env_cfg["carla_root"],
             docker_image=env_cfg["carla_docker"] if env_cfg["is_carla_in_docker"] else None,
-            container_name=env_cfg["carla_container"],
+            container_name=f"{env_cfg['carla_container']}_{args.port}",
+            port=args.port,
         )
         print("[INFO] Simulator launched...")
 
@@ -97,7 +102,8 @@ def main():
             obs_res=env_cfg["obs_res"],
             viewer_res=env_cfg["viewer_res"],
             host=env_cfg["host"],
-            port=env_cfg["port"],
+            port=args.port,
+            tm_port=args.port + 6000,
             town=cfg["town"],
             max_route_length=env_cfg["max_route_length"],
             min_route_length=env_cfg["min_route_length"],
