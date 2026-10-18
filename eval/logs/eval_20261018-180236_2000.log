@@ -1,0 +1,572 @@
+['bash', '/home/labor/CARLA/CARLA_0.9.16/CarlaUE4.sh', '-prefernvidia', '-RenderOffScreen', '-carla-rpc-port=2000']
+[INFO] Simulator launched...
+Loaded camera AE from /home/labor/CARLA/DAVID_TDK/RL-carla-ROS2/feature_extractions/camera/camera_ae.ckpt, latent_dim 512, latent_scale 4.0
+Loaded lidar AE from /home/labor/CARLA/DAVID_TDK/RL-carla-ROS2/feature_extractions/lidar/graph_ae.ckpt, latent shape (16, 11, 32)
+Spawned actor "vehicle.tesla.model3"
+Spawned actor "sensor.camera.rgb"
+Spawned actor "sensor.lidar.ray_cast"
+[INFO] Loaded: tensorboard/SAC_reward_1/model_final.zip  (reward_fn_1)
+[INFO] Loaded: tensorboard/SAC_reward_2_part2/model_final.zip  (reward_fn_2)
+[INFO] Loaded: tensorboard/SAC_reward_3/model_final.zip  (reward_fn_3)
+[INFO] Results: /home/labor/CARLA/DAVID_TDK/RL-carla-ROS2/eval/results/part_20261018-180236_2000.csv
+############################################################
+[INFO] Kor 1/5
+############################################################
+============================================================
+[INFO] Model: tensorboard/SAC_reward_1/model_final.zip  (reward_fn_1)
+============================================================
+[SLOW] tick=17 obs=64 render=6 ms  (osszesen 87)
+[city_highway_1   r0 s106] Route done      | 100.0%  129.9 s 41.0 km/h | overtakes 5 (legal 8, legal no hit 8, other 1; attempts 3, success 3 (100.0%); gap avg 0.76 m, min 0.13 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 90.5% | steer jerk 0.0294 | behind 38.5 s (can 10.3, blocked 28.2), stuck 2 (31.1 s) | reward 1582 (mean 0.61, no pen 1582)
+1| Terminal: Off-track
+    !! Off-track              @    64 m (  2.6%) x=   57.6 y= -214.9 v= 45.5 km/h offset=+5.55 m lane=+2 lead=- steer=+0.790 -> visszateve (1/10)
+1| Terminal: Too fast
+    !! Too fast               @    64 m (  2.6%) x=   63.0 y= -213.5 v=116.1 km/h offset=+0.03 m lane=+0 lead=- steer=+0.236 -> visszateve (2/10)
+1| Terminal: Off-track
+    !! Off-track              @    79 m (  3.2%) x=   67.6 y= -227.8 v= 14.8 km/h offset=-2.01 m lane=-1 lead=- steer=-0.875 -> visszateve (3/10)
+[city_highway_2   r0 s107] Route done      | 100.0%  194.9 s 44.3 km/h | overtakes 5 (legal 3, legal no hit 3, other 2; attempts 4, success 3 (75.0%); gap avg -0.04 m, min -1.73 m) | hit cars 1 | resets 3 (off 2, stop 0, fast 1, 1.25/km) | lane center 90.9% | steer jerk 0.0240 | behind 41.4 s (can 16.4, blocked 24.9), stuck 2 (23.5 s) | reward 2423 (mean 0.62, no pen 2453)
+2| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   140 m (  3.9%) x=   69.2 y= -233.5 v=  0.0 km/h offset=+5.45 m lane=+2 lead=- steer=+0.521 -> visszateve (1/10)
+[city_highway_3   r0 s108] Route done      | 100.0%  293.5 s 42.9 km/h | overtakes 17 (legal 18, legal no hit 18, other 3; attempts 12, success 9 (75.0%); gap avg 0.53 m, min -2.01 m) | hit cars 1 | resets 1 (off 0, stop 1, fast 0, 0.29/km) | lane center 81.8% | steer jerk 0.0293 | behind 84.5 s (can 33.1, blocked 51.4), stuck 3 (46.9 s) | reward 3426 (mean 0.58, no pen 3436)
+[city_highway_4   r0 s109] Route done      | 100.0%  397.2 s 40.8 km/h | overtakes 17 (legal 14, legal no hit 11, other 3; attempts 12, success 8 (66.7%); gap avg 0.45 m, min -1.51 m) | hit cars 3 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 90.3% | steer jerk 0.0258 | behind 142.2 s (can 40.0, blocked 102.2), stuck 3 (99.3 s) | reward 4654 (mean 0.59, no pen 4654)
+[city_highway_5   r0 s110] Route done      | 100.0%  487.0 s 41.0 km/h | overtakes 19 (legal 24, legal no hit 23, other 2; attempts 15, success 11 (73.3%); gap avg 0.41 m, min -2.06 m) | hit cars 2 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 87.5% | steer jerk 0.0270 | behind 170.9 s (can 82.8, blocked 88.0), stuck 7 (135.8 s) | reward 5323 (mean 0.55, no pen 5323)
+============================================================
+[INFO] Model: tensorboard/SAC_reward_2_part2/model_final.zip  (reward_fn_2)
+============================================================
+[city_highway_1   r0 s106] Route done      | 100.0%  148.8 s 35.8 km/h | overtakes 4 (legal 5, legal no hit 4, other 1; attempts 5, success 2 (40.0%); gap avg -0.91 m, min -2.43 m) | hit cars 2 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 78.3% | steer jerk 0.0429 | behind 56.8 s (can 17.9, blocked 38.8), stuck 3 (41.1 s) | reward 1226 (mean 0.41, no pen 1226)
+[city_highway_2   r0 s107] Route done      | 100.0%  220.0 s 39.0 km/h | overtakes 6 (legal 4, legal no hit 4, other 2; attempts 6, success 4 (66.7%); gap avg 0.33 m, min -1.27 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 81.0% | steer jerk 0.0390 | behind 64.7 s (can 22.1, blocked 42.6), stuck 4 (58.0 s) | reward 2095 (mean 0.48, no pen 2095)
+7| Terminal: Off-track
+    !! Off-track              @   346 m (  9.7%) x=  205.0 y= -166.0 v= 18.9 km/h offset=+6.53 m lane=+2 lead=5.0 steer=+0.811 -> visszateve (1/10)
+[city_highway_3   r0 s108] Route done      | 100.0%  333.9 s 37.7 km/h | overtakes 12 (legal 13, legal no hit 10, other 2; attempts 11, success 5 (45.5%); gap avg 0.37 m, min -1.26 m) | hit cars 3 | resets 1 (off 1, stop 0, fast 0, 0.29/km) | lane center 71.3% | steer jerk 0.0397 | behind 98.0 s (can 34.2, blocked 63.9), stuck 5 (72.4 s) | reward 2918 (mean 0.44, no pen 2928)
+[city_highway_4   r0 s109] Route done      | 100.0%  478.2 s 33.9 km/h | overtakes 11 (legal 4, legal no hit 4, other 8; attempts 7, success 3 (42.9%); gap avg 0.86 m, min -0.94 m) | hit cars 2 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 77.4% | steer jerk 0.0356 | behind 251.2 s (can 25.3, blocked 225.8), stuck 7 (229.8 s) | reward 4048 (mean 0.42, no pen 4048)
+9| Terminal: Off-track
+    !! Off-track              @  1291 m ( 23.5%) x=  -18.6 y=  -71.3 v= 30.9 km/h offset=+2.06 m lane=+1 lead=1.6 steer=-0.096 -> visszateve (1/10)
+9| Terminal: Off-track
+    !! Off-track              @  1291 m ( 23.5%) x=  -20.1 y=  -74.3 v= 23.5 km/h offset=+2.01 m lane=+1 lead=7.0 steer=-0.423 -> visszateve (2/10)
+[city_highway_5   r0 s110] Route done      | 100.0%  479.4 s 41.6 km/h | overtakes 15 (legal 20, legal no hit 19, other 2; attempts 17, success 10 (58.8%); gap avg 0.7 m, min -1.09 m) | hit cars 2 | resets 2 (off 2, stop 0, fast 0, 0.36/km) | lane center 72.6% | steer jerk 0.0416 | behind 78.8 s (can 43.2, blocked 35.5), stuck 5 (44.7 s) | reward 4002 (mean 0.42, no pen 4022)
+============================================================
+[INFO] Model: tensorboard/SAC_reward_3/model_final.zip  (reward_fn_3)
+============================================================
+10| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   335 m ( 22.4%) x=  209.4 y= -132.8 v=  1.0 km/h offset=+1.38 m lane=+0 lead=- steer=+0.428 -> visszateve (1/10)
+[city_highway_1   r0 s106] Route done      | 100.0%  190.5 s 28.2 km/h | overtakes 5 (legal 0, legal no hit 0, other 5; attempts 1, success 0 (-%); gap avg -0.59 m, min -2.52 m) | hit cars 4 | resets 1 (off 0, stop 1, fast 0, 0.67/km) | lane center 54.7% | steer jerk 0.0326 | behind 44.1 s (can 5.6, blocked 38.5), stuck 3 (38.4 s) | reward 951 (mean 0.25, no pen 961)
+[city_highway_2   r0 s107] Route done      | 100.0%  226.7 s 37.8 km/h | overtakes 3 (legal 0, legal no hit 0, other 3; attempts 3, success 0 (-%); gap avg 1.63 m, min 0.35 m) | hit cars 0 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 62.4% | steer jerk 0.0344 | behind 47.7 s (can 5.5, blocked 42.2), stuck 1 (41.4 s) | reward 1708 (mean 0.38, no pen 1708)
+12| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   247 m (  6.9%) x=  104.8 y= -170.9 v=  0.2 km/h offset=+0.89 m lane=+0 lead=- steer=+0.491 -> visszateve (1/10)
+12| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   492 m ( 13.7%) x=  315.3 y= -113.2 v=  0.1 km/h offset=+4.81 m lane=+1 lead=- steer=+0.615 -> visszateve (2/10)
+12| Terminal: Too fast
+    !! Too fast               @  2992 m ( 83.3%) x=  -88.1 y=   37.5 v= 60.3 km/h offset=-0.20 m lane=+0 lead=- steer=-0.161 -> visszateve (3/10)
+[city_highway_3   r0 s108] Route done      | 100.0%  369.6 s 34.0 km/h | overtakes 6 (legal 6, legal no hit 6, other 2; attempts 6, success 4 (66.7%); gap avg 0.24 m, min -0.6 m) | hit cars 1 | resets 3 (off 0, stop 2, fast 1, 0.86/km) | lane center 51.4% | steer jerk 0.0313 | behind 82.0 s (can 38.9, blocked 43.2), stuck 2 (51.6 s) | reward 2518 (mean 0.34, no pen 2548)
+13| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   432 m (  9.6%) x=  315.1 y= -113.0 v=  0.0 km/h offset=+4.58 m lane=+1 lead=- steer=+0.789 -> visszateve (1/10)
+13| Terminal: Off-track
+    !! Off-track              @  3465 m ( 76.9%) x= -370.5 y=  -37.6 v= 25.1 km/h offset=+2.00 m lane=+1 lead=10.9 steer=+0.099 -> visszateve (2/10)
+13| Terminal: Off-track
+    !! Off-track              @  3528 m ( 78.3%) x= -373.1 y=   21.2 v= 40.6 km/h offset=+2.03 m lane=+1 lead=- steer=-0.112 -> visszateve (3/10)
+[city_highway_4   r0 s109] Route done      | 100.0%  466.2 s 34.7 km/h | overtakes 6 (legal 4, legal no hit 4, other 3; attempts 6, success 2 (33.3%); gap avg 0.37 m, min -0.03 m) | hit cars 0 | resets 3 (off 2, stop 1, fast 0, 0.67/km) | lane center 70.8% | steer jerk 0.0319 | behind 111.2 s (can 4.1, blocked 107.0), stuck 4 (107.5 s) | reward 3414 (mean 0.37, no pen 3444)
+14| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   400 m (  7.3%) x=  315.5 y= -113.4 v=  0.1 km/h offset=+4.94 m lane=+1 lead=27.8 steer=+0.825 -> visszateve (1/10)
+14| Terminal: Too fast
+    !! Too fast               @  2593 m ( 47.1%) x=  342.8 y= -367.4 v= 60.0 km/h offset=+0.14 m lane=+0 lead=- steer=-0.124 -> visszateve (2/10)
+14| Terminal: Too fast
+    !! Too fast               @  2977 m ( 54.1%) x=   -9.9 y= -277.0 v= 60.3 km/h offset=-0.48 m lane=+0 lead=- steer=-0.042 -> visszateve (3/10)
+14| Terminal: Too fast
+    !! Too fast               @  3807 m ( 69.2%) x=  -71.8 y=   33.8 v= 60.1 km/h offset=+0.05 m lane=+0 lead=- steer=+0.035 -> visszateve (4/10)
+14| Terminal: Too fast
+    !! Too fast               @  4883 m ( 88.7%) x=  109.1 y= -385.1 v= 60.2 km/h offset=+0.21 m lane=+0 lead=- steer=+0.016 -> visszateve (5/10)
+[city_highway_5   r0 s110] Route done      | 100.0%  524.2 s 38.0 km/h | overtakes 12 (legal 13, legal no hit 13, other 6; attempts 9, success 5 (55.6%); gap avg 0.86 m, min -0.12 m) | hit cars 0 | resets 5 (off 0, stop 1, fast 4, 0.9/km) | lane center 64.6% | steer jerk 0.0340 | behind 88.0 s (can 33.0, blocked 55.0), stuck 3 (57.8 s) | reward 3962 (mean 0.38, no pen 4012)
+############################################################
+[INFO] Kor 2/5
+############################################################
+============================================================
+[INFO] Model: tensorboard/SAC_reward_1/model_final.zip  (reward_fn_1)
+============================================================
+[city_highway_1   r1 s1106] Route done      | 100.0%  127.1 s 41.9 km/h | overtakes 9 (legal 6, legal no hit 6, other 4; attempts 6, success 5 (83.3%); gap avg 1.03 m, min 0.31 m) | hit cars 0 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 85.8% | steer jerk 0.0283 | behind 41.2 s (can 9.7, blocked 31.6), stuck 1 (25.9 s) | reward 1550 (mean 0.61, no pen 1550)
+16| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   543 m ( 21.8%) x=  309.5 y= -115.3 v=  0.0 km/h offset=-0.80 m lane=+0 lead=- steer=+0.424 -> visszateve (1/10)
+16| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   543 m ( 21.8%) x=  309.8 y= -116.0 v=  0.1 km/h offset=-0.13 m lane=+0 lead=- steer=+0.649 -> visszateve (2/10)
+16| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   543 m ( 21.8%) x=  309.9 y= -116.0 v=  0.1 km/h offset=-0.09 m lane=+0 lead=- steer=+0.658 -> visszateve (3/10)
+16| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   543 m ( 21.8%) x=  309.8 y= -116.0 v=  0.0 km/h offset=-0.14 m lane=+0 lead=- steer=+0.562 -> visszateve (4/10)
+16| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   543 m ( 21.8%) x=  309.8 y= -116.0 v=  0.0 km/h offset=-0.14 m lane=+0 lead=- steer=+0.587 -> visszateve (5/10)
+16| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   543 m ( 21.8%) x=  309.8 y= -116.0 v=  0.1 km/h offset=-0.15 m lane=+0 lead=- steer=+0.542 -> visszateve (6/10)
+16| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   543 m ( 21.8%) x=  309.9 y= -116.0 v=  0.1 km/h offset=-0.10 m lane=+0 lead=- steer=+0.709 -> visszateve (7/10)
+16| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   543 m ( 21.8%) x=  309.9 y= -116.0 v=  0.0 km/h offset=-0.12 m lane=+0 lead=- steer=+0.522 -> visszateve (8/10)
+16| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   543 m ( 21.8%) x=  309.8 y= -116.0 v=  0.1 km/h offset=-0.15 m lane=+0 lead=- steer=+0.516 -> visszateve (9/10)
+16| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   543 m ( 21.8%) x=  309.9 y= -116.0 v=  0.1 km/h offset=-0.08 m lane=+0 lead=- steer=+0.681 -> visszateve (10/10)
+[city_highway_2   r1 s1107] Too many resets |  21.8%  122.1 s 15.9 km/h | overtakes 0 (legal 0, legal no hit 0, other 0; attempts 0, success 0 (-%); gap avg - m, min - m) | hit cars 1 | resets 10 (off 0, stop 10, fast 0, 18.5/km) | lane center 94.2% | steer jerk 0.0317 | behind 35.1 s (can 0.0, blocked 35.1), stuck 1 (35.1 s) | reward 436 (mean 0.18, no pen 536)
+[city_highway_3   r1 s1108] Route done      | 100.0%  271.4 s 46.4 km/h | overtakes 20 (legal 27, legal no hit 23, other 2; attempts 14, success 9 (64.3%); gap avg 0.64 m, min -0.21 m) | hit cars 4 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 81.4% | steer jerk 0.0379 | behind 60.8 s (can 47.7, blocked 13.1), stuck 3 (18.6 s) | reward 3088 (mean 0.57, no pen 3088)
+18| Terminal: Off-track
+    !! Off-track              @   137 m (  3.1%) x=   64.2 y= -179.2 v= 39.4 km/h offset=+5.51 m lane=+2 lead=- steer=+0.117 -> visszateve (1/10)
+18| Terminal: Off-track
+    !! Off-track              @   141 m (  3.1%) x=   64.8 y= -176.9 v= 25.0 km/h offset=+5.43 m lane=+2 lead=2.8 steer=+0.029 -> visszateve (2/10)
+18| Terminal: Off-track
+    !! Off-track              @  1103 m ( 24.5%) x=  -92.8 y=    3.5 v= 37.6 km/h offset=+2.72 m lane=+1 lead=- steer=+0.160 -> visszateve (3/10)
+18| Terminal: Off-track
+    !! Off-track              @  3464 m ( 76.8%) x= -369.9 y=  -38.8 v= 47.1 km/h offset=+2.06 m lane=+1 lead=4.2 steer=-0.438 -> visszateve (4/10)
+18| Terminal: Off-track
+    !! Off-track              @  3527 m ( 78.2%) x= -371.1 y=   18.5 v= 38.2 km/h offset=+5.26 m lane=+2 lead=- steer=+0.088 -> visszateve (5/10)
+18| Terminal: Too fast
+    !! Too fast               @  3527 m ( 78.2%) x= -375.6 y=   21.8 v= 70.6 km/h offset=-0.24 m lane=+0 lead=0.6 steer=-0.054 -> visszateve (6/10)
+18| Terminal: Too fast
+    !! Too fast               @  3527 m ( 78.2%) x= -375.5 y=   21.5 v= 82.0 km/h offset=-0.01 m lane=+0 lead=0.7 steer=-0.237 -> visszateve (7/10)
+18| Terminal: Too fast
+    !! Too fast               @  3527 m ( 78.2%) x= -375.5 y=   21.4 v= 83.7 km/h offset=+0.03 m lane=+0 lead=0.7 steer=-0.173 -> visszateve (8/10)
+18| Terminal: Off-track
+    !! Off-track              @  4247 m ( 94.2%) x=  345.0 y=   29.5 v= 20.1 km/h offset=+2.06 m lane=+1 lead=4.1 steer=-0.082 -> visszateve (9/10)
+[city_highway_4   r1 s1109] Route done      | 100.0%  529.9 s 30.9 km/h | overtakes 14 (legal 14, legal no hit 14, other 3; attempts 7, success 6 (85.7%); gap avg 0.58 m, min -2.14 m) | hit cars 3 | resets 9 (off 6, stop 0, fast 3, 1.98/km) | lane center 77.1% | steer jerk 0.0198 | behind 321.2 s (can 27.6, blocked 293.6), stuck 3 (284.0 s) | reward 4304 (mean 0.41, no pen 4394)
+19| Terminal: Off-track
+    !! Off-track              @    83 m (  1.5%) x=  127.8 y= -202.4 v= 45.6 km/h offset=+5.72 m lane=+2 lead=- steer=+0.211 -> visszateve (1/10)
+19| Terminal: Too fast
+    !! Too fast               @    84 m (  1.5%) x=  133.2 y= -201.2 v= 76.9 km/h offset=+0.24 m lane=+0 lead=- steer=-0.139 -> visszateve (2/10)
+19| Terminal: Off-track
+    !! Off-track              @  1073 m ( 19.5%) x=  -93.4 y=    3.6 v= 36.4 km/h offset=+3.05 m lane=+1 lead=- steer=+0.271 -> visszateve (3/10)
+[city_highway_5   r1 s1110] Route done      | 100.0%  472.3 s 42.4 km/h | overtakes 20 (legal 24, legal no hit 21, other 6; attempts 14, success 11 (78.6%); gap avg 0.35 m, min -2.09 m) | hit cars 7 | resets 3 (off 2, stop 0, fast 1, 0.54/km) | lane center 87.4% | steer jerk 0.0287 | behind 131.8 s (can 43.5, blocked 88.3), stuck 3 (79.3 s) | reward 5466 (mean 0.58, no pen 5496)
+============================================================
+[INFO] Model: tensorboard/SAC_reward_2_part2/model_final.zip  (reward_fn_2)
+============================================================
+[city_highway_1   r1 s1106] Route done      | 100.0%  156.3 s 34.0 km/h | overtakes 4 (legal 5, legal no hit 5, other 0; attempts 3, success 3 (100.0%); gap avg 0.4 m, min -0.09 m) | hit cars 0 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 79.0% | steer jerk 0.0371 | behind 74.8 s (can 11.6, blocked 63.2), stuck 3 (63.9 s) | reward 1366 (mean 0.44, no pen 1366)
+[city_highway_2   r1 s1107] Route done      | 100.0%  211.1 s 40.7 km/h | overtakes 5 (legal 0, legal no hit 0, other 5; attempts 2, success 0 (-%); gap avg 0.68 m, min -2.14 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 89.1% | steer jerk 0.0388 | behind 46.8 s (can 9.8, blocked 37.0), stuck 1 (34.8 s) | reward 2054 (mean 0.49, no pen 2054)
+[city_highway_3   r1 s1108] Route done      | 100.0%  341.4 s 36.9 km/h | overtakes 10 (legal 14, legal no hit 13, other 1; attempts 9, success 5 (55.6%); gap avg 0.66 m, min -0.27 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 69.2% | steer jerk 0.0371 | behind 122.9 s (can 36.8, blocked 86.1), stuck 5 (96.3 s) | reward 2974 (mean 0.44, no pen 2974)
+[city_highway_4   r1 s1109] Route done      | 100.0%  425.1 s 38.1 km/h | overtakes 9 (legal 6, legal no hit 4, other 4; attempts 5, success 3 (60.0%); gap avg 0.11 m, min -2.39 m) | hit cars 2 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 83.0% | steer jerk 0.0375 | behind 114.2 s (can 19.4, blocked 94.8), stuck 6 (108.8 s) | reward 3458 (mean 0.41, no pen 3458)
+24| Terminal: Off-track
+    !! Off-track              @   179 m (  3.3%) x=  206.6 y= -241.0 v= 38.5 km/h offset=+6.60 m lane=+2 lead=- steer=+0.815 -> visszateve (1/10)
+[city_highway_5   r1 s1110] Route done      | 100.0%  522.5 s 38.3 km/h | overtakes 16 (legal 24, legal no hit 21, other 1; attempts 16, success 10 (62.5%); gap avg 0.38 m, min -2.43 m) | hit cars 4 | resets 1 (off 1, stop 0, fast 0, 0.18/km) | lane center 72.6% | steer jerk 0.0406 | behind 148.9 s (can 56.8, blocked 92.2), stuck 6 (111.3 s) | reward 4388 (mean 0.42, no pen 4398)
+============================================================
+[INFO] Model: tensorboard/SAC_reward_3/model_final.zip  (reward_fn_3)
+============================================================
+[city_highway_1   r1 s1106] Route done      | 100.0%  168.2 s 31.5 km/h | overtakes 5 (legal 2, legal no hit 2, other 3; attempts 5, success 2 (40.0%); gap avg 0.51 m, min -0.83 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 56.8% | steer jerk 0.0350 | behind 56.1 s (can 16.9, blocked 39.1), stuck 4 (44.0 s) | reward 1151 (mean 0.34, no pen 1151)
+26| Terminal: Off-track
+    !! Off-track              @   546 m ( 21.9%) x=  316.1 y= -114.1 v= 34.0 km/h offset=+5.63 m lane=+2 lead=- steer=+0.774 -> visszateve (1/10)
+[city_highway_2   r1 s1107] Route done      | 100.0%  246.4 s 34.9 km/h | overtakes 3 (legal 2, legal no hit 2, other 1; attempts 6, success 2 (33.3%); gap avg 0.69 m, min 0.3 m) | hit cars 0 | resets 1 (off 1, stop 0, fast 0, 0.42/km) | lane center 68.2% | steer jerk 0.0339 | behind 73.2 s (can 13.8, blocked 59.4), stuck 3 (62.2 s) | reward 2037 (mean 0.41, no pen 2047)
+[city_highway_3   r1 s1108] Route done      | 100.0%  345.5 s 36.3 km/h | overtakes 11 (legal 11, legal no hit 10, other 5; attempts 7, success 5 (71.4%); gap avg 0.54 m, min -0.33 m) | hit cars 2 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 56.7% | steer jerk 0.0337 | behind 68.2 s (can 32.2, blocked 36.0), stuck 4 (49.7 s) | reward 2426 (mean 0.35, no pen 2426)
+28| Terminal: Off-track
+    !! Off-track              @  1320 m ( 29.3%) x=  -19.7 y=  -73.5 v= 25.1 km/h offset=+2.05 m lane=+1 lead=4.0 steer=+0.063 -> visszateve (1/10)
+28| Terminal: Off-track
+    !! Off-track              @  1513 m ( 33.6%) x=  -17.7 y=  114.2 v= 32.3 km/h offset=+2.00 m lane=+1 lead=- steer=+0.032 -> visszateve (2/10)
+28| Terminal: Off-track
+    !! Off-track              @  3525 m ( 78.2%) x= -374.6 y=   18.5 v= 39.8 km/h offset=+2.29 m lane=+1 lead=- steer=-0.293 -> visszateve (3/10)
+28| Terminal: Off-track
+    !! Off-track              @  3529 m ( 78.3%) x= -372.3 y=   21.9 v= 28.8 km/h offset=+2.04 m lane=+1 lead=- steer=+0.228 -> visszateve (4/10)
+[city_highway_4   r1 s1109] Route done      | 100.0%  498.8 s 32.4 km/h | overtakes 10 (legal 5, legal no hit 4, other 5; attempts 5, success 2 (40.0%); gap avg 0.65 m, min -1.53 m) | hit cars 2 | resets 4 (off 4, stop 0, fast 0, 0.89/km) | lane center 63.9% | steer jerk 0.0307 | behind 151.5 s (can 28.8, blocked 122.8), stuck 5 (142.5 s) | reward 3061 (mean 0.31, no pen 3101)
+29| Terminal: Off-track
+    !! Off-track              @   400 m (  7.3%) x=  316.2 y= -114.6 v= 27.2 km/h offset=+5.75 m lane=+2 lead=- steer=+0.548 -> visszateve (1/10)
+29| Terminal: Too fast
+    !! Too fast               @  3788 m ( 68.8%) x=  -89.9 y=   34.6 v= 60.9 km/h offset=-0.77 m lane=+0 lead=- steer=-0.051 -> visszateve (2/10)
+29| Terminal: Too fast
+    !! Too fast               @  5064 m ( 92.0%) x=  -11.8 y= -246.0 v= 60.1 km/h offset=-0.32 m lane=+0 lead=- steer=+0.026 -> visszateve (3/10)
+[city_highway_5   r1 s1110] Route done      | 100.0%  580.6 s 34.3 km/h | overtakes 14 (legal 17, legal no hit 15, other 3; attempts 13, success 5 (38.5%); gap avg 0.4 m, min -0.55 m) | hit cars 2 | resets 3 (off 1, stop 0, fast 2, 0.54/km) | lane center 61.1% | steer jerk 0.0327 | behind 214.5 s (can 83.9, blocked 130.6), stuck 7 (175.6 s) | reward 4070 (mean 0.35, no pen 4100)
+############################################################
+[INFO] Kor 3/5
+############################################################
+============================================================
+[INFO] Model: tensorboard/SAC_reward_1/model_final.zip  (reward_fn_1)
+============================================================
+[city_highway_1   r2 s2106] Route done      | 100.0%  127.0 s 41.9 km/h | overtakes 9 (legal 9, legal no hit 8, other 2; attempts 6, success 5 (83.3%); gap avg 0.75 m, min -0.57 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 84.0% | steer jerk 0.0373 | behind 42.4 s (can 14.3, blocked 28.1), stuck 2 (28.1 s) | reward 1413 (mean 0.56, no pen 1413)
+31| Terminal: Off-track
+    !! Off-track              @   394 m ( 15.8%) x=  216.4 y= -175.2 v= 33.0 km/h offset=+17.68 m lane=+5 lead=- steer=-0.827 -> visszateve (1/10)
+[city_highway_2   r2 s2107] Route done      | 100.0%  222.8 s 38.8 km/h | overtakes 6 (legal 6, legal no hit 5, other 1; attempts 4, success 4 (100.0%); gap avg 0.62 m, min -1.72 m) | hit cars 1 | resets 1 (off 1, stop 0, fast 0, 0.42/km) | lane center 93.5% | steer jerk 0.0205 | behind 83.0 s (can 10.1, blocked 72.9), stuck 2 (72.3 s) | reward 2686 (mean 0.60, no pen 2696)
+32| Terminal: Off-track
+    !! Off-track              @    48 m (  1.4%) x=  126.2 y= -298.4 v= 38.6 km/h offset=+5.58 m lane=+2 lead=- steer=+0.637 -> visszateve (1/10)
+32| Terminal: Off-track
+    !! Off-track              @    59 m (  1.7%) x=  116.0 y= -293.5 v= 13.4 km/h offset=+5.53 m lane=+2 lead=- steer=+0.023 -> visszateve (2/10)
+[city_highway_3   r2 s2108] Route done      | 100.0%  290.6 s 43.5 km/h | overtakes 12 (legal 9, legal no hit 9, other 6; attempts 7, success 5 (71.4%); gap avg 0.41 m, min -1.93 m) | hit cars 3 | resets 2 (off 2, stop 0, fast 0, 0.57/km) | lane center 85.7% | steer jerk 0.0286 | behind 79.7 s (can 26.0, blocked 53.6), stuck 4 (48.0 s) | reward 3318 (mean 0.57, no pen 3338)
+33| Terminal: Off-track
+    !! Off-track              @    39 m (  0.9%) x=   87.8 y= -268.7 v= 49.4 km/h offset=+5.64 m lane=+2 lead=- steer=+0.127 -> visszateve (1/10)
+33| Terminal: Vehicle stopped
+    !! Vehicle stopped        @    41 m (  0.9%) x=   82.6 y= -270.4 v=  0.0 km/h offset=+0.49 m lane=+0 lead=- steer=-0.237 -> visszateve (2/10)
+[city_highway_4   r2 s2109] Route done      | 100.0%  387.6 s 41.9 km/h | overtakes 15 (legal 12, legal no hit 10, other 5; attempts 10, success 8 (80.0%); gap avg -0.19 m, min -2.7 m) | hit cars 5 | resets 2 (off 1, stop 1, fast 0, 0.44/km) | lane center 85.1% | steer jerk 0.0274 | behind 99.3 s (can 36.4, blocked 63.0), stuck 5 (57.2 s) | reward 4044 (mean 0.52, no pen 4064)
+34| Terminal: Off-track
+    !! Off-track              @  1487 m ( 27.0%) x=  -17.8 y=  119.9 v= 45.2 km/h offset=+4.32 m lane=+1 lead=- steer=+0.328 -> visszateve (1/10)
+34| Terminal: Too fast
+    !! Too fast               @  1487 m ( 27.0%) x=  -21.0 y=  117.1 v= 86.7 km/h offset=+0.25 m lane=+0 lead=- steer=-0.042 -> visszateve (2/10)
+[city_highway_5   r2 s2110] Route done      | 100.0%  459.9 s 43.4 km/h | overtakes 16 (legal 21, legal no hit 17, other 2; attempts 12, success 6 (50.0%); gap avg 0.23 m, min -2.21 m) | hit cars 5 | resets 2 (off 1, stop 0, fast 1, 0.36/km) | lane center 87.8% | steer jerk 0.0277 | behind 103.1 s (can 35.2, blocked 67.9), stuck 2 (60.2 s) | reward 5498 (mean 0.60, no pen 5518)
+============================================================
+[INFO] Model: tensorboard/SAC_reward_2_part2/model_final.zip  (reward_fn_2)
+============================================================
+[city_highway_1   r2 s2106] Route done      | 100.0%  137.3 s 38.8 km/h | overtakes 5 (legal 6, legal no hit 5, other 1; attempts 3, success 1 (33.3%); gap avg -0.07 m, min -2.0 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 77.3% | steer jerk 0.0431 | behind 38.2 s (can 14.0, blocked 24.2), stuck 2 (27.8 s) | reward 1093 (mean 0.40, no pen 1093)
+[city_highway_2   r2 s2107] Route done      | 100.0%  226.3 s 38.0 km/h | overtakes 6 (legal 7, legal no hit 6, other 1; attempts 5, success 3 (60.0%); gap avg 0.53 m, min -0.1 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 81.9% | steer jerk 0.0391 | behind 77.4 s (can 15.4, blocked 62.0), stuck 2 (61.8 s) | reward 2093 (mean 0.46, no pen 2093)
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   207 m (  5.8%) x=   66.5 y= -170.4 v=  0.2 km/h offset=+0.18 m lane=+0 lead=- steer=-0.172 -> visszateve (1/10)
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+37| Terminal: Vehicle stopped
+[city_highway_3   r2 s2108] Route done      | 100.0%  659.2 s 19.1 km/h | overtakes 9 (legal 3, legal no hit 3, other 7; attempts 5, success 2 (40.0%); gap avg 0.08 m, min -1.8 m) | hit cars 3 | resets 1 (off 0, stop 1, fast 0, 0.29/km) | lane center 66.6% | steer jerk 0.0340 | behind 526.5 s (can 14.9, blocked 511.6), stuck 9 (512.2 s) | reward 1771 (mean 0.13, no pen 1781)
+[city_highway_4   r2 s2109] Route done      | 100.0%  420.2 s 38.5 km/h | overtakes 10 (legal 7, legal no hit 5, other 4; attempts 8, success 4 (50.0%); gap avg 0.07 m, min -1.77 m) | hit cars 4 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 77.7% | steer jerk 0.0381 | behind 104.7 s (can 21.9, blocked 82.8), stuck 4 (78.5 s) | reward 3388 (mean 0.40, no pen 3388)
+39| Terminal: Off-track
+    !! Off-track              @   178 m (  3.3%) x=  213.9 y= -243.9 v= 17.3 km/h offset=+14.23 m lane=+4 lead=- steer=+0.536 -> visszateve (1/10)
+[city_highway_5   r2 s2110] Route done      | 100.0%  488.6 s 40.9 km/h | overtakes 12 (legal 18, legal no hit 18, other 1; attempts 12, success 10 (83.3%); gap avg 0.68 m, min 0.09 m) | hit cars 1 | resets 1 (off 1, stop 0, fast 0, 0.18/km) | lane center 76.9% | steer jerk 0.0411 | behind 109.2 s (can 42.2, blocked 66.9), stuck 4 (79.3 s) | reward 4170 (mean 0.43, no pen 4180)
+============================================================
+[INFO] Model: tensorboard/SAC_reward_3/model_final.zip  (reward_fn_3)
+============================================================
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+40| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   447 m ( 29.9%) x=  315.8 y= -119.2 v=  0.0 km/h offset=+5.23 m lane=+1 lead=- steer=+0.257 -> visszateve (1/10)
+[city_highway_1   r2 s2106] Route done      | 100.0%  496.6 s 10.8 km/h | overtakes 5 (legal 0, legal no hit 0, other 5; attempts 0, success 0 (-%); gap avg 0.02 m, min -2.0 m) | hit cars 3 | resets 1 (off 0, stop 1, fast 0, 0.67/km) | lane center 20.3% | steer jerk 0.0258 | behind 379.1 s (can 1.8, blocked 377.4), stuck 5 (376.9 s) | reward -3705 (mean -0.37, no pen -3695)
+[city_highway_2   r2 s2107] Route done      | 100.0%  225.2 s 38.1 km/h | overtakes 5 (legal 3, legal no hit 2, other 2; attempts 2, success 1 (50.0%); gap avg 1.28 m, min -0.69 m) | hit cars 2 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 70.3% | steer jerk 0.0339 | behind 69.5 s (can 18.7, blocked 50.9), stuck 2 (49.5 s) | reward 1633 (mean 0.36, no pen 1633)
+42| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   197 m (  5.5%) x=   61.9 y= -179.2 v=  0.3 km/h offset=+3.30 m lane=+1 lead=- steer=-0.344 -> visszateve (1/10)
+42| Terminal: Vehicle stopped
+42| Terminal: Vehicle stopped
+42| Terminal: Vehicle stopped
+42| Terminal: Vehicle stopped
+42| Terminal: Vehicle stopped
+42| Terminal: Vehicle stopped
+42| Terminal: Vehicle stopped
+42| Terminal: Vehicle stopped
+42| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   199 m (  5.6%) x=   58.6 y= -178.8 v=  0.1 km/h offset=+0.05 m lane=+0 lead=- steer=+0.123 -> visszateve (2/10)
+42| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   201 m (  5.6%) x=   60.7 y= -174.5 v=  0.0 km/h offset=+0.73 m lane=+0 lead=- steer=-0.243 -> visszateve (3/10)
+42| Terminal: Vehicle stopped
+[city_highway_3   r2 s2108] Route done      | 100.0%  413.0 s 30.4 km/h | overtakes 6 (legal 4, legal no hit 3, other 2; attempts 3, success 2 (66.7%); gap avg 0.37 m, min -1.25 m) | hit cars 3 | resets 3 (off 0, stop 3, fast 0, 0.86/km) | lane center 63.2% | steer jerk 0.0277 | behind 121.7 s (can 13.2, blocked 108.5), stuck 6 (116.8 s) | reward 2138 (mean 0.26, no pen 2168)
+43| Terminal: Vehicle stopped
+43| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   279 m (  6.2%) x=  197.5 y= -172.7 v=  0.1 km/h offset=+3.47 m lane=+1 lead=31.1 steer=+0.326 -> visszateve (1/10)
+[city_highway_4   r2 s2109] Route done      | 100.0%  457.2 s 35.3 km/h | overtakes 9 (legal 5, legal no hit 5, other 4; attempts 6, success 3 (50.0%); gap avg 0.31 m, min -1.65 m) | hit cars 3 | resets 1 (off 0, stop 1, fast 0, 0.22/km) | lane center 70.0% | steer jerk 0.0311 | behind 97.8 s (can 32.1, blocked 65.8), stuck 4 (73.6 s) | reward 3213 (mean 0.35, no pen 3223)
+44| Terminal: Off-track
+    !! Off-track              @  3325 m ( 60.4%) x= -278.3 y=  -82.2 v= 30.8 km/h offset=+2.01 m lane=+1 lead=7.0 steer=+0.105 -> visszateve (1/10)
+44| Terminal: Off-track
+    !! Off-track              @  3364 m ( 61.1%) x= -317.2 y=  -79.2 v= 30.2 km/h offset=+2.03 m lane=+1 lead=4.1 steer=+0.139 -> visszateve (2/10)
+44| Terminal: Off-track
+    !! Off-track              @  3397 m ( 61.7%) x= -347.1 y=  -65.4 v= 23.9 km/h offset=+2.01 m lane=+1 lead=5.2 steer=-0.040 -> visszateve (3/10)
+44| Terminal: Off-track
+    !! Off-track              @  3425 m ( 62.2%) x= -366.0 y=  -45.3 v= 31.0 km/h offset=+2.04 m lane=+1 lead=3.9 steer=+0.177 -> visszateve (4/10)
+44| Terminal: Off-track
+    !! Off-track              @  3458 m ( 62.8%) x= -378.0 y=  -15.5 v= 18.3 km/h offset=+2.01 m lane=+1 lead=6.0 steer=+0.116 -> visszateve (5/10)
+44| Terminal: Too fast
+    !! Too fast               @  5064 m ( 92.0%) x=  -12.0 y= -246.3 v= 60.6 km/h offset=-0.56 m lane=+0 lead=- steer=+0.018 -> visszateve (6/10)
+44| Terminal: Too fast
+    !! Too fast               @  5090 m ( 92.5%) x=  -13.9 y= -219.4 v= 60.1 km/h offset=-0.47 m lane=+0 lead=- steer=+0.006 -> visszateve (7/10)
+[city_highway_5   r2 s2110] Route done      | 100.0%  552.6 s 36.1 km/h | overtakes 16 (legal 19, legal no hit 15, other 3; attempts 13, success 5 (38.5%); gap avg 0.43 m, min -0.53 m) | hit cars 4 | resets 7 (off 5, stop 0, fast 2, 1.26/km) | lane center 58.6% | steer jerk 0.0335 | behind 144.6 s (can 64.3, blocked 80.2), stuck 8 (106.0 s) | reward 3719 (mean 0.34, no pen 3789)
+############################################################
+[INFO] Kor 4/5
+############################################################
+============================================================
+[INFO] Model: tensorboard/SAC_reward_1/model_final.zip  (reward_fn_1)
+============================================================
+45| Terminal: Vehicle stopped
+    !! Vehicle stopped        @  1469 m ( 98.1%) x= -450.4 y=   16.0 v=  0.0 km/h offset=+5.66 m lane=+2 lead=- steer=+0.501 -> visszateve (1/10)
+[city_highway_1   r3 s3106] Route done      | 100.0%  158.2 s 33.9 km/h | overtakes 6 (legal 4, legal no hit 2, other 3; attempts 5, success 2 (40.0%); gap avg 0.4 m, min -0.48 m) | hit cars 5 | resets 1 (off 0, stop 1, fast 0, 0.67/km) | lane center 79.3% | steer jerk 0.0275 | behind 67.0 s (can 17.6, blocked 49.3), stuck 3 (52.5 s) | reward 1188 (mean 0.38, no pen 1198)
+[SLOW] tick=15 obs=133 render=6 ms  (osszesen 154)
+[city_highway_2   r3 s3107] Route done      | 100.0%  212.4 s 40.4 km/h | overtakes 7 (legal 7, legal no hit 6, other 1; attempts 6, success 4 (66.7%); gap avg 0.54 m, min -0.61 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 91.2% | steer jerk 0.0213 | behind 83.1 s (can 21.9, blocked 61.2), stuck 3 (64.8 s) | reward 2617 (mean 0.62, no pen 2617)
+47| Terminal: Off-track
+    !! Off-track              @   279 m (  7.8%) x=  136.7 y= -175.7 v= 39.8 km/h offset=+5.82 m lane=+2 lead=- steer=+0.201 -> visszateve (1/10)
+47| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   345 m (  9.6%) x=  217.1 y= -168.5 v=  0.1 km/h offset=+18.60 m lane=+5 lead=- steer=+0.960 -> visszateve (2/10)
+[city_highway_3   r3 s3108] Route done      | 100.0%  301.2 s 42.0 km/h | overtakes 14 (legal 13, legal no hit 11, other 6; attempts 8, success 4 (50.0%); gap avg 0.36 m, min -1.66 m) | hit cars 3 | resets 2 (off 1, stop 1, fast 0, 0.57/km) | lane center 83.9% | steer jerk 0.0301 | behind 79.0 s (can 29.1, blocked 49.9), stuck 2 (42.6 s) | reward 3323 (mean 0.55, no pen 3343)
+48| Terminal: Off-track
+    !! Off-track              @    41 m (  0.9%) x=   86.2 y= -266.7 v= 14.9 km/h offset=+5.56 m lane=+2 lead=- steer=+0.483 -> visszateve (1/10)
+48| Terminal: Too fast
+    !! Too fast               @    41 m (  0.9%) x=   81.7 y= -269.9 v= 75.3 km/h offset=+0.11 m lane=+0 lead=0.6 steer=+0.192 -> visszateve (2/10)
+[city_highway_4   r3 s3109] Route done      | 100.0%  385.3 s 42.4 km/h | overtakes 5 (legal 5, legal no hit 4, other 2; attempts 4, success 2 (50.0%); gap avg -0.02 m, min -1.95 m) | hit cars 2 | resets 2 (off 1, stop 0, fast 1, 0.44/km) | lane center 89.7% | steer jerk 0.0215 | behind 75.2 s (can 19.9, blocked 55.4), stuck 3 (53.7 s) | reward 4522 (mean 0.59, no pen 4542)
+[city_highway_5   r3 s3110] Route done      | 100.0%  463.8 s 43.0 km/h | overtakes 16 (legal 24, legal no hit 21, other 5; attempts 13, success 8 (61.5%); gap avg 0.66 m, min -0.62 m) | hit cars 4 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 88.3% | steer jerk 0.0263 | behind 122.1 s (can 41.6, blocked 80.5), stuck 4 (89.5 s) | reward 5668 (mean 0.61, no pen 5668)
+============================================================
+[INFO] Model: tensorboard/SAC_reward_2_part2/model_final.zip  (reward_fn_2)
+============================================================
+[city_highway_1   r3 s3106] Route done      | 100.0%  139.6 s 38.1 km/h | overtakes 5 (legal 2, legal no hit 1, other 3; attempts 3, success 1 (33.3%); gap avg 0.5 m, min -0.05 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 80.6% | steer jerk 0.0412 | behind 36.6 s (can 11.2, blocked 25.4), stuck 2 (30.0 s) | reward 1258 (mean 0.45, no pen 1258)
+[city_highway_2   r3 s3107] Route done      | 100.0%  217.5 s 39.6 km/h | overtakes 5 (legal 6, legal no hit 6, other 0; attempts 4, success 4 (100.0%); gap avg 0.69 m, min 0.02 m) | hit cars 0 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 84.0% | steer jerk 0.0395 | behind 70.4 s (can 28.4, blocked 42.0), stuck 4 (56.9 s) | reward 2068 (mean 0.47, no pen 2068)
+[city_highway_3   r3 s3108] Route done      | 100.0%  305.9 s 41.0 km/h | overtakes 7 (legal 3, legal no hit 2, other 4; attempts 6, success 2 (33.3%); gap avg 1.15 m, min -0.41 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 78.9% | steer jerk 0.0381 | behind 62.4 s (can 19.6, blocked 42.8), stuck 4 (50.8 s) | reward 2975 (mean 0.49, no pen 2975)
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Vehicle stopped
+53| Terminal: Off-track
+    !! Off-track              @  3529 m ( 78.3%) x= -372.0 y=   22.2 v= 20.6 km/h offset=+2.06 m lane=+1 lead=4.5 steer=-0.375 -> visszateve (1/10)
+[city_highway_4   r3 s3109] Route done      | 100.0%  868.0 s 18.7 km/h | overtakes 14 (legal 1, legal no hit 1, other 13; attempts 4, success 1 (25.0%); gap avg 0.61 m, min -2.52 m) | hit cars 3 | resets 1 (off 1, stop 0, fast 0, 0.22/km) | lane center 89.3% | steer jerk 0.0289 | behind 314.1 s (can 21.5, blocked 292.6), stuck 6 (292.4 s) | reward 3823 (mean 0.22, no pen 3833)
+54| Terminal: Off-track
+    !! Off-track              @   252 m (  4.6%) x=  214.9 y= -167.4 v=  6.1 km/h offset=+16.35 m lane=+5 lead=5.5 steer=-0.006 -> visszateve (1/10)
+[city_highway_5   r3 s3110] Route done      | 100.0%  563.6 s 35.4 km/h | overtakes 13 (legal 29, legal no hit 26, other 3; attempts 10, success 7 (70.0%); gap avg 0.08 m, min -2.1 m) | hit cars 4 | resets 1 (off 1, stop 0, fast 0, 0.18/km) | lane center 74.7% | steer jerk 0.0379 | behind 219.9 s (can 39.6, blocked 180.3), stuck 6 (194.2 s) | reward 4223 (mean 0.38, no pen 4233)
+============================================================
+[INFO] Model: tensorboard/SAC_reward_3/model_final.zip  (reward_fn_3)
+============================================================
+55| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   445 m ( 29.8%) x=  315.7 y= -113.7 v=  0.0 km/h offset=+5.21 m lane=+1 lead=- steer=+0.786 -> visszateve (1/10)
+[city_highway_1   r3 s3106] Route done      | 100.0%  155.9 s 34.1 km/h | overtakes 1 (legal 1, legal no hit 1, other 0; attempts 1, success 1 (100.0%); gap avg 0.73 m, min 0.73 m) | hit cars 1 | resets 1 (off 0, stop 1, fast 0, 0.68/km) | lane center 58.3% | steer jerk 0.0351 | behind 37.8 s (can 13.6, blocked 24.2), stuck 2 (31.6 s) | reward 846 (mean 0.27, no pen 856)
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+56| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   548 m ( 22.0%) x=  316.1 y= -118.7 v=  0.1 km/h offset=+5.51 m lane=+2 lead=- steer=-0.144 -> visszateve (1/10)
+[city_highway_2   r3 s3107] Route done      | 100.0%  352.4 s 24.5 km/h | overtakes 4 (legal 3, legal no hit 2, other 3; attempts 2, success 0 (-%); gap avg - m, min -2.15 m) | hit cars 3 | resets 1 (off 0, stop 1, fast 0, 0.42/km) | lane center 64.9% | steer jerk 0.0283 | behind 172.3 s (can 8.2, blocked 164.2), stuck 3 (167.1 s) | reward -47 (mean -0.01, no pen -37)
+57| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   491 m ( 13.7%) x=  311.7 y= -114.4 v=  0.1 km/h offset=+1.21 m lane=+0 lead=- steer=+0.387 -> visszateve (1/10)
+[city_highway_3   r3 s3108] Route done      | 100.0%  336.8 s 37.3 km/h | overtakes 6 (legal 8, legal no hit 8, other 0; attempts 8, success 6 (75.0%); gap avg 0.48 m, min -0.12 m) | hit cars 1 | resets 1 (off 0, stop 1, fast 0, 0.29/km) | lane center 58.3% | steer jerk 0.0335 | behind 69.3 s (can 29.2, blocked 40.1), stuck 4 (43.6 s) | reward 2742 (mean 0.41, no pen 2752)
+58| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   431 m (  9.6%) x=  315.6 y= -113.5 v=  0.2 km/h offset=+5.06 m lane=+1 lead=- steer=+0.881 -> visszateve (1/10)
+58| Terminal: Too fast
+    !! Too fast               @  2623 m ( 58.2%) x=  343.0 y= -367.4 v= 60.3 km/h offset=+0.03 m lane=+0 lead=- steer=-0.152 -> visszateve (2/10)
+[city_highway_4   r3 s3109] Route done      | 100.0%  468.2 s 34.6 km/h | overtakes 9 (legal 5, legal no hit 3, other 4; attempts 8, success 3 (37.5%); gap avg 0.55 m, min -1.43 m) | hit cars 3 | resets 2 (off 0, stop 1, fast 1, 0.44/km) | lane center 69.1% | steer jerk 0.0315 | behind 126.2 s (can 40.0, blocked 86.2), stuck 5 (96.2 s) | reward 3630 (mean 0.39, no pen 3650)
+59| Terminal: Off-track
+    !! Off-track              @   393 m (  7.2%) x=  308.6 y= -135.0 v= 26.2 km/h offset=+16.70 m lane=+5 lead=- steer=-0.697 -> visszateve (1/10)
+59| Terminal: Too fast
+    !! Too fast               @  2593 m ( 47.1%) x=  342.3 y= -367.6 v= 60.0 km/h offset=+0.22 m lane=+0 lead=- steer=-0.026 -> visszateve (2/10)
+[city_highway_5   r3 s3110] Route done      | 100.0%  501.2 s 39.8 km/h | overtakes 12 (legal 16, legal no hit 14, other 1; attempts 10, success 4 (40.0%); gap avg -0.17 m, min -2.52 m) | hit cars 3 | resets 2 (off 1, stop 0, fast 1, 0.36/km) | lane center 65.3% | steer jerk 0.0339 | behind 85.8 s (can 38.9, blocked 47.0), stuck 5 (68.2 s) | reward 3883 (mean 0.39, no pen 3903)
+############################################################
+[INFO] Kor 5/5
+############################################################
+============================================================
+[INFO] Model: tensorboard/SAC_reward_1/model_final.zip  (reward_fn_1)
+============================================================
+[city_highway_1   r4 s4106] Route done      | 100.0%  130.0 s 41.0 km/h | overtakes 4 (legal 3, legal no hit 2, other 2; attempts 3, success 1 (33.3%); gap avg 0.45 m, min -0.1 m) | hit cars 2 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 88.6% | steer jerk 0.0260 | behind 39.3 s (can 12.8, blocked 26.5), stuck 1 (25.8 s) | reward 1532 (mean 0.59, no pen 1532)
+[city_highway_2   r4 s4107] Route done      | 100.0%  207.1 s 41.5 km/h | overtakes 6 (legal 8, legal no hit 8, other 0; attempts 6, success 5 (83.3%); gap avg 1.15 m, min 0.48 m) | hit cars 0 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 91.8% | steer jerk 0.0211 | behind 65.2 s (can 12.3, blocked 52.9), stuck 3 (58.1 s) | reward 2730 (mean 0.66, no pen 2730)
+62| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   207 m (  5.8%) x=   65.9 y= -170.5 v=  0.2 km/h offset=+0.27 m lane=+0 lead=- steer=-0.733 -> visszateve (1/10)
+62| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   493 m ( 13.8%) x=  314.0 y= -112.2 v=  0.0 km/h offset=+3.55 m lane=+1 lead=- steer=+0.851 -> visszateve (2/10)
+[city_highway_3   r4 s4108] Route done      | 100.0%  294.6 s 42.7 km/h | overtakes 16 (legal 10, legal no hit 9, other 6; attempts 10, success 7 (70.0%); gap avg 0.38 m, min -2.11 m) | hit cars 3 | resets 2 (off 0, stop 2, fast 0, 0.57/km) | lane center 80.5% | steer jerk 0.0322 | behind 53.2 s (can 28.9, blocked 24.3), stuck 4 (26.7 s) | reward 3102 (mean 0.53, no pen 3122)
+63| Terminal: Off-track
+    !! Off-track              @    32 m (  0.7%) x=   91.6 y= -273.5 v= 50.2 km/h offset=+5.55 m lane=+2 lead=- steer=+0.052 -> visszateve (1/10)
+63| Terminal: Off-track
+    !! Off-track              @    33 m (  0.8%) x=   85.1 y= -277.8 v= 16.8 km/h offset=-2.18 m lane=-1 lead=- steer=+0.172 -> visszateve (2/10)
+[city_highway_4   r4 s4109] Route done      | 100.0%  385.6 s 42.1 km/h | overtakes 15 (legal 13, legal no hit 11, other 3; attempts 10, success 7 (70.0%); gap avg 0.22 m, min -2.25 m) | hit cars 4 | resets 2 (off 2, stop 0, fast 0, 0.44/km) | lane center 88.1% | steer jerk 0.0251 | behind 110.3 s (can 50.9, blocked 59.5), stuck 4 (70.8 s) | reward 4003 (mean 0.52, no pen 4023)
+[city_highway_5   r4 s4110] Route done      | 100.0%  431.3 s 46.3 km/h | overtakes 18 (legal 23, legal no hit 22, other 1; attempts 14, success 11 (78.6%); gap avg 0.69 m, min -0.65 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 88.4% | steer jerk 0.0280 | behind 87.3 s (can 72.5, blocked 14.8), stuck 4 (33.7 s) | reward 5340 (mean 0.62, no pen 5340)
+============================================================
+[INFO] Model: tensorboard/SAC_reward_2_part2/model_final.zip  (reward_fn_2)
+============================================================
+65| Terminal: Off-track
+    !! Off-track              @   225 m ( 15.1%) x=  205.7 y= -238.3 v=  2.4 km/h offset=+5.52 m lane=+2 lead=0.2 steer=+0.385 -> visszateve (1/10)
+65| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   384 m ( 25.7%) x=  255.6 y= -124.3 v=  0.2 km/h offset=+5.48 m lane=+2 lead=- steer=+0.490 -> visszateve (2/10)
+[city_highway_1   r4 s4106] Route done      | 100.0%  158.4 s 33.6 km/h | overtakes 3 (legal 1, legal no hit 1, other 2; attempts 4, success 1 (25.0%); gap avg -0.77 m, min -2.11 m) | hit cars 2 | resets 2 (off 1, stop 1, fast 0, 1.35/km) | lane center 83.0% | steer jerk 0.0404 | behind 43.4 s (can 7.6, blocked 35.8), stuck 1 (26.2 s) | reward 1012 (mean 0.32, no pen 1032)
+[city_highway_2   r4 s4107] Route done      | 100.0%  234.8 s 36.6 km/h | overtakes 5 (legal 3, legal no hit 3, other 2; attempts 4, success 3 (75.0%); gap avg 0.4 m, min -1.14 m) | hit cars 2 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 85.4% | steer jerk 0.0375 | behind 83.5 s (can 10.2, blocked 73.3), stuck 3 (76.2 s) | reward 2269 (mean 0.48, no pen 2269)
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+67| Terminal: Vehicle stopped
+[city_highway_3   r4 s4108] Route done      | 100.0%  387.9 s 32.4 km/h | overtakes 6 (legal 2, legal no hit 2, other 5; attempts 2, success 1 (50.0%); gap avg 0.52 m, min -1.82 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 88.9% | steer jerk 0.0371 | behind 41.0 s (can 7.2, blocked 33.8), stuck 1 (31.4 s) | reward 2747 (mean 0.35, no pen 2747)
+68| Terminal: Off-track
+    !! Off-track              @  1103 m ( 24.5%) x=  -92.2 y=    3.7 v= 36.4 km/h offset=+2.59 m lane=+1 lead=- steer=-0.061 -> visszateve (1/10)
+[city_highway_4   r4 s4109] Route done      | 100.0%  443.1 s 36.6 km/h | overtakes 8 (legal 4, legal no hit 4, other 4; attempts 8, success 4 (50.0%); gap avg 0.15 m, min -2.38 m) | hit cars 1 | resets 1 (off 1, stop 0, fast 0, 0.22/km) | lane center 79.0% | steer jerk 0.0370 | behind 137.0 s (can 23.1, blocked 114.0), stuck 3 (108.4 s) | reward 3574 (mean 0.40, no pen 3584)
+69| Terminal: Vehicle stopped
+    !! Vehicle stopped        @   242 m (  4.4%) x=  201.2 y= -178.4 v=  0.2 km/h offset=+2.42 m lane=+1 lead=- steer=-0.180 -> visszateve (1/10)
+[city_highway_5   r4 s4110] Route done      | 100.0%  501.3 s 39.8 km/h | overtakes 14 (legal 19, legal no hit 17, other 3; attempts 10, success 6 (60.0%); gap avg 0.61 m, min -0.33 m) | hit cars 3 | resets 1 (off 0, stop 1, fast 0, 0.18/km) | lane center 77.9% | steer jerk 0.0394 | behind 104.5 s (can 36.9, blocked 67.6), stuck 4 (76.1 s) | reward 4126 (mean 0.41, no pen 4136)
+============================================================
+[INFO] Model: tensorboard/SAC_reward_3/model_final.zip  (reward_fn_3)
+============================================================
+[city_highway_1   r4 s4106] Route done      | 100.0%  152.2 s 34.9 km/h | overtakes 2 (legal 3, legal no hit 3, other 0; attempts 5, success 2 (40.0%); gap avg 0.71 m, min 0.7 m) | hit cars 0 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 60.5% | steer jerk 0.0367 | behind 53.2 s (can 17.1, blocked 36.1), stuck 2 (35.1 s) | reward 1076 (mean 0.35, no pen 1076)
+[city_highway_2   r4 s4107] Route done      | 100.0%  252.4 s 34.1 km/h | overtakes 4 (legal 6, legal no hit 6, other 0; attempts 4, success 4 (100.0%); gap avg 0.57 m, min -0.11 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 65.2% | steer jerk 0.0340 | behind 85.8 s (can 13.3, blocked 72.5), stuck 2 (72.3 s) | reward 1977 (mean 0.39, no pen 1977)
+[city_highway_3   r4 s4108] Route done      | 100.0%  333.0 s 37.6 km/h | overtakes 9 (legal 6, legal no hit 5, other 5; attempts 4, success 2 (50.0%); gap avg 0.69 m, min -0.54 m) | hit cars 2 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 65.3% | steer jerk 0.0324 | behind 73.5 s (can 10.5, blocked 63.0), stuck 2 (60.6 s) | reward 2550 (mean 0.38, no pen 2550)
+[city_highway_4   r4 s4109] Route done      | 100.0%  407.0 s 39.6 km/h | overtakes 6 (legal 0, legal no hit 0, other 6; attempts 3, success 0 (-%); gap avg 0.4 m, min -0.69 m) | hit cars 1 | resets 0 (off 0, stop 0, fast 0, 0.0/km) | lane center 75.7% | steer jerk 0.0313 | behind 55.7 s (can 9.1, blocked 46.6), stuck 2 (39.9 s) | reward 2952 (mean 0.36, no pen 2952)
+74| Terminal: Off-track
+    !! Off-track              @  1071 m ( 19.5%) x=  -91.2 y=    3.8 v= 21.7 km/h offset=+2.28 m lane=+1 lead=- steer=-0.033 -> visszateve (1/10)
+74| Terminal: Too fast
+    !! Too fast               @  1072 m ( 19.5%) x=  -91.1 y=    1.3 v= 65.7 km/h offset=-0.04 m lane=+0 lead=0.6 steer=-0.001 -> visszateve (2/10)
+74| Terminal: Too fast
+    !! Too fast               @  1072 m ( 19.5%) x=  -91.5 y=    1.5 v= 72.1 km/h offset=+0.31 m lane=+0 lead=0.4 steer=+0.019 -> visszateve (3/10)
+[city_highway_5   r4 s4110] Route done      | 100.0%  515.6 s 38.6 km/h | overtakes 12 (legal 23, legal no hit 19, other 0; attempts 10, success 5 (50.0%); gap avg 0.14 m, min -1.83 m) | hit cars 4 | resets 3 (off 1, stop 0, fast 2, 0.54/km) | lane center 64.3% | steer jerk 0.0349 | behind 85.5 s (can 41.1, blocked 44.4), stuck 5 (63.6 s) | reward 3694 (mean 0.36, no pen 3724)
+[INFO] Results: /home/labor/CARLA/DAVID_TDK/RL-carla-ROS2/eval/results/part_20261018-180236_2000.csv
+[INFO] Simulator closed
+WARNING: sensor object went out of the scope but the sensor is still alive in the simulation: Actor 274 (sensor.lidar.ray_cast) 
+WARNING: sensor object went out of the scope but the sensor is still alive in the simulation: Actor 273 (sensor.camera.rgb) 
+WARNING: sensor object went out of the scope but the sensor is still alive in the simulation: Actor 271 (sensor.other.collision) 
+terminate called without an active exception
+terminate called recursively
+terminate called recursively
+/tmp/tmp2bz9pr61: line 19: 1909804 Aborted                 (core dumped) python eval/eval_scenes.py --repeats 5 --scenes eval/scenes_city.json --port 2000 --out /home/labor/CARLA/DAVID_TDK/RL-carla-ROS2/eval/results/part_20261018-180236_2000.csv --model tensorboard/SAC_reward_1/model_final.zip tensorboard/SAC_reward_2_part2/model_final.zip tensorboard/SAC_reward_3/model_final.zip
+ERROR conda.cli.main_run:execute(142): `conda run python eval/eval_scenes.py --repeats 5 --scenes eval/scenes_city.json --port 2000 --out /home/labor/CARLA/DAVID_TDK/RL-carla-ROS2/eval/results/part_20261018-180236_2000.csv --model tensorboard/SAC_reward_1/model_final.zip tensorboard/SAC_reward_2_part2/model_final.zip tensorboard/SAC_reward_3/model_final.zip` failed. (See above for error)
