@@ -1267,16 +1267,6 @@ INPUT ./pictures/eval/eval_speed.pdf
 INPUT pictures/eval/eval_speed.pdf
 INPUT ./pictures/eval/eval_speed.pdf
 INPUT ./pictures/eval/eval_speed.pdf
-INPUT ./pictures/eval/eval_fail.pdf
-INPUT ./pictures/eval/eval_fail.pdf
-INPUT pictures/eval/eval_fail.pdf
-INPUT ./pictures/eval/eval_fail.pdf
-INPUT ./pictures/eval/eval_fail.pdf
-INPUT ./pictures/eval/eval_overtakes.pdf
-INPUT ./pictures/eval/eval_overtakes.pdf
-INPUT pictures/eval/eval_overtakes.pdf
-INPUT ./pictures/eval/eval_overtakes.pdf
-INPUT ./pictures/eval/eval_overtakes.pdf
 INPUT ./pictures/eval/outcomes.pdf
 INPUT ./pictures/eval/outcomes.pdf
 INPUT pictures/eval/outcomes.pdf

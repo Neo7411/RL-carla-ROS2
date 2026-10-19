@@ -51,6 +51,12 @@ warning('off', 'MATLAB:table:ModifiedAndSavedVarnames');
 T = readtable(csv_path, opts);
 T = renamevars(T, 'xEnd', 'end_reason');
 
+% Jobbrol elhaladas (a sajat savjaban maradt, a bal savban lassabban halado
+% auto mellett ment el): ez nem szabalytalan, igy szabalyos elhaladasnak szamit.
+rs = T.row == "overtake" & T.illegal_reason == "right_side";
+T.legal(rs) = 1;
+T.illegal_reason(rs) = "";
+
 % A modellnevbol a reward szama (SAC_reward_3_model_final -> 3).
 T.reward = double(extractBetween(T.model, 'SAC_reward_', '_'));
 
@@ -82,7 +88,7 @@ fprintf('  bejaras: %d  (%d modell x %d palya x %d kor)\n\n', height(scenes), n,
 met_id = {'reset_km', 'hit_km', 'legal_km', 'speed', ...
           'lane', 'stuck_km', 'jerk', 'hit_pass', ...
           'success_pct', 'missed_km', 'illegal_km', 'illegal_hit_pct', 'illegal_pct'};
-met_tx = {'Visszatevés / km', 'Járműütközés / km', 'Szabályos előzés / km', 'Átlagsebesség [km/h]', ...
+met_tx = {'Visszahelyezés / km', 'Járműütközés / km', 'Szabályos előzés / km', 'Átlagsebesség [km/h]', ...
           'Sávközépen [%]', 'Beragadás [s/km]', 'Kormányváltozás / lépés', 'Ütközés / elhagyott autó [%]', ...
           'Sikeres előzési kísérlet [%]', 'Kihagyott előzés / km', 'Szabálytalan elhaladás / km', ...
           'Ütközés szabálytalannál [%]', 'Szabálytalan elhaladás [%]'};
@@ -310,10 +316,10 @@ set(groot, 'defaultAxesFontSize', 9, 'defaultAxesXColor', muted, 'defaultAxesYCo
     'defaultAxesGridColor', grid_, 'defaultAxesGridAlpha', 1, 'defaultAxesBox', 'off', ...
     'defaultTextColor', ink, 'defaultAxesTitleFontWeight', 'normal');
 
-% 3. abra - hogyan romlik el: az elozesi kiserletek kimenetele, es a
-% visszatevesek oka kilometerenkent.
-f3 = figure('Color', 'w', 'Units', 'centimeters', 'Position', [2 2 18 7]);
-tl = tiledlayout(f3, 1, 2, 'TileSpacing', 'loose', 'Padding', 'compact');
+% 3. abra - hogyan romlik el: az elozesi kiserletek kimenetele. (A
+% visszahelyezesek oka a szakdolgozatban a tab:safety tablazatban van.)
+f3 = figure('Color', 'w', 'Units', 'centimeters', 'Position', [2 2 12 7]);
+tl = tiledlayout(f3, 1, 1, 'TileSpacing', 'loose', 'Padding', 'compact');
 ax = nexttile(tl);
 b = bar(ax, A, 'stacked', 'BarWidth', 0.6, 'EdgeColor', 'w', 'LineWidth', 1);
 for q = 1:size(A, 2), b(q).FaceColor = cat5(q, :); end
@@ -323,12 +329,6 @@ ylim(ax, [0 100]);
 grid(ax, 'on'); ax.XGrid = 'off';
 ylabel(ax, 'Előzési kísérletek [%]');
 legend(ax, kn_tx, 'Location', 'eastoutside', 'Box', 'off');
-ax = nexttile(tl);
-b = bar(ax, RS, 'stacked', 'BarWidth', 0.6, 'EdgeColor', 'w', 'LineWidth', 1);
-for q = 1:3, b(q).FaceColor = cat3(q, :); end
-ax.XTickLabel = lbl; grid(ax, 'on'); ax.XGrid = 'off';
-ylabel(ax, 'Visszatevés / km');
-legend(ax, rs_tx, 'Location', 'eastoutside', 'Box', 'off');
 exportgraphics(f3, fullfile(fig_dir, 'outcomes.pdf'), 'ContentType', 'vector');
 
 % 4. abra - amikor nem szabadott volna elozni: a szabalytalan elhaladasok
@@ -461,7 +461,7 @@ text(ax, 1:n, sum(RES, 2), compose('%d', sum(RES, 2)), ...
      'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontSize', 8, 'Color', ink);
 ylim(ax, [0, 1.12 * max(sum(RES, 2))]);
 ax.XTickLabel = lbl; grid(ax, 'on'); ax.XGrid = 'off';
-ylabel(ax, 'Visszatevés [db]');
+ylabel(ax, 'Visszahelyezés [db]');
 legend(ax, gt_tx, 'Location', 'southoutside', 'Orientation', 'horizontal', 'Box', 'off');
 exportgraphics(f8, fullfile(fig_dir, 'eval_safety.pdf'), 'ContentType', 'vector');
 
@@ -484,7 +484,7 @@ f9 = figure('Color', 'w', 'Units', 'centimeters', 'Position', [2 2 18 8.5]);
 tl = tiledlayout(f9, 1, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
 kinds_f = ["Vehicle stopped", "Off-track"];
 box_f   = {[20 290 -215 -90], [-400 20 -280 0]};
-tt_f    = {'Megállás egy álló jármű mögött', 'Letérés az útról'};
+tt_f    = {'Megállás', 'Letérés az útról'};
 mk_f    = {'o', 'x'};
 for p = 1:2
     ax = nexttile(tl); hold(ax, 'on');
