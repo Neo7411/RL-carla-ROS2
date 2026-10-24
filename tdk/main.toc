@@ -37,4 +37,5 @@
 \select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.4}Ütközések és visszahelyezések}{39}{subsubsection.6.3.4}%
 \select@language {magyar} \contentsline {section}{\numberline {7}Összegzés}{40}{section.7}%
 \select@language {magyar} \contentsline {section}{\numberline {8}Köszönetnyilvánítás}{41}{section.8}%
-\select@language {magyar} \contentsline {section}{Hivatkozások}{42}{section.8}%
+\select@language {magyar} \contentsline {section}{Nyilatkozat mesterséges intelligencia eszközök használatáról}{42}{section.8}%
+\select@language {magyar} \contentsline {section}{Hivatkozások}{43}{section.8}%

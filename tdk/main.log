@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.6.24)  19 OCT 2026 13:05
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.6.24)  24 OCT 2026 13:35
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -985,7 +985,7 @@ LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7> not available
 
 LaTeX Warning: Citation 'terapaptommakol2022obstacle' on page 5 undefined on input line 183.
 
-<pictures/carla_sim.jpeg, id=212, 596.2275pt x 337.26pt>
+<pictures/carla_sim.jpeg, id=216, 596.2275pt x 337.26pt>
 File: pictures/carla_sim.jpeg Graphic file (type jpg)
 <use pictures/carla_sim.jpeg>
 Package pdftex.def Info: pictures/carla_sim.jpeg  used on input line 208.
@@ -999,7 +999,7 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `cmtt' (encoding: T1).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
-<pictures/town04.jpeg, id=223, 681.54625pt x 672.5125pt>
+<pictures/town04.jpeg, id=227, 681.54625pt x 672.5125pt>
 File: pictures/town04.jpeg Graphic file (type jpg)
 <use pictures/town04.jpeg>
 Package pdftex.def Info: pictures/town04.jpeg  used on input line 236.
@@ -1009,64 +1009,64 @@ LaTeX Font Info:    Trying to load font information for TS1+qtm on input line 31
  (/usr/share/texmf/tex/latex/tex-gyre/ts1qtm.fd
 File: ts1qtm.fd 2009/09/25 v1.2 font definition file for TS1/qtm
 ) [8] [9] [10] [11] [12]
-<pictures/sensors/camera/camera_examples.png, id=303, 975.645pt x 493.845pt>
+<pictures/sensors/camera/camera_examples.png, id=307, 975.645pt x 493.845pt>
 File: pictures/sensors/camera/camera_examples.png Graphic file (type png)
 <use pictures/sensors/camera/camera_examples.png>
 Package pdftex.def Info: pictures/sensors/camera/camera_examples.png  used on input line 507.
 (pdftex.def)             Requested size: 409.71692pt x 207.39087pt.
-<pictures/sensors/camera/camera_rec_conv.png, id=305, 657.9855pt x 153.4095pt>
+<pictures/sensors/camera/camera_rec_conv.png, id=309, 657.9855pt x 153.4095pt>
 File: pictures/sensors/camera/camera_rec_conv.png Graphic file (type png)
 <use pictures/sensors/camera/camera_rec_conv.png>
 Package pdftex.def Info: pictures/sensors/camera/camera_rec_conv.png  used on input line 545.
 (pdftex.def)             Requested size: 455.24411pt x 106.14056pt.
  [13 <./pictures/sensors/camera/camera_examples.png (PNG copy)>]
-<pictures/sensors/camera/camera_rec_resnet.png, id=315, 657.9855pt x 153.4095pt>
+<pictures/sensors/camera/camera_rec_resnet.png, id=319, 657.9855pt x 153.4095pt>
 File: pictures/sensors/camera/camera_rec_resnet.png Graphic file (type png)
 <use pictures/sensors/camera/camera_rec_resnet.png>
 Package pdftex.def Info: pictures/sensors/camera/camera_rec_resnet.png  used on input line 566.
 (pdftex.def)             Requested size: 455.24411pt x 106.14056pt.
  [14 <./pictures/sensors/camera/camera_rec_conv.png> <./pictures/sensors/camera/camera_rec_resnet.png>]
-<pictures/sensors/camera/camera_rec_vgg.png, id=328, 657.9855pt x 153.4095pt>
+<pictures/sensors/camera/camera_rec_vgg.png, id=332, 657.9855pt x 153.4095pt>
 File: pictures/sensors/camera/camera_rec_vgg.png Graphic file (type png)
 <use pictures/sensors/camera/camera_rec_vgg.png>
 Package pdftex.def Info: pictures/sensors/camera/camera_rec_vgg.png  used on input line 586.
 (pdftex.def)             Requested size: 455.24411pt x 106.14056pt.
  [15 <./pictures/sensors/camera/camera_rec_vgg.png>]
-<pictures/sensors/camera/camera_error_maps.png, id=341, 710.5455pt x 237.834pt>
+<pictures/sensors/camera/camera_error_maps.png, id=345, 710.5455pt x 237.834pt>
 File: pictures/sensors/camera/camera_error_maps.png Graphic file (type png)
 <use pictures/sensors/camera/camera_error_maps.png>
 Package pdftex.def Info: pictures/sensors/camera/camera_error_maps.png  used on input line 632.
 (pdftex.def)             Requested size: 455.24411pt x 152.38016pt.
-<pictures/sensors/camera/camera_psnr_hist.pdf, id=342, 530.01578pt x 233.26271pt>
+<pictures/sensors/camera/camera_psnr_hist.pdf, id=346, 530.01578pt x 233.26271pt>
 File: pictures/sensors/camera/camera_psnr_hist.pdf Graphic file (type pdf)
 <use pictures/sensors/camera/camera_psnr_hist.pdf>
 Package pdftex.def Info: pictures/sensors/camera/camera_psnr_hist.pdf  used on input line 640.
 (pdftex.def)             Requested size: 409.71692pt x 180.32114pt.
  [16 <./pictures/sensors/camera/camera_error_maps.png> <./pictures/sensors/camera/camera_psnr_hist.pdf>]
-<pictures/sensors/lidar/lidar_inputs.png, id=402, 637.29pt x 446.4315pt>
+<pictures/sensors/lidar/lidar_inputs.png, id=406, 637.29pt x 446.4315pt>
 File: pictures/sensors/lidar/lidar_inputs.png Graphic file (type png)
 <use pictures/sensors/lidar/lidar_inputs.png>
 Package pdftex.def Info: pictures/sensors/lidar/lidar_inputs.png  used on input line 684.
 (pdftex.def)             Requested size: 455.24411pt x 318.90318pt.
-<pictures/sensors/lidar/lidar_rec_bev.png, id=404, 409.968pt x 430.6635pt>
+<pictures/sensors/lidar/lidar_rec_bev.png, id=408, 409.968pt x 430.6635pt>
 File: pictures/sensors/lidar/lidar_rec_bev.png Graphic file (type png)
 <use pictures/sensors/lidar/lidar_rec_bev.png>
 Package pdftex.def Info: pictures/sensors/lidar/lidar_rec_bev.png  used on input line 712.
 (pdftex.def)             Requested size: 318.66948pt x 334.77933pt.
  [17] [18 <./pictures/sensors/lidar/lidar_inputs.png>] [19 <./pictures/sensors/lidar/lidar_rec_bev.png>]
-<pictures/sensors/lidar/lidar_rec_graph.png, id=424, 695.4345pt x 270.3555pt>
+<pictures/sensors/lidar/lidar_rec_graph.png, id=428, 695.4345pt x 270.3555pt>
 File: pictures/sensors/lidar/lidar_rec_graph.png Graphic file (type png)
 <use pictures/sensors/lidar/lidar_rec_graph.png>
 Package pdftex.def Info: pictures/sensors/lidar/lidar_rec_graph.png  used on input line 757.
 (pdftex.def)             Requested size: 455.24411pt x 176.98306pt.
  [20]
-<pictures/sensors/lidar/lidar_rec_mae.png, id=434, 686.2365pt x 192.1725pt>
+<pictures/sensors/lidar/lidar_rec_mae.png, id=438, 686.2365pt x 192.1725pt>
 File: pictures/sensors/lidar/lidar_rec_mae.png Graphic file (type png)
 <use pictures/sensors/lidar/lidar_rec_mae.png>
 Package pdftex.def Info: pictures/sensors/lidar/lidar_rec_mae.png  used on input line 798.
 (pdftex.def)             Requested size: 455.24411pt x 127.48813pt.
  [21 <./pictures/sensors/lidar/lidar_rec_graph.png>]
-<pictures/sensors/lidar/lidar_smoothness.pdf, id=445, 571.78621pt x 377.1794pt>
+<pictures/sensors/lidar/lidar_smoothness.pdf, id=449, 571.78621pt x 377.1794pt>
 File: pictures/sensors/lidar/lidar_smoothness.pdf Graphic file (type pdf)
 <use pictures/sensors/lidar/lidar_smoothness.pdf>
 Package pdftex.def Info: pictures/sensors/lidar/lidar_smoothness.pdf  used on input line 859.
@@ -1081,60 +1081,60 @@ LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <6> not available
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <14.4> not available
 (Font)              Font shape `OT1/ptm/b/n' tried instead on input line 909.
  [24] [25] [26] [27] [28] [29] [30]
-<pictures/eval/routes_highway.pdf, id=569, 490.47241pt x 484.209pt>
+<pictures/eval/routes_highway.pdf, id=573, 490.47241pt x 484.209pt>
 File: pictures/eval/routes_highway.pdf Graphic file (type pdf)
 <use pictures/eval/routes_highway.pdf>
 Package pdftex.def Info: pictures/eval/routes_highway.pdf  used on input line 1297.
 (pdftex.def)             Requested size: 218.51521pt x 215.71983pt.
-<pictures/eval/routes_city_to_highway.pdf, id=570, 490.47241pt x 484.209pt>
+<pictures/eval/routes_city_to_highway.pdf, id=574, 490.47241pt x 484.209pt>
 File: pictures/eval/routes_city_to_highway.pdf Graphic file (type pdf)
 <use pictures/eval/routes_city_to_highway.pdf>
 Package pdftex.def Info: pictures/eval/routes_city_to_highway.pdf  used on input line 1302.
 (pdftex.def)             Requested size: 218.51521pt x 215.71983pt.
  [31] [32 <./pictures/eval/routes_highway.pdf> <./pictures/eval/routes_city_to_highway.pdf>]
-<pictures/eval/eval_speed.pdf, id=586, 479.7925pt x 172.645pt>
+<pictures/eval/eval_speed.pdf, id=590, 479.7925pt x 172.645pt>
 File: pictures/eval/eval_speed.pdf Graphic file (type pdf)
 <use pictures/eval/eval_speed.pdf>
 Package pdftex.def Info: pictures/eval/eval_speed.pdf  used on input line 1398.
 (pdftex.def)             Requested size: 455.24411pt x 163.81422pt.
  [33] [34 <./pictures/eval/eval_speed.pdf>] [35] [36]
-<pictures/eval/outcomes.pdf, id=628, 322.20375pt x 177.66376pt>
+<pictures/eval/outcomes.pdf, id=632, 322.20375pt x 177.66376pt>
 File: pictures/eval/outcomes.pdf Graphic file (type pdf)
 <use pictures/eval/outcomes.pdf>
 Package pdftex.def Info: pictures/eval/outcomes.pdf  used on input line 1593.
 (pdftex.def)             Requested size: 318.66948pt x 175.72229pt.
  [37 <./pictures/eval/outcomes.pdf>]
-<pictures/eval/eval_steer.pdf, id=648, 481.8pt x 172.645pt>
+<pictures/eval/eval_steer.pdf, id=652, 481.8pt x 172.645pt>
 File: pictures/eval/eval_steer.pdf Graphic file (type pdf)
 <use pictures/eval/eval_steer.pdf>
 Package pdftex.def Info: pictures/eval/eval_steer.pdf  used on input line 1634.
 (pdftex.def)             Requested size: 455.24411pt x 163.13457pt.
  [38 <./pictures/eval/eval_steer.pdf>]
-<pictures/eval/eval_safety.pdf, id=670, 481.8pt x 169.63374pt>
+<pictures/eval/eval_safety.pdf, id=674, 481.8pt x 169.63374pt>
 File: pictures/eval/eval_safety.pdf Graphic file (type pdf)
 <use pictures/eval/eval_safety.pdf>
 Package pdftex.def Info: pictures/eval/eval_safety.pdf  used on input line 1686.
 (pdftex.def)             Requested size: 455.24411pt x 160.28918pt.
- [39 <./pictures/eval/eval_safety.pdf>] [40] [41] [42] [43] [44] (./main.aux)
+ [39 <./pictures/eval/eval_safety.pdf>] [40] [41] [42] [43] [44] [45] (./main.aux)
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: B504B7909BFEFC32EB21C3DE137F3003;6675.
+(rerunfilecheck)             Checksum: 2B9E8F424D2FFF11386F7E522E60A376;7049.
 Package logreq Info: Writing requests to 'main.run.xml'.
 \openout1 = `main.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 33940 strings out of 478287
- 641977 string characters out of 5849289
+ 33941 strings out of 478287
+ 641984 string characters out of 5849289
  1366578 words of memory out of 5000000
  51239 multiletter control sequences out of 15000+600000
  552554 words of font info for 229 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  84i,12n,89p,1043b,2085s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texmf/fonts/enc/dvips/tex-gyre/q-ec-sc.enc}{/usr/share/texmf/fonts/enc/dvips/tex-gyre/q-ts1.enc}{/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}{/usr/share/texmf/fonts/enc/dvips/cm-super/cm-super-t1.enc}{/usr/share/texmf/fonts/enc/dvips/tex-gyre/q-ec.enc}</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texmf/fonts/type1/public/tex-gyre/qtmb.pfb></usr/share/texmf/fonts/type1/public/tex-gyre/qtmr.pfb></usr/share/texmf/fonts/type1/public/tex-gyre/qtmri.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/rsfs/rsfs10.pfb></usr/share/texmf/fonts/type1/public/cm-super/sftt1200.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/symbol/usyr.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/symbol/usyr.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (44 pages, 2427750 bytes).
+Output written on main.pdf (45 pages, 2428883 bytes).
 PDF statistics:
- 832 PDF objects out of 1000 (max. 8388607)
- 616 compressed objects within 7 object streams
- 154 named destinations out of 1000 (max. 500000)
- 38282 words of extra memory for PDF output out of 42996 (max. 10000000)
+ 840 PDF objects out of 1000 (max. 8388607)
+ 623 compressed objects within 7 object streams
+ 155 named destinations out of 1000 (max. 500000)
+ 38290 words of extra memory for PDF output out of 42996 (max. 10000000)
 
