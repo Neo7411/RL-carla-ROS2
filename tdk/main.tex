@@ -54,6 +54,7 @@
 % ---------------------------------------------------------------------
 % A dolgozat címe (a címlapon és a PDF adataiban is ez szerepel)
 % ---------------------------------------------------------------------
+
 \newcommand{\dolgozatcim}{Dinamikus objektumelkerülés megerősítéses tanulással\\a CARLA szimulátorban}
 
 \begin{document}
@@ -74,7 +75,7 @@
   \rule{\textwidth}{0.6pt}
 
   % A pályamunka címe -- a felső harmadban, középen
-  \vspace{0.06\textheight}
+  \vspace{0.10\textheight}
   {\fontsize{16}{22}\selectfont\bfseries \dolgozatcim\par}
   \vspace{14pt}
   % {\fontsize{14}{18}\selectfont \dolgozatalcim\par}
@@ -84,19 +85,19 @@
   \vspace{\stretch{3}}
 
   % Témavezető (bal) és szerző (jobb) -- az alsó harmadban
-  \begin{minipage}[t]{0.48\textwidth}
-    \raggedright
-    {\bfseries Témavezető:}\\[6pt]
-    Mészáros László\\
-    Tanársegéd 
-  \end{minipage}%
-  \hfill
-  \begin{minipage}[t]{0.48\textwidth}
-    \raggedleft
-    {\bfseries Készítette:}\\[6pt]
-    Angi Dávid\\
-    Adattudomány MSc
-  \end{minipage}
+  % \begin{minipage}[t]{0.48\textwidth}
+  %   \raggedright
+  %   {\bfseries Témavezető:}\\[6pt]
+  %   Mészáros László\\
+  %   Tanársegéd 
+  % \end{minipage}%
+  % \hfill
+  % \begin{minipage}[t]{0.48\textwidth}
+  %   \raggedleft
+  %   {\bfseries Készítette:}\\[6pt]
+  %   Angi Dávid\\
+  %   Adattudomány MSc
+  % \end{minipage}
 
   \vspace{\stretch{1}}
 
@@ -1752,69 +1753,65 @@ visszahelyezni.
 
 \section{Összegzés}
 
-Munkám célja egy önvezető ágens fejlesztése a CARLA szimulátorban, amely csak a kamera
+Munkám célja egy önvezető ágens fejlesztése a CARLA szimulátorban, amely kamera
 és a LiDAR adatok alapján vezet valamint képes 
-biztonságosan elkerülni a nála lassabb forgalmi résztvevőket. 
+biztonságosan elkerülni a nála lassabban közlekedő forgalmi résztvevőket. 
 Az ágens típusának a Soft Actor-Critic algoritmust választottam. 
 Tanítás során nem a nyers szenzoradatokat, hanem előre betanított autoenkóderekkel tömörített
-információt adtam a modellnek. A kameraképet egy
+információt adtam a modellnek. A kamerából érkező információkat egy
 konvolúciós enkóder, a LiDAR pontfelhőjéből kinyert adatokat egy gráfalapú 
 enkóder segítségével helyeztem a látens térbe. Ezen adatokat egy összeadás alapú 
-fúzió után hozzáfűzöm az autó többi jellemzőjéhez.
+fúzió után hozzáfűzöm a környezet többi jellemzőjéhez.
 
-A munka nagyobbik felét a jutalomfüggvény megfelelő definiálása volt. Ennek okán öt változatot is 
-készítettem, különböző paraméterezésekkel majd megvalósításokkal. A modellek tanításait azonos 
-beállításokkal végeztem egyetlen különbség a jutalom függvény volt csak. 
+A munka további részét a jutalomfüggvény megfelelő definiálása volt. Ennek okán öt változatot is 
+készítettem, különböző paraméterezésekkel és megvalósításokkal. A modellek tanításait azonos 
+beállítások mellett végeztem egyetlen különbség a jutalom függvény volt. 
 Az első modell, az R1 a sávtartást és a szabályos előzést jutalmazza külön definiált tagokkal. 
-Az R2-ben és az R3-ban ezt próbáltam tovább hangolni ezeket a tagokat a jobb eredmény elérése 
-érdekében, első körben a TTC-büntetés kiterjesztésével, majd az előzési tagok erősítésével
+Az R2-ben és az R3-ban ezt próbáltam tovább hangolni ezen tagokat a jobb eredmény elérése 
+érdekében. Első körben a TTC-büntetés kiterjesztésével probálkoztam, majd az előzési tagok erősítésével
 akartam maximalizálni a modell viselkedését. 
-A negyedik modellnél új megközelítést alkalmaztam itt csak a haladás után adtam jutalmat, az R5 pedig ezt egészíti
+A negyedik modellnél új megközelítést alkalmaztam itt a haladás után adtam jutalmat, az R5 pedig ezt egészíti
 ki egy potenciálalapú előzési jutalommal.
 
-A kiértékelést tíz előre definiált útvonalon végeztem 
-mindegyiken ötször, összesen 250 bejárást végeztem le.
+A kiértékelést folyamatát tíz előre definiált útvonalon végeztem 
+mindegyiken ötször ment végig mindegyik ágens így összesen 250 bejárást produkáltak.
 Mérőszámoknak olyanokat választottam, melyek függetlenek a jutalomtól. 
 
-A kézi hangolás nem egészen hozták a tőlük elvárt eredményeket. 
-Az R2 és az R3 ágensek lelassultak, kevesebbszer és gyengébb minőségben voltak képesek az 
-elkerülésre. A harmadik modell esetén hiába erősítettem az előzésre, az pont az ellenkezőjét
+A kézzel hangolt tagok nem hozták a tőlük elvárt eredményeket. 
+Az R2 és az R3 ágensek lelassultak, kevesebbszer és rosszabb minőségben voltak képesek az 
+elkerülésre. A harmadik modell esetén hiába erősítettem az előzésre, ez az ellenkezőjét
 váltotta ki a tanulás során. 
-A haladásalapú R4 az új megközelítés segítségével különösebb ösztönzés nélkül is visszahozta az
+A haladásalapú R4 az új megközelítés segítségével ösztönzés nélkül is visszahozta az
 eredeti R1 sebesség valamint előzési teljesítményt is.
 
-Összességében egyértelmű legjobb modellt nem lehet kimondani, mivel a két legjobb modell más-más
-dologban jobb. 
+Összességében az egyes modellek más más téren voltak kiemelkedők, legjobbat nem lehet egyértelműen kimondani, mivel a két legjobb modell más-más
+dologban voltak jobbak. 
 Az R5 volt a leggyorsabb (40,1~km/h, 3056~s), és mind az 50 bejárás során
-célba ért. Elütési aránya a legalacsonyabb (10,2\%), bár ez gyakorlatilag megegyezik az R2 10,3\%-ával. 
-Az R1-nél jóval kevesebbszer kellett visszahelyezni (26-szor
+célba ért. Ütközéesi arányt tekintve a legalacsonyabb (10,2\%), bár ez gyakorlatilag megegyezik az R2 10,3\%-ával. 
+Ezek mellett még ide kapcsolódik, hogy az R1-nél jóval kevesebbszer kellett visszahelyezni (26-szor
 43 helyett).
 Az R1 modell viszont szabályosabban előzött (94,0\% a 91,8\% helyett), és sokkal
 jobban tartotta a sávnak a közepét (86,4\% a 70,3\% helyett). 
 Az előzési kísérletek sikerességében a
 kettő gyakorlatilag egyforma (74,6 és 75,0\%). 
 
-Az eredményekből fény derül arra, hogyan lehet érdemes egy ágenst mozgó járművek elkerülésére tanítani. 
-Nem érdemes minden helyzetre külön kézi tagot írni, egyrészt ezek a tagok könnyedén kiolthatják egymást
-így az ágens nem azt tanulja meg, amit szeretnénk, hanem a szabály megkerülését. 
-Nem bizonyult hatékonynak az ötlet miszerint előzés közben büntetem a
-közeledést a második modell esetén világos, hogy ettől az ágens nem fog hatékonyabban előzni. 
+Az eredményekből fény derült arra, hogy a dinamikus objektumelkerülés további kutató munkát igényel. 
+Nem érdemes minden helyzetre külön kézi tagot írni, mivel ezen tagok könnyedén kiolthatják egymást
+így az ágens nem tanulja meg, amit elvárunk tőle, hanem egyes esetekben a szabály megkerülését. 
+Nem bizonyult hatékonynak az ötlet miszerint előzés közben büntetést ha közeledik az előtte haladóhoz.
 Jobban működik, ha a jutalom egyszerűen a haladást díjazza, így a lassabb autó mögött maradás magától
-kevesebbet ér, és az ágens rájön, hogy előzni megéri. 
-Az előzés megkezdését pedig érdemes
-rögtön jutalmazni, ez látszik az R5 modellen is ahol a potenciálalapú tag életbe lépett, 
-az eljárás nem változtat azon, hogy mi a legjobb stratégia, csak hamarabb jelez az ágensnek. 
-Következő továbbfejlesztési lehetőség az lenne, ha az R5 függvénybe visszakerülne sávtartás büntetése, 
-így az ágens ugyanolyan gyorsan és sikeresen előzne, de szebben tartaná a sávokat. 
-Mindenképp az ötödik függvény továbbfejlesztésének irányában indulok.
+kevesebbet ér, és az ágens rájön, hogy előzni szükséges. 
+Az előzés megkezdését érdemesnke bizonyúlt rögtön az első lépéstől kezdve jutalmazni, ez látszik az R5 modellen, ahol a potenciálalapú tag életbe lépett. 
+Az eljárás nem változtat azon, hogy mi a legjobb stratégia, csak hamarabb jelez az ágensnek. 
+Következőkben az R5 modell irányában haladnék tovább, behelyezném a sávtartás, hogy szükségtelenül ne rángassa a kormányt.
+Ezek mellett mélyebben utána járnék, pontosan mely tényezők okozhatták
+az ütközéseket a többi forgalmi szereplővel.
 
 \section{Köszönetnyilvánítás}
 
 Ezúton szeretném megköszönni témavezetőmnek, Mészáros Lászlónak, a szakmai iránymutatást, 
 segítséget valamint a sok hasznos kritikát, ezek segítettek abban, hogy a dolgozat 
 a megfelelő irányba fejlődjön.
-
-
 % =====================================================================
 % Nyilatkozat mesterséges intelligencia eszközök használatáról
 % =====================================================================
