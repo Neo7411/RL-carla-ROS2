@@ -1,13 +1,13 @@
 # Fdb version 3
-["biber main"] 1792941157 "main.bcf" "main.bbl" "main" 1792941161
-  "main.bcf" 1792941161 110087 06df8fbf8f6c092c7924259fec94577b "pdflatex"
-  "refs.bib" 1792932398 13473 e7c87d845964180a7665d033b82c541d ""
+["biber main"] 1792999560 "main.bcf" "main.bbl" "main" 1793000630
+  "main.bcf" 1793000630 110087 06df8fbf8f6c092c7924259fec94577b "pdflatex"
+  "refs.bib" 1792999560 10584 8337b0b31d110b7f4eeaf49b56fe45bc ""
   (generated)
   "main.bbl"
   "main.blg"
-["pdflatex"] 1792941159 "/home/xavier11/CARLA/RL/RL-carla-ROS2/tdk/main.tex" "main.pdf" "main" 1792941161
+["pdflatex"] 1793000629 "/home/xavier11/CARLA/RL/RL-carla-ROS2/tdk/main.tex" "main.pdf" "main" 1793000630
   "/etc/texmf/web2c/texmf.cnf" 1782307841 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/home/xavier11/CARLA/RL/RL-carla-ROS2/tdk/main.tex" 1792941156 111967 ce01c1787eae3fd4e8502b87d3f9292e ""
+  "/home/xavier11/CARLA/RL/RL-carla-ROS2/tdk/main.tex" 1793000629 111365 87da2531adf69eef6bdc5f20332e3384 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/adobe/symbol/psyr.tfm" 1136768653 1408 5937f58aa508ea2cea4901c07d10f5fe ""
@@ -222,12 +222,12 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1644012257 39432 7155514e09a3d69036fac785183a21c2 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1782315899 4379155 98693266ff65f58d9f98aff394de12d2 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1782315940 2801005 0771dffcf1e59e64d47e12d0a157eccf ""
-  "main.aux" 1792941161 26976 e774670221d026f38766e9448f6031d6 "pdflatex"
-  "main.bbl" 1792941158 58168 00bac1b05960c5dbbf14413898550347 "biber main"
-  "main.out" 1792941161 7293 1665f051518d7be2ecc2b655de5d3093 "pdflatex"
-  "main.run.xml" 1792941161 2339 3779b4268cced4951cf78cb9dc7f8ff6 "pdflatex"
-  "main.tex" 1792941156 111967 ce01c1787eae3fd4e8502b87d3f9292e ""
-  "main.toc" 1792941161 4906 676d20857acd3b921bd57183c645bf95 "pdflatex"
+  "main.aux" 1793000630 26976 e774670221d026f38766e9448f6031d6 "pdflatex"
+  "main.bbl" 1792999560 58168 00bac1b05960c5dbbf14413898550347 "biber main"
+  "main.out" 1793000630 7293 1665f051518d7be2ecc2b655de5d3093 "pdflatex"
+  "main.run.xml" 1793000630 2339 3779b4268cced4951cf78cb9dc7f8ff6 "pdflatex"
+  "main.tex" 1793000629 111365 87da2531adf69eef6bdc5f20332e3384 ""
+  "main.toc" 1793000630 4906 676d20857acd3b921bd57183c645bf95 "pdflatex"
   "pictures/carla_sim.jpeg" 1790864003 28015 325f046e5f117f3500e81a6908f20301 ""
   "pictures/eval/eval_safety.pdf" 1792401922 12513 196f534dc2365d14cff112ab4b267142 ""
   "pictures/eval/eval_speed.pdf" 1792401918 12721 90726049eeb4febcc51d13bd447d12af ""
