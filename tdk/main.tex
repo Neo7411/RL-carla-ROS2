@@ -35,6 +35,7 @@
 % Ábrák, táblázatok, hivatkozások
 % ---------------------------------------------------------------------
 \usepackage{graphicx}
+\usepackage{placeins}   % \FloatBarrier: az ábrák ne csússzanak át a következő alfejezetbe
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta}
 \usepackage{booktabs}
@@ -120,11 +121,11 @@
 A 21. század egyik ha nem a legnagyobb hatású technológiai átalakulása a közlekedésben
 zajlik. Az elmúlt másfél évtizedben szemünk láttára kerültek önvezető járművek a
 kutatólaboratóriumokból a hétköznapi forgalom részévé. Kezdetben vezetéstámogató
-rendszerek (sávtartó automatika, adaptív tempomat, vészfékasszisztens) kirivó már technológiának számítottak 
+rendszerek, például a tempomat vagy későbbiekben a sávtartó igencsak kirívónak számítottak, 
 azonban ma már a középkategóriás autókban is alapfelszereltség részét képezik, egyes
 városokban pedig sofőr nélküli robottaxik szállítják az utasokat. A fejlődés robbanásszerű gyorsulását
 a szenzorok relatíve olcsóbbá válása, valamint a járművekbe építhető, nagy teljesítményű
-számítási egységek megjelenése nélkülőzhetetlen volt. Ezen felül az adatfeldolgozás és 
+számítási egységek megjelenése nélkülözhetetlen volt. Ezen felül az adatfeldolgozás és 
 a mélytanulás fejlődése is kulcsszerepet ezen fejlődés 
 történetben mivel, ezek a technológiák teszik lehetővé, a járművek számára környezetük érzékelését. 
 
@@ -133,71 +134,80 @@ balesetekben világszerte évente több mint egymillió ember veszti
 életét~\cite{who2023roadsafety}, és a balesetek döntő többsége emberi hibára --
 figyelmetlenségre, fáradtságra, rossz helyzetmegítélésre -- vezethető vissza.
 
-Egy gép nem fárad el, semmi sem vonja el a figyelmét, és valamint a reakcióideje optimális
+Egy gép nem fárad el, semmi sem vonja el a figyelmét, valamint a reakcióideje optimális
 esetben rövidebb lehet az emberinél. Ez az eset azonban csak akkor valósulhat meg, ha
 a vezetést végző algoritmus minden helyzetben megbízhatóan, hatékonyan és biztonságosan működik. Nem elég,
 ha a jármű az esetek túlnyomó részében -- egyenes úton, jó időben, kiszámítható hanem nehézkes körülmények között is helyt kell állnia. 
-Ezen oknál fogva avalódi kihívást a ritka, váratlan helyzetek jelentik, például a forgalom dinamikája, egy
+Ezen oknál fogva valódi kihívást a ritka, váratlan helyzetek jelentik, például a forgalom dinamikája, egy
 sávba kerülő akadály vagy egy előzés közben megváltozó forgalmi helyzet. Egyetlen
-rosszul kezelt helyzet is súlyos balesethez vezethet.
-(észlelés, predikció, tervezés, szabályozás) bontva oldják meg. Ezek a
-rendszerek jól értelmezhetők, de minden szabályt és határesetet előre meg kell
+rosszul kezelt helyzet is súlyos balesethez vezethet. 
+Ezen megoldásokban a vezetés műveletét észlelésre, predikcióra, 
+tervezésre, egyszóval jól elkülöníthető modulokra bontva oldják meg.
+Ezek a rendszerek jól értelmezhetők, de minden szabályt és határesetet előre meg kell
 fogalmazni bennük, ami a valós forgalom sokszínűsége mellett rendkívül nehéz.
 Alternatívát a megerősítéses tanulás (\emph{reinforcement learning}, RL)
 kínál, amelyben az ágens nem előre megírt szabályokat követ, hanem a
 környezettel való interakció során, jutalmak és büntetések alapján maga tanulja
-meg, hogyan kell cselekednie. Ez a megközelítés különösen alkalmas az olyan
-döntési feladatokra, mint a sávtartás, az akadályok kikerülése vagy az előzés,
-ahol a helyes viselkedést nehéz szabályokkal leírni, de könnyű megmondani, hogy
+meg, hogyan kell cselekednie. A megközelítés jól hasznosítható olyan döntési 
+feladatoknál, mint a sávtartás, ahol a helyes viselkedést nehéz 
+szabályokkal leírni, de könnyű megmondani, hogy
 egy adott kimenetel jó vagy rossz.
 
-A vezetési feladatot hagyományosan egymásra épülő, alaposan tervezett modulokra bontják. Ezen blokkkat jól megtervezett logikai 
-adatfolyam köti össze amelyet robotikai rendszerek kötnek össze (pl ROS2 )\cite{macenski2022ros2}.
-Ilyen modulokra épülő önevezető rendszer például az Autoware Auto \cite{kato2018autoware} 
-amely egy ROS2 alapokra épülő robotikai rendszer önevezető autózáshoz.
-A rendszer kifinomultsága abban rejlik hogy minden felhasználó saját igényei szerint tudja formálni a rendszert és saját modulokat is adhat hozzá.
-Az ilyen bonyolult rendszerekkel szemben jelent egy lehetséges alternatívát a megerősítéses tanulás 
-azonban ennek ára van. Az ágens próbálkozások és hibák sorozatán keresztül 
-tanul amelyek költsége igen magas lenne a 
-való világban, mivel az elfogadható vezetési stratégia alakítása akár több százezer vagy akár 
-több millió lépésen át is történhet. A tanulási folyamat során az ágensnek gyakorolnia kell és felfedeznie saját világát valamint korlátait. 
+A vezetési feladatot hagyományosan egymásra épülő, alaposan tervezett modulokra bontják. Ezen blokkokat jól megtervezett logikai 
+adatfolyamok segítségével kötik, ezeket a folyamokat robotikai rendszerek révén kötik össze ilyen például a Robot Operating System 2 (ROS2)~\cite{macenski2022ros2}.
+Ilyen modulokra épülő önvezető rendszer például az Autoware Auto \cite{kato2018autoware} 
+amely egy ROS2 alapokra épülő robotikai rendszer önvezető autózáshoz.
+A rendszer kifinomultsága abban rejlik, hogy minden felhasználó saját igényei szerint tudja 
+formálni a rendszert és saját modulokat is adhat hozzá.
+Az egyes modulok tehát cserélhetők, így például a szabályalapú döntéshozó modul helyettesíthető 
+egy megerősítéses tanulás alapú ágenssel is. Hátránya viszont, hogy az ágens
+próbálkozások és hibák sorozatán keresztül tanul, ami a valós világban igen költséges lenne,
+hiszen egy elfogadható vezetési stratégia kialakítása akár több százezer vagy több millió
+lépést is igényelhet. A tanulási folyamat során az ágensnek gyakorolnia kell és felfedeznie saját világát valamint korlátait. 
 Ezt egy valós járművel elvégezni gyakorlatilag kivitelezhetetlen. Egy szenzorokkal felszerelt tesztjármű, a zárt tesztpálya, a
 biztonsági sofőr és a karbantartás költsége rendkívül magas, egy ütközés pedig
-nemcsak anyagi kárt okoz, hanem emberi életet is veszélyeztethet. Ráadásul az ágnest szeretnénk felkészíteni
+nemcsak anyagi kárt okoz, hanem emberi életet is veszélyeztethet. Ráadásul az ágenst szeretnénk felkészíteni
 a váratlan és veszélyes helyzetekre, hogy azokat is megfelelőképp kezelje és elkerülje a baleseteket. 
 
 Ezen okoknál fogva a tanítást és a tesztelést szimulált környezetben végeztem. 
 A szimulációra a CARLA-t \cite{carla} egy nyílt forráskódú, kifejezetten 
-önvezetés-kutatásra fejlesztett szimulátor,amely valósághű városi és autópálya-környezetet is képes egyaránt szimulálni valamint a fizikai járműmodellt,
+önvezetés-kutatásra fejlesztett szimulátor, amely valósághű városi és autópálya-környezetet is képes egyaránt szimulálni valamint a fizikai járműmodellt,
 amelyek elengedhetetlenek a reális valósághű szimulációkhoz.
 
 Egy önvezető rendszer döntései csak annyira lehetnek jók, amennyire pontos a
 környezetéről alkotott képe, ez a kép pedig kizárólag a gépi látás és érzékelés révén a szenzorokból származik.
-A szenzor adatok feldolgozása az ágnes számára igazi kihivást jelent. A komplex szenzorokból sokszínű és nagy varianciájú adat érkezik.
-Ilyen elgondolás okán a munkám során különböző szenzor adat előfeldozásokat végeztem ezzel optimalizálva a 
-feladatokat az ágens számára.
+A szenzoradatok feldolgozása az ágens számára igazi kihívást jelent. A komplex szenzorokból sokszínű és nagy varianciájú adat érkezik.
+Ezért munkám során a kamera és a LiDAR szenzorokból érkező nyers adatokat előfeldolgoztam, 
+majd szenzorfúzió segítségével 
+egyesítettem ezeket. 
+Az ágens egy tömör, így már mindkét szenzor információját tartalmazó bemenetet kap a külvilág aktuális
+állapotáról.
+
 
 %------------------------------------------------------------------------------------------------------------------
-Munkám során olyan ágens kifejlesztésén szeretnék dolgozni amely képes forgalmi szituációkat(pl előzés)
-is megfelelőképp biztonságosan kezelni, valamint betartja a KRESZ előírásokat is egyaránt. A fő
-gondolatot \textcite{terapaptommakol2022obstacle} munkája adta, akik a CARLA
+Munkám során olyan ágens kifejlesztésén szeretnék dolgozni 
+amely képes forgalmi szituációkat
+megfelelőképp biztonságosan kezelni például egy az ágensnél lassabban közlekedő forgalmi
+szereplő elkerülése. Az
+alapötletet Terapaptommakol és munkatársai~\cite{terapaptommakol2022obstacle} munkája adta, akik a CARLA
 szimulátorban DQN alapú ágenst tanítottak, amely a LiDAR pontfelhő, a pozíció
 és a sebesség alapján fékezéssel és kitéréssel sikeresen elkerülte az úton
 parkoló járművet. Ez a munka azonban kizárólag statikus akadályra terjedt ki.
-Erre építkezve célom a dinamikus objektumok elkerülése, vagyis hogy az ágens a
-mozgó, lassabban haladó járműveket is biztonságosan, a KRESZ szabályait
-betartva kerülje ki.
+Munkám során a fent említett kutatást egészítem ki két irányban. Először is a statikus akadályok
+helyett mozgó az ágensnél lassabban közlekedő járművek biztonságos elkerülését
+betartva a KRESZ szabályait.
+Másodlagosan a LiDAR mellett a kamerát is bevontam az érzékelésbe szenzorfúzióval.
 
 
 \section{Szimulációs környezet}
 \label{sec:carla}
 
 A tanításhoz és a teszteléshez a CARLA (\emph{Car Learning to Act})
-szimulátorra ~\cite{carla,carlaweb} esett a választásom. (\ref{fig:carla}.~ábra) A CARLA
-egy nyílt forráskódú UnrealEngine4 alapú szimulációs környezet, amelyet kifejezetten önvezető rendszerek
+szimulátorra~\cite{carla,carlaweb} esett a választásom (\ref{fig:carla}.~ábra). A CARLA egy nyílt forráskódú, Unreal Engine~4 (UE4) alapú
+szimulációs környezet, amelyet kifejezetten önvezető rendszerek
 fejlesztésére, tanítására, validálására és tesztelésére hoztak létre. A szimulátor magja C++ nyelven
-készült, a megjelenítést és a fizikai szimulációt pedig az Unreal Engine~4
-(UE4) játékmotor végzi. Ennek köszönhetően a szimulátor valósághű, képet és járműdinamikát nyújt. 
+készült, a megjelenítést és a fizikai szimulációt pedig az 
+UE4 játékmotor végzi. Ennek köszönhetően a szimulátor valósághű képet és járműdinamikát nyújt. 
 A program képes a valóságban is gyakran használt önvezető szenzorok -- többek között RGB-kamera, mélységkamera,
 szemantikus szegmentációs kamera, LiDAR, radar, GNSS és IMU -- szimulált
 megfelelőit generálni minden forgalmi szituációban. Továbbá fel van készítve a dinamikus időjárás, napszak realisztikus kezelésére is.
@@ -211,15 +221,17 @@ A forgalom pedig szabadon állítható és szabályozható. Így az ágens olyan
 \end{figure}
 
 A szimulátor kliens--szerver architektúrára épül~\cite{carladocs}, tehát a szerver
-futtatja magát a szimulációs környezetet ez által ő felel a világ és a járművek fizikájának
-számításáért, valamint a szenzoradatok előállításáért. Ez a kialakítás ugyanakkor teret enged annak is hogy a munka akár 2 számítógépen is megvalósuljon, 
-például ez akkor indokolt ha nem elegendő egy számítógép grafikus feldolgozási erőforrása arra, hogy a szimuláció és az ágens tanulása is fusson egyaránt.
-A kliens program, melyet a felhasználó ír, hálózati interfészen (TCP kommunikációs protokol segítségével alapértelmezetten a 2000-es porton) 
-keresztül kérdezi le a szimuláció állapotát, illetve küld parancsokat a szervernek. Ilyenek lehetnek például a jármű kormány parancsa, gáz adagolása és fékzés is, ugyanakkor 
+futtatja magát a szimulációs környezetet, ezáltal ő felel a világ és a járművek fizikájának
+számításáért, valamint a szenzoradatok előállításáért. Ez a kialakítás ugyanakkor teret enged annak is, hogy a munka akár két számítógépen is megvalósuljon, 
+például ez akkor indokolt, ha nem elegendő egy számítógép grafikus feldolgozási erőforrása arra, hogy a szimuláció és az ágens tanulása is fusson egyaránt.
+A kliens program, melyet a felhasználó ír, hálózati interfészen, 
+TCP-kapcsolat segítségével éri el a szimulátort. A kommunikáció alapértelmezetten 
+a 2000-es porton működik, illetve ugyanitt küldi a parancsokat a szervernek. 
+Ilyenek lehetnek például a jármű kormányparancsa, gázadagolása és fékezése is, ugyanakkor 
 a kliens így kapja meg az egyes szimulálni kívánt szenzoradatokat is, a megfigyelni kívánt járműről. A kliensoldali API Pythonban is elérhető, 
-ami nagyban megkönnyíti a fejlesztést. Munkám során a CARLA 0.9.16-os verzióját használtam szinkron módban, rögzített
-(20~Hz-es) szimulációs lépésközzel. Szinkron módban a szerver csak
-akkor lép a következő állapotba, amikor a kliens erre utasítja ez nagy segítségemre volt az ágens egyes lépéseinél, így a
+ami nagyban megkönnyíti a fejlesztést. Munkám során a CARLA 0.9.16-os verzióját 
+használtam szinkron módban, rögzített 20~Hz-es szimulációs lépésközzel. Szinkron módban a szerver csak
+akkor lép a következő állapotba, amikor a kliens erre utasítja. Ez nagy segítségemre volt az ágens egyes lépéseinél, így a
 szenzoradatok és az ágens döntései mindig ugyanahhoz a szimulációs lépéshez
 tartoztak, valamint a tanítás is reprodukálható marad.
 
@@ -228,7 +240,7 @@ A CARLA-ban adott a lehetőség útvonaltervezésre is. A pálya úthálózata �
 tartozó \texttt{GlobalRoutePlanner} segítségével két tetszőleges pont között játszi könnyedséggel
 tervezhető~\cite{carladocs} bármilyen kívánt útvonal. Ezt kihasználva minden epizód elején
 véletlenszerűen választott kezdő- és célpont között új, dinamikus útvonalat
-tervezek, amelyen az ágensnek végig kell haladnia ezzel kiküszöbölve azt, hogy esetlegesen rátanuljon az adott útvonalra, így segítem az
+tervezek, amelyen az ágensnek végig kell haladnia, ezzel kiküszöbölve azt, hogy esetlegesen rátanuljon az adott útvonalra, így segítem az
 általánosítási képességét.
 
 \begin{figure}[htbp]
@@ -239,11 +251,11 @@ tervezek, amelyen az ágensnek végig kell haladnia ezzel kiküszöbölve azt, h
 \end{figure}
 
 A szimulátor alapértelmezetten tartalmaz több előre elkészített pályát (\emph{Town}), amelyek varianciája az átlagos
-önevezető feladatok többségét kielégíti. Munkám során ezek közül a Town04-et választottam (\ref{fig:town04}.~ábra). 
-Választásom erre a pályára esett mivel az itt kialakított kisváros tökéletesen megfelel az elvárásaimnak. Alakja \enquote{8-as} alakú,
+önvezető feladatok többségét kielégíti. Munkám során ezek közül a Town04-et választottam (\ref{fig:town04}.~ábra). 
+Választásom erre a pályára esett, mivel az itt kialakított kisváros tökéletesen megfelel az elvárásaimnak. Alakja \enquote{8-as} alakú,
 végtelenített autópályával~\cite{carladocs} megfelelő célom eléréséhez. A pálya egyszerre tartalmaz
 városi utcákat és többsávos autópályát, fel- és lehajtókkal, valamint
-lóhere alakú csomóponttal. Amint említettem célom az autópályás előzés megtanítása, ez
+lóhere alakú csomóponttal. Amint említettem, célom az autópályás előzés megtanítása, ez
 a pálya a legalkalmasabb. A többsávos autópályán az ágens a lassabban haladó
 járművet a bal oldali sávba kihúzódva szabályosan meg tudja előzni, a
 körbeérő autópálya pedig hosszú, megszakítás nélküli vezetési szakaszokat tesz
@@ -256,7 +268,7 @@ lehetővé.
 \label{sec:elmelet}
 
 A következőkben munkám elméleti és technikai hátterét írom le röviden. Elsőként a
-megerősítéses tanulás alapjai majd, ezt követően a fejlesztéshez használt
+megerősítéses tanulás alapjait, majd ezt követően a fejlesztéshez használt
 programozási nyelvet és könyvtárait, végül a Soft Actor-Critic algoritmust
 és a Stable-Baselines3 keretrendszert. Mindegyiknél kitérve arra, miért
 esett az adott technológiára a választásom.
@@ -265,7 +277,7 @@ esett az adott technológiára a választásom.
 \label{sec:rl}
 
 A gépi tanulás módszereit hagyományosan három nagy csoportba soroljuk. A
-\emph{felügyelt tanulás} során a modell tisztában az elvárt kimenet valamint a bementi adatokkal egyaránt így 
+\emph{felügyelt tanulás} során a modell tisztában az elvárt kimenet valamint a bemeneti adatokkal egyaránt így 
 tanul, vagyis minden tanítópéldához ismert a helyes válasz. Ide tartoznak a klasszikus
 osztályozási és regressziós feladatok, például képeken látható objektumok
 felismerése, de maga a vezetés is megtanulható így. A
@@ -274,29 +286,32 @@ sofőr rögzített vezetéséből, a szenzoradatok és a hozzájuk tartozó korm
 gázparancsok párjaiból tanulja meg utánozni a sofőrt. Ezt az elvet már az 1980-as
 évek végén alkalmazta az ALVINN rendszer~\cite{pomerleau1989alvinn}. A módszer korlátja, hogy a modell
 legfeljebb olyan jó lehet, mint a tanítóadat. Értem ez alatt, hogy a modell nagy varianciájú adaton 
-kell tanuljon különben a váratlan helyzeteket nem tudja megfelelőképp kezelni. Általánosítási képessége kevésbé erős mint a 
-többi gépitanúási megoldásnak.
+kell tanuljon különben a váratlan helyzeteket nem tudja megfelelőképp kezelni. Általánosítási képessége kevésbé erős, mint a 
+többi gépi tanulási megoldásnak.
 Következő módszer \emph{felügyelet nélküli tanulás} ahol nincsenek címkék, a tanítás célja az
 adatok rejtett szerkezetének, például csoportjainak vagy tömör
-reprezentációjának feltárása. Tipikus példája a klaszterezés (például a
-$k$-közép módszer), amely a hasonló adatpontokat csoportokba rendezi.
+reprezentációjának feltárása. Tipikus példája a klaszterezés például a
+$k$-közép módszer, amely a hasonló adatpontokat csoportokba rendezi.
 
-A \emph{megerősítéses tanulás}(\emph{reinforcement learning}, RL) ezektől alapvetően lényegesen eltér. A tanuló
-ágensnek senki sem mondja meg, mi lett volna a helyes döntés egy adott
-helyzetben vagy mi lett volna az elvárt viselkedés, csupán egy számszerű visszajelzést, \emph{jutalmat} kap viselkedéséről~\cite{sutton2018rl}. 
+A \emph{megerősítéses tanulás} ezektől alapvetően eltér. A tanuló
+ágensnek nem adjuk meg előre, mi lett volna a helyes döntés egy adott
+helyzetben. Ehelyett az eljárás értelmében, jutalomfüggvénnyel értékeljük viselkedését.
+Ha a leírtaknak megfelelően viselkedik jutalmazzuk, a szabályokat ha megszegi büntetjük, 
+ebből a számszerű visszajelzésből tanulja meg a helyes viselkedést~\cite{sutton2018rl}. 
 A tanulási folyamatnak két szereplője van egyik az \emph{ágens}, a döntések meghozataláért felelős
-a \emph{környezet}, amelyben az ágens mozog a folyamat során. Ezen páros kölcsoönhatása egymással diszkrét 
+a \emph{környezet}, amelyben az ágens mozog a folyamat során. Ezen páros kölcsönhatása egymással diszkrét 
 időlépésekben történik: az ágens minden lépésben
 megfigyeli a környezet aktuális \emph{állapotát}, ez alapján végrehajt egy
 \emph{akciót}, amelynek hatására a környezet új állapotba kerül, az ágens pedig
-jutalmat kap előző döntései alapján.A feladatot Markov-döntési folyamatként (\emph{Markov Decision Process}, MDP)
-írhatjuk fel ~\cite{sutton2018rl}, amiben az állapotok, az akciók, és az állapotátmenet-valószínűségek valamint a 
+jutalmat kap előző döntései alapján. A feladatot Markov-döntési folyamatként (\emph{Markov Decision Process}, MDP)
+írhatjuk fel~\cite{sutton2018rl}, amiben az állapotok, az akciók, és az állapotátmenet-valószínűségek valamint a 
 jutalomfüggvény határoz meg. A fentiek alapján a modell feltevése a \emph{Markov-tulajdonság}. A következő
 állapot csak a jelenlegi állapottól és akciótól függ. Mivel az ágens a világot
 szenzorain keresztül érzékeli, ezt tekintjük állapotnak.
 
-Az ágens viselkedését a \emph{stratégia} (\emph{policy}) írja le, célja minden tanulási epizódban a
-\emph{hozam} (\emph{jutalom}) várható értékének maximalizálása:
+Az ágens viselkedését a \emph{stratégia} (\emph{policy}) írja le, 
+célja minden tanulási epizódban a jutalmakból képzett \emph{hozam} 
+várható értékének maximalizálása:
 \begin{equation}
   G_t = \sum_{k=0}^{\infty} \gamma^k r_{t+k+1},
 \end{equation}
@@ -305,9 +320,11 @@ diszkontfaktor pedig a jövőbeli jutalmak súlyát szabályozza. A tanulás
 \emph{epizódokra} tagolódik, amelyek nálam ütközéssel vagy az útvonal
 teljesítésével érnek véget.
 
-Esetemben nagy valamint, folytonos állapottérben (kamerakép, LiDAR) az értékfüggvényt és a
-stratégiát mély neurális hálóval közelítem (\emph{deep reinforcement
-learning}). Ezen típusu algoritmusok között az áttörést a DQN hozta~\cite{mnih2015dqn}, amely
+Nagy dimenziójú és folytonos állapotterek esetén – amilyeneket a 
+szenzoralapú kameraképek és a LiDAR pontfelhők is reprezentálnak – az 
+értékfüggvény, illetve a döntési stratégia megfelelő közelítésére
+hatékony módszer a mély neurális hálózatok használata
+(\emph{deep reinforcement learning}). Én is ezt a megközelítést alkalmaztam. Ezen típusú algoritmusok között az áttörést a DQN hozta~\cite{mnih2015dqn}, amely
 \emph{visszajátszási pufferrel} (\emph{replay buffer}) és \emph{célhálóval}
 (\emph{target network}) stabilizálta a tanulást. 
 
@@ -317,8 +334,7 @@ Az algoritmusválasztás szempontjából a fő különbségek~\cite{sutton2018rl
   megtanulása nehéz lenne, ezért modellmentes módszert választottam.
   \item \textbf{Értékalapú, stratégiaalapú, aktor--kritikus:} utóbbiban az
   \emph{aktor} a stratégia, a \emph{kritikus} pedig értékeli a döntéseit.
-  \item \textbf{On-policy vs.\ off-policy:} az on-policy módszerek (pl.\
-  PPO~\cite{schulman2017ppo}) eldobják a régi tapasztalatot, az off-policy
+  \item \textbf{On-policy vs.\ off-policy:} az on-policy módszerek eldobják a régi tapasztalatot, az off-policy
   módszerek (DDPG~\cite{lillicrap2016ddpg}, TD3,
   SAC~\cite{haarnoja2018sac}) újrahasznosítják, így kevesebb interakcióból
   tanulnak.
@@ -330,22 +346,22 @@ Az algoritmusválasztás szempontjából a fő különbségek~\cite{sutton2018rl
 \subsection{Python programozási nyelv}
 \label{sec:python}
 
-A kísérletem implementálására a Python programozási nyelvet választottam ami, magas szintű,  
+A kísérletem implementálására a Python programozási nyelvet választottam, amely magas szintű,  
 interpretált, dinamikusan típusos valamint általános célú.
-Megálmodója Guido van Rossum a nylev első változata 1991-ben jelentette meg~\cite{pythonweb}. 
-Tervezési filozófiájának középpontjában az olvashatóság áll. Ezen elvre kiváló példa a kódblokkokat behúzás jelöli, a szintaxis
+Megálmodója Guido van Rossum, a nyelv első változata 1991-ben jelent meg~\cite{pythonweb}. 
+Tervezési filozófiájának középpontjában az olvashatóság áll. Ezen elvre kiváló példa, hogy a kódblokkokat behúzás jelöli, a szintaxis
 tömör és közel áll a természetes nyelvhez, így a programok gyorsan megírhatók
 és könnyen érthetők. Ezen tulajdonságainak köszönheti, hogy ma a világ egyik legszélesebb körben használt programozási
 nyelve, a gépi tanulás és az adattudomány területén pedig gyakorlatilag
 szabványnak számít.
 
 Elsőre ellentmondásosnak tűnik, hogy egy rendkívül számításigényes gépi tanulási problémát 
-egy viszonylag lassú, nyelvben történő megvalósítás követ, de a magyarázat igen logikus. A Python
+egy viszonylag lassú nyelvben történő megvalósítás követ, de a magyarázat igen logikus. A Python
 ezen a területen \enquote{ragasztónyelvként} működik. Értem ez alatt, hogy a nagy számítási igényű
 műveleteket, a mátrixszorzás, konvolúció vagy a gradiensszámítás, C,
 C++ és CUDA nyelven írt, optimalizált könyvtárak végzik a processzoron vagy a
-grafikus kártyán. A Python pedig ezen optimalizált könyvtárak kényelmes, magas szintű használtát biztosítja. 
-Az interpreter által okozott műveletek többletideje elhanyagolható , köszönhetően ezen könyvtárak nativ implementációjának. A
+grafikus kártyán. A Python pedig ezen optimalizált könyvtárak kényelmes, magas szintű használatát biztosítja. 
+Az interpreter által okozott műveletek többletideje elhanyagolható, köszönhetően ezen könyvtárak natív implementációjának. A
 fejlesztő így egy könnyen írható nyelv kényelmét élvezi, a számítások mégis natív sebességgel futnak.
 
 A neurális hálókat PyTorch~\cite{paszke2019pytorch} keretrendszerben
@@ -355,8 +371,8 @@ megkönnyíti a fejlesztést és a hibakeresést. A választást az is indokolta
 a Stable-Baselines3 is PyTorch-ra épül, így a későbbi neurális hálók és az ágens hálói
 egy keretrendszerben, közös GPU-n futhatnak.
 
-A Python mellett szólt végül de nem utolsó sorban, hogy a CARLA kliensoldali API-ja is
-elérhető Pythonban (\ref{sec:carla}.~fejezet) ámbár a kliens maga eredetileg C++ nyleven iródott. Így egyetlen nyelven valósulhatott
+A Python mellett szólt végül, de nem utolsósorban, hogy a CARLA kliensoldali API-ja is
+elérhető Pythonban (\ref{sec:carla}.~fejezet), ámbár a kliens maga eredetileg C++ nyelven íródott. Így egyetlen nyelven valósulhatott
 meg a szimulátor vezérlése, a szenzoradatok feldolgozása, a neurális hálók
 tanítása és maga a megerősítéses tanulás is.
 
@@ -376,36 +392,41 @@ A célja nemcsak a jutalom, hanem a stratégia entrópiájának maximalizálása
 \end{equation}
 ahol $s_t$ a $t$-edik időlépés állapota, $a_t$ az ekkor választott akció,
 $r(s_t, a_t)$ az érte kapott jutalom, $\pi(\cdot \mid s_t)$ a stratégia által
-adott akcióeloszlás, $\mathcal{H}$ ennek entrópiája (azaz mennyire szétterült
-az akcióeloszlás), $\alpha$ pedig a \emph{hőmérséklet}, amely az entrópia
-súlyát adja meg a jutalomhoz képest. A $\gamma$ diszkontfaktor (nálam 0,98)
+adott akcióeloszlás, $\mathcal{H}$ ennek entrópiája, amely azt méri, 
+mennyire szétterült az akcióeloszlás, $\alpha$ pedig a \emph{hőmérséklet}, 
+amely az entrópia
+súlyát adja meg a jutalomhoz képest. 
+A $\gamma$ diszkontfaktor, amelynek értéke nálam 0,98,
 a későbbi jutalmakat kisebb súllyal veszi figyelembe. A várható érték a
 stratégia követésével bejárt állapotokra és akciókra vonatkozik.
 
 A fentiekben elmondottak alapján az ágens addig marad változatos, amíg ez nem rontja érdemben a jutalmat.
 Így a felfedezés nagyrészt magából a célfüggvényből következik: az ágens
 kevésbé hajlamos korán leragadni egy rossz megoldásnál, és nem kötelezi el
-magát idő előtt egyetlen viselkedés mellett (például hogy most előzzön vagy
-kicsit később). Az SB3 megvalósításában a stratégia egy Gauss-eloszlás,
+magát idő előtt 
+egyetlen viselkedés mellett, például abban, hogy most előzzön-e 
+vagy kicsit később. A Stable-Baselines3 (SB3) megvalósításában
+a stratégia egy Gauss-eloszlás,
 amelynek mintáit a $\tanh$ függvény szorítja a megengedett akciótartományba.
 A felfedezést nálam ezen felül az állapotfüggő felfedezés
 (gSDE)~\cite{raffin2022gsde} segíti: a zaj az aktuális állapottól függ, és
 nem minden lépésben sorsolódik újra, hanem csak 8 lépésenként, így a kormány-
 és gázmozdulatok simábbak, nem remegnek lépésről lépésre.
 
-A tanítást két kritikus (Q-háló) segíti ezek alapértelmezetten implementálva vannak az STB3-ban.
+A tanítást két kritikus, vagyis két Q-háló segíti, ezek alapértelmezetten implementálva vannak az SB3-ban.
 Ezek becslik a Q-függvényt, két kritikus egy közös jellemzőkinyerő hálón
 osztozik a szenzoradatokat feldolgozó csak a rá épül külön rétegként.
 A tanítás célértékét a két becslés kisebbikéből számolja, ami csökkenti a
 Q-értékek túlbecslését. A tanítás a visszajátszási
 pufferből vett kötegeken történik. Az $\alpha$ értékét az algoritmus
 automatikusan hangolja~\cite{haarnoja2018sacapps}: úgy állítja, hogy a
-stratégia entrópiája egy előre adott célérték közelében maradjon (az SB3-ban
-ez az akciótér dimenziójának mínusz egyszerese, nálam $-2$).
+stratégia entrópiája egy előre adott célérték közelében maradjon. 
+Az SB3-ban ez az akciótér dimenziójának mínusz egyszerese, nálam $-2$.
+
 
 Az algoritmust nem magam implementáltam, hanem a Python
-Stable-Baselines3 (SB3)~\cite{raffin2021sb3} könyvtárát használtam könnyenhasználhatósága valamint népszerűsége okán.
-Az SB3 egy megfelelően kitesztelt PyTorch-alapú megvalósítás emiatt
+SB3~\cite{raffin2021sb3} könyvtárát használtam könnyű használhatósága valamint népszerűsége okán.
+Az SB3 egy megfelelően kitesztelt PyTorch-alapú megvalósítás, emiatt
 a munkám a hatékony környezeti jellemzők kinyerésére és a megfelelően finomhangolt jutalomra összpontosulhatott.
 Az SB3 a Gymnasium~\cite{towers2024gymnasium} szabványú környezetekkel
 működik, amelyek a \texttt{reset} és \texttt{step} függvényeken keresztül
@@ -418,8 +439,8 @@ pedig az útvonal végének vagy a kitűzött távolságnak az elérése.
 
 Megvalósításaim:
 \begin{itemize}
-  \item a CARLA-környezet Gymnasium interfésszel (jármű, szenzorok, útvonalak,
-    forgalom, epizódkezelés);
+  \item a CARLA-környezet Gymnasium interfésszel, amely a járművet, a szenzorokat,
+    az útvonalakat, a forgalmat és az epizódokat kezeli;
   \item a megfigyelések előállítása a szenzoradatokból
     (\ref{sec:sensors}.~fejezet);
   \item a jutalomfüggvény és az epizódvég feltételei
@@ -428,28 +449,44 @@ Megvalósításaim:
     útvonal jellemzőivel összefűző háló;
   \item a fontosabb mutatókat TensorBoardba naplózó callbackek.
 \end{itemize}
-\section{Szenzoradatok előfeldozása, Autóenkóderek}
+\section{Szenzoradatok előfeldolgozása, autoenkóderek}
 \label{sec:sensors}
 
-Az robotikai eszközök (például autók), környezetüket rájuk erősített szenzorok segítségével érzékelik.
-Ezen eszközök halamzának segítségével valósítják meg a gépilátás és érzékelés folyamatát. Míg az emberek saját 
-érkezszerveikkel jutnak információhoz a külvilágról a robotikai eszközök, szenzor rendszereikkel végzik el
-ezt az igen kritikus lépést a tájékzódás során. A szenzoradatok a pontos érzékelés okánál fogva nagyon sokrétüek 
-és sűrűek. Emiatt nagy számítási kapacitást igénnyel feldolgozásuk során valamint áltlában átesnek egy adattisztiási
-folyamaton is. Az említett folyamatok szükségessége abban nyilvánul hogy az ágens önmagában nem képes feldolgozni ezt a 
-rengeteg információt, valamintha mégis ezek a feldolgozási folyamatok nagyba lassíthatják a döntés megszületését.
+A robotikai eszközök, például az autók, környezetüket rájuk erősített szenzorok segítségével érzékelik.
+Ezen eszközök halmazának segítségével valósítják meg a gépi látás és érzékelés folyamatát. 
+Míg az emberek saját 
+érzékszerveikkel jutnak információhoz a külvilágról, a robotikai eszközök, 
+szenzorrendszereikkel végzik el
+ezt az igen kritikus lépést a tájékozódás során. A szenzoradatok a pontos 
+érzékelés okánál fogva nagyon sokrétűek 
+és sűrűek. Emiatt nagy számítási kapacitást igényel feldolgozásuk során valamint
+általában átesnek egy adattisztítási
+folyamaton is. Az említett folyamatok szükségessége abban nyilvánul meg, hogy az ágens 
+önmagában nem képes feldolgozni ezt a 
+rengeteg információt, valamint ha mégis, ezek a feldolgozási folyamatok nagyban 
+lassíthatják a döntés megszületését.
 
-Ebben a fejezetben bemutatásra kerülnke az általam használt szenzorok, valamint az is hogy miként végeztem el az előfeldolgozási
-folyamatokat. Ágensem érzékelésért 2 fő szensor felelős, egy LiDAR valamint egy RGB kamera. Választásom azért esett ezekre az eszközökre
-mert ezek tökéletesen elegendőek arra, hogy megfelelőképp megfigyelje a forgalomat. A kamera a vizuális észlelés, hogy lesz előttem
-egy jármű, valamint azért felelős, hogy az ágens pontosan lássa a sávok felfestését az útburkolatom. A LiDAR szenzoradatok a térbeli
-letapogatásért felelős, információt szolgáltat például a megelőzendő jármű fizikai dimenzióiról. Akkor lehet hasznos hogy ne probálja
+Ebben a fejezetben bemutatásra kerülnek az általam használt szenzorok, valamint az is, hogy miként végeztem el az előfeldolgozási
+folyamatokat. Ágensem érzékeléséért két fő szenzor felelős, egy LiDAR valamint egy RGB kamera. 
+
+Szenzorok választásánál a kiinduló munka~\cite{terapaptommakol2022obstacle} kizárólag LiDAR-ra támaszkodott.
+Ehhez hozzáadtam az RGB kamera információit. Esetemben a két szenzor kiegészíti egymást, a LiDAR pontos
+térbeli geometriát ad például milyen hosszú az éppen elkerülendő jármű. 
+Ezt az érzékelést hivatott kiegészíteni a kamera ahol a színes kép információkal szolgál például a 
+sávfelfestésekről, valamint képes előrébb érzékelni, ha van az ágens előtt valaki.
+Az önvezető rendszereknek, hogy mely szenzorok elegendők, a szakirodalomban és az iparban sincs
+egyetértés. Léteznek kizárólag kamerára épülő megoldások~\cite{bojarski2016end}, ugyanakkor mások a LiDAR
+mellett további szenzorokat is alkalmaznak.
+
+A kamera a vizuális észlelés, hogy lesz előttem
+egy jármű, valamint azért felelős, hogy az ágens pontosan lássa a sávok felfestését az útburkolaton. A LiDAR szenzoradatok a térbeli
+letapogatásért felelős, információt szolgáltat például a megelőzendő jármű fizikai dimenzióiról. Akkor lehet hasznos, hogy ne próbálja
 túl korán befejezni az előzési manővert.
 
 A CARLA mindkét szenzort valósághűen szimulálja~\cite{carladocs}. A kamera
-képét az Unreal Engine grafikus motorja rendereli, és a valódi kamerákra
+képét az UE4 grafikus motorja rendereli, és a valódi kamerákra
 jellemző hatásokat is utánozza: automatikus expozíciót, mozgási elmosódást,
-becsillanást, mélységélességet, stb. A LiDAR-t sugárkövetéssel szimulálja: 
+becsillanást, mélységélességet stb. A LiDAR-t sugárkövetéssel szimulálja: 
 a csatornák száma, a hatótávolság, a látószög és
 a forgási frekvencia a valódi eszközökhöz hasonlóan beállítható, a mérésekhez
 zaj adható, és a pontok egy része véletlenszerűen elveszik, ahogy a
@@ -457,43 +494,56 @@ valóságban is.
 
 Előzetes tapasztalataim alapján nem optimális a nyers szenzoradatokat
 közvetlenül a modellnek adni. Egyetlen kamerakép is több tízezer számértékből ami igen megterheli a modellt futását
-a LiDAR pedig több tízezer pontból áll ráadásul a pontok száma
+a LiDAR pedig több tízezer pontból áll, ráadásul a pontok száma
 és sorrendje lépésről lépésre változik. Ha az ágens ezeket nyersen kapná, a
 jutalomjelből kellene megtanulnia kinyerni a szenzorokból a lényeges információkat és vezetni. 
 Ezek mellett a nagy bemenet a visszajátszási puffer
 memóriaigényét is jelentősen megnövelné. 
-
-Ezért saját, tömör beágyazásokat készítettem a szenzoradatokból, ehhez autoenkódereket alkalmaztam.
+Így elkezdtem tömöríteni a szenzoradatokat ehhez beágyazásokat készítettem, 
+amelyekhez autoenkódereket alkalmaztam.
+A kiinduló munkában~\cite{terapaptommakol2022obstacle} a pontfelhőt kézzel egyetlen jellemzőre
+szűkítették, a jármű előtti sávban lévő legközelebbi pont távolságára, így a háló bemenete
+mindössze hat érték volt. 
+Ezzel szemben az autoenkóder által tanult reprezentáció a teljes jelenet
+lényegi információját megőrzi, így az ágens a mozgó járművek helyzetét és a sávokat is számon tudja tartani.
 Az autoenkóder egy kódolóból és egy dekódolóból álló háló, amely úgy tanul,
-hogy a bemenetét egy kis méretű belső reprezentáción (látens téren)
-keresztül próbálja visszaállítani. Az 1gy kinyert látens vektor vagy címke márcsak az adatok lényegi információit
-tartalmaza. A tanítás után a kódoló kimenete adja az ágensnek a bemenetét, így a 
+hogy a bemenetét egy kis méretű belső reprezentáción, az úgynevezett látens téren
+keresztül próbálja visszaállítani. Az így kinyert látens vektor vagy címke már csak az adatok lényegi információit
+tartalmazza. A tanítás után a kódoló kimenete adja az ágensnek a bemenetét, így a 
 tanulás elegendő ha a vezetés elsajátítására összpontosulhat.
 
-Az autoenkóderek tanításához saját adatgyűjtő programot használtam és írtam. Ez a Town04
-pályán, 200 forgalmi jármű között vezeti az autót, ugyanazokkal a
-szenzorbeállításokkal rögzít, mint amelyeket az ágens a tanulás során lát.
-A CARLA-ban elérhető autopilot, ami mindig pontosan a sáv közepén halad, az autót a sávon belül
-folyamatosan jobbra-balra térítettem, és időnként véletlen kormánymozdulatokat
-is adtam neki, így az adatban a sávból kisodródott, ferdén álló helyzetek is
-szerepelnek. 
+\subsection{Adatok}
+\label{sec:data}
 
-Ezzel biztosítva az adatok nagyobb varianciáját. A szimuláció 20~Hz-en fut, de 
-csak minden negyedik lépést mentettem (5~Hz), erre szükség volt mivel az egymást 
-közvetlenül követő képek szinte azonosak, és fölöslegesen növelnék az
-adat méretét. 
-Összesen 40\,211 egymáshoz tartozó kamera--LiDAR párt
-gyűjtöttem (kb. 15~GB).
-Az összetartozó kép és pontfelhő fájlneve a szimulációs képkocka sorszáma, így biztosan
-ugyanahhoz a pillanathoz tartoznak. Ezen az adathalmazon mindkét szenzorhoz
-három különböző autoenkódert tanítottam és hasonlítottam össze, hogy
-kiválasszam a legjobbat.
+Az autoenkóderek tanításához saját adatgyűjtő programot írtam. A program a Town04 pályán,
+200 forgalmi jármű között vezeti az autót, és ugyanazokkal a szenzorbeállításokkal rögzít,
+mint amelyeket az ágens a tanulás során lát. Mivel a CARLA autopilotja mindig pontosan a sáv
+közepén halad, az autót a sávon belül folyamatosan jobbra-balra térítettem, és időnként
+véletlen kormánymozdulatokat is adtam neki. Így az adatban a sávból kisodródott, ferdén álló
+helyzetek is szerepelnek, ami növeli az adatok varianciáját. A szimuláció 20~Hz-en fut, de
+csak minden negyedik lépést mentettem, vagyis 5~Hz-cel, mivel az egymást közvetlenül követő
+képek szinte azonosak, és fölöslegesen növelnék az adat méretét.
 
-\subsection{Kamera}
+A tanítások során összesen 40\,211 egymáshoz tartozó kamera--LiDAR adatpárt gyűjtöttem. 
+Az összetartozó kép, pontfelhő párok fájlneve a szimulációs képkocka sorszáma, így biztosítottam, hogy
+ugyanahhoz a pillanathoz tartozzanak. 
+A kameraképet a szimulátor 640$\times$320 pixeles
+felbontásban rendereli, ezt mentés előtt 160$\times$80 pixelesre kicsinyítettem, és 8 bites
+RGB PNG-képként tároltam. 
+A LiDAR esetén egy 64 csatornás modellt használtam, amely egy körülfordulás alatt 64$\times$1024
+sugarat bocsát ki.
+Ebből mintegy 30 ezer pont marad, amelyeket ritkítás
+nélkül, XYZ koordinátáikkal, méterben, 32 bites lebegőpontos számként mentettem. Az adatokat
+véletlenszerű keverés után 70/15/15 arányban osztottam fel, így 28\,149 képkocka került a
+tanító-, 6\,031 a validációs és 6\,031 a teszthalmazba. A keverésre azért volt szükség, mert
+az egymást követő képkockák szinte azonosak, és enélkül a halmazok a pálya más-más szakaszait
+tartalmaznák.
+
+\subsection{Kamera-autoenkóderek}
 \label{sec:camera}
 
-Az ágens kamerája a CARLA szimulált RGB kamerája (\texttt{sensor.camera.rgb}), amelynek 
-a helyzete a járműrvőn a szélvédő mögött van. Az autó testének 
+Az ágens kamerája a CARLA szimulált \texttt{sensor.camera.rgb} RGB kamerája, amelynek 
+a helyzete a járművön a szélvédő mögött van. Az autó testének 
 középpontjához képest 1,6~m-rel előrébb és 1,7~m magasan, menetirányba néz.
 
 A képet 160$\times$80 pixeles felbontásban, 110°-os vízszintes látószöggel,
@@ -501,7 +551,6 @@ a szimulációval szinkronban 20~Hz-en rögzíti
 (\ref{fig:camera_examples}.~ábra). Ez a relatíve kisebb felbontás tökéletesen elegendő a sávjelek valamint 
 a forgalom többi szereplőjének felismeréséhez. 
 
-\newpage
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.9\textwidth]{pictures/sensors/camera/camera_examples.png}
@@ -509,33 +558,40 @@ a forgalom többi szereplőjének felismeréséhez.
   \label{fig:camera_examples}
 \end{figure}
 
-Miútán kész voltam a tanító adatok begyüjtésével kiválasztottam 3 különböző architektúrára épülő autoenkódert, 
+Miután kész voltam a tanító adatok begyűjtésével, kiválasztottam három különböző architektúrára épülő autoenkódert, 
 hogy ezekből kiválasszam a számomra legjobbat.
-A három modellt az egyenlő feltételek mellett ugyanazon a rekonstrukciós feladaton tanítottam.
-A bemeneti és a visszaállított kép közötti minden esetben átlagos négyzetes hibát (MSE) mértem
-majd ezt minimalizáltam, Adam optimalizálóval.
+A három modellt egyenlő feltételek mellett, ugyanazon a rekonstrukciós feladaton tanítottam.
+Hibafüggvényként a bemeneti és a visszaállított kép közötti átlagos négyzetes hibát (MSE)
+minimalizáltam Adam optimalizálóval. Mindhárom modellt 50 epochon át, 64-es kötegmérettel
+tanítottam, a tanulási ráta koszinuszos ütemezéssel $10^{-3}$-ról $10^{-5}$-re csökkent, a
+VGG-alapú modellnél $10^{-4}$-ről indulva. A modellek bemenete a 160$\times$80 pixeles RGB kép,
+amelynek pixelértékeit a $[0,1]$ tartományba normalizáltam. A hiba alakulását a
+\ref{fig:camera_loss}.~ábra mutatja: a validációs hiba egyik modellnél sem kezdett nőni, vagyis
+érdemi túltanulás nem lépett fel.
 
-A modellek bemenete a 160$\times$80 pixeles RGB kép, a pixelértékei normalizáláson estek át így
-ezután a pixelek $[0,1]$ tartományba estek. A 40\,211 képet véletlenszerűen megkevertem és
-70/15/15 arányban osztottam fel. Ezek után 28\,149 kép került a tanító-, 6031 a validációs és
-6031 a teszthalmazokba. A keverésre azért volt szükség, mert az
-egymást követő képek szinte azonosak, és enélkül a halmazok a pálya más-más
-szakaszait tartalmaznák.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{pictures/sensors/camera/camera_loss.pdf}
+  \caption{A kamera-autoenkóderek tanító és validációs hibája epochonként, logaritmikus
+    skálán}
+  \label{fig:camera_loss}
+\end{figure}
 
 Az eljárás során a validációs halmazon legjobbnak bizonyult modellt
 mentettem el. Az alábbi ábrák mindegyike ugyanazt a négy, a tanítás során
 félretett teszthalmazból származó képet mutatja, ez által a modellek
 rekonstrukciói közvetlenül összevethetők.
 
+\FloatBarrier
 \subsubsection{Konvolúciós autoenkóder}
 
 Első választottam egy egyszerű konvolúció autoenkóderre esett amely szerkezetileg a következő.
-A kódoló négy konvolúciós blokkból áll (4$\times$4-es kernel, 2-es
-lépésköz, batch-normalizálás, LeakyReLU), amelyek mindegyike felezi a kép
+A kódoló négy konvolúciós blokkból áll. Ezek 4$\times$4-es kernellel és 2-es
+lépésközzel dolgoznak, batch-normalizálást és LeakyReLU aktivációt használnak, és mindegyik felezi a kép
 méretét, ezek által 3$\times$80$\times$160-as bemenetből 256$\times$5$\times$10-es
 jellemzőtérkép lesz. Ez egy teljesen összekötött réteg amely vetítésre kerül a látens
 vektorba a kinyert jellemzőkkel. A dekódoló ennek tükörképe transzponált konvolúciókkal, a kimenetet egy
-szigmoid függvény adja és szorítja a $[0,1]$ es tartományba. Egyszerű, sekély felépítése
+szigmoid függvény adja és szorítja a $[0,1]$-es tartományba. Egyszerű, sekély felépítése
 miatt a három modell közül ez a leggyorsabb. A rekonstrukción
 (\ref{fig:camera_rec_conv}.~ábra) jól kivehetők a sávjelek, az útnak a széle és a járművek egyaránt
 jól kivehetők. A háttér apró részletei mosódnak el de az jelen esetben amúgyis zajnak számít.
@@ -556,7 +612,7 @@ lehetővé~\cite{he2016resnet}. A háló négy felbontási szinten dolgozik, szi
 két reziduális blokkal, és többfelbontású átkötéseket is felhasznál. Minden szint
 kimenete közvetlenül a szűk keresztmetszet elé is eljut, hogy ez által a finom
 részletek is bekerülhessenek a látens reprezentációba. A három modell közül
-ennek van a legkevesebb paramétere (2,4 millió). A rekonstrukció
+ennek van a legkevesebb, 2,4 millió paramétere. A rekonstrukció
 (\ref{fig:camera_rec_resnet}.~ábra) erősen elmosott: az út nagyjából
 felismerhető, de a jármű körvonala szétfolyik, a környezet pedig általános,
 ködös foltokká válik.
@@ -570,16 +626,16 @@ ködös foltokká válik.
 
 \subsubsection{VGG-alapú autoenkóder}
 
-A harmadik megvalósítás egy a VGG-19 hálózat~\cite{simonyan2015vgg} első négy blokkja (a
-\texttt{relu4\_1} rétegig), az ImageNet adathalmazon előtanított súlyokkal.
-Előtanítottsága okán az alapvető képi jellemzők (élek, textúrák) felismerését
+A harmadik megvalósítás egy a VGG-19 hálózat~\cite{simonyan2015vgg} első négy blokkja a
+\texttt{relu4\_1} rétegig, az ImageNet adathalmazon előtanított súlyokkal.
+Előtanítottsága okán az alapvető képi jellemzők, mint az élek és a textúrák felismerését
 a hálónak nem kell nulláról megtanulnia. A dekódoló a kódoló tükörképe.
-Mivel ez egy mély, normalizálás nélküli háló, kisebb tanulási rátával
-($10^{-4}$) kellett tanítani. Éredkesség, hogy az előtanított súlyok nélkül egyáltalán nem
+Mivel ez egy mély, normalizálás nélküli háló, kisebb, $10^{-4}$-es tanulási rátával
+kellett tanítani. Érdekesség, hogy az előtanított súlyok nélkül egyáltalán nem
 tanult. A rekonstrukción (\ref{fig:camera_rec_vgg}.~ábra) a sávjelek és a
 jármű megmaradnak, de elmosódnak, és a modell helyenként a jelenetre
-jellemző, de valójában ott nem lévő elemeket rajzol. a második képen az
-épület és a téglafal helyén fákat rajzol amik valójában ott sincsenek.
+jellemző, de valójában ott nem lévő elemeket rajzol. A második képen az
+épület és a téglafal helyén fákat rajzol, amelyek valójában ott sincsenek.
 
 \begin{figure}[htbp]
   \centering
@@ -592,13 +648,13 @@ jellemző, de valójában ott nem lévő elemeket rajzol. a második képen az
 
 A modelleket a 40\,211 képből félretett, 6031 képes teszthalmazon
 hasonlítottam össze. Az MSE mellett a csúcsjel-zaj viszonyt (PSNR) is
-megfigyeltem amely a $[0,1]$ tartományba skálázott képekre a következő:
+megfigyeltem, amely a $[0,1]$ tartományba skálázott képekre a következő:
 \begin{equation}
   \mathrm{PSNR} = 10 \log_{10} \frac{1}{\mathrm{MSE}}~\mathrm{dB},
 \end{equation}
-Ezen mérőszám minál nagyobb, annál pontosabb a visszaállított kép. A kódoló az
+Ezen mérőszám minél nagyobb, annál pontosabb a visszaállított kép. A kódoló az
 ágens tanítása közben minden lépésben, ugyanazon a GPU-n
-fut így a kódolási idő is szignifikáns jellemzők közés soroltam. (\ref{tab:camera_compare}.~táblázat).
+fut így a kódolási idő is szignifikáns jellemzők közé soroltam (\ref{tab:camera_compare}.~táblázat).
 
 \begin{table}[htbp]
   \centering
@@ -617,21 +673,21 @@ fut így a kódolási idő is szignifikáns jellemzők közés soroltam. (\ref{t
 
 A fenti táblázat alapján a konvolúciós autoenkóder hibája a legkisebb. Az MSE-je harmada a VGG-alapú
 megoldáshoz képest és kevesebb, mint ötöde a reziduális modellének, ami 5, illetve 7,5~dB-lel jobb PSNR-t
-jelent. A különbség nem csak átlagban áll fenn, a képenkénti párosítás során kiderült, hogy
+jelent. A különbség nemcsak átlagban áll fenn, a képenkénti párosítás során kiderült, hogy
 a konvolúciós megoldás a teszthalmaz képeinek 97,4\%-án kisebb a hibája, mint a VGG-alapú modellé, a
 reziduális modellnél pedig minden képen jobb (\ref{fig:camera_psnr}.~ábra).
 \newpage
 A hibatérképeken (\ref{fig:camera_err}.~ábra) az is látszik, hogy a
 konvolúciós modell rekonstrukciója a legkevésbé zajos. A hiba nála csak a
-tárgyak éleinél jelenik meg vékony vonalakként. A többi modellnél esetében
+tárgyak éleinél jelenik meg vékony vonalakként. A többi modell esetében
 nagyobb, összefüggő foltokban, például a jármű és a sávjelek környékén, vagyis
 ott, ahol az ágensnek a legpontosabb információra volna szüksége.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{pictures/sensors/camera/camera_error_maps.png}
-  \caption{A rekonstrukciók abszolút hibája képpontonként, közös skálán
-    (sötétebb = nagyobb hiba)}
+  \caption{A rekonstrukciók abszolút hibája képpontonként, közös skálán;
+    a sötétebb szín nagyobb hibát jelöl}
   \label{fig:camera_err}
 \end{figure}
 
@@ -647,13 +703,13 @@ Ezen okoknál fogva választásom a konvolúciós autoenkóderre esett. A legjob
 rekonstrukció mellett ez a leggyorsabb is. Egy kép kódolása kb. 0,27~ms,
 a másik két modellnél ez közel négyszer annyi.
 
-\subsection{LiDAR}
+\subsection{LiDAR-autoenkóderek}
 \label{sec:lidar}
 
-Amint a fentiekben is említettem az általam választott második gépi érzékelési 
+Amint a fentiekben is említettem, az általam választott második gépi érzékelési 
 eljárás a térbeli letapogatás a LiDAR szenzor által. Az ágens LiDAR-ja a 
-CARLA-ban alapból szimulált sugárkövetéses LiDAR szenzor.
-(\texttt{sensor.lidar.ray\_cast}). Helyzetét tekintva jármű tetején,  
+CARLA beépített, sugárkövetéses \texttt{sensor.lidar.ray\_cast}
+szenzora. Helyzetét tekintva jármű tetején,  
 középpontja felett 2,4~m magasan helyezkedik el. 
 A szenzor 64 csatornás, függőlegesen +10° és $-25$° között, 
 vízszintesen 360°-ban, 50~m-es hatótávolságig mér.
@@ -664,21 +720,19 @@ Egy fordulat 64$\times$1024 sugárból áll, ezek egy részét a CARLA a valós
 szenzorokhoz hasonlóan véletlenszerűen elejti, így képkockánként mintegy 30
 ezer pont marad.
 
-A 3D pontfelhő általánosságban rendezetlen pont halmazként érkezik a szenzorból.
+A 3D pontfelhő általánosságban rendezetlen ponthalmazként érkezik a szenzorból.
 A pontok száma jelenetről jelenetre változik, ez a változatosság egy neurális 
 háló számára közvetlenül nem feldolgozható. 
 A kameránál látottakhoz hasonlóan itt is az adat látens térbeli beágyazása
 volt a tervem. Szintén választottam három különböző
 architektúrájú autoenkódert majd ezeket mértem össze, 
 a lényegi különbség, hogy mindegyik más formában kapja meg a
-jelenetet (\ref{fig:lidar_inputs}.~ábra). felülnézeti rácsként,
-távolságképként, illetve közvetlenül pontfelhőként. Mindhárom modellt
-azonos adathalmazon, 40 epochon át tanítottam, és a validációs halmazon
-legjobbnak bizonyult modellt mentettem el. Az adatokat itt is véletlenszerű
-keverés után 70/15/15 arányban osztottam tanító-, validációs és
-teszthalmazra. A hibafüggvény modellenként eltér, mert mindegyik más
-formában állítja vissza az adatokat
-
+jelenetet: felülnézeti rácsként,
+távolságképként, illetve közvetlenül pontfelhőként (\ref{fig:lidar_inputs}.~ábra). Mindhárom modellt
+azonos adathalmazon, 40 epochon át, Adam optimalizálóval tanítottam, és a validációs halmazon
+legjobbnak bizonyult modellt mentettem el. A hibafüggvény modellenként eltér, mert mindegyik más
+formában állítja vissza az adatokat. A hiba alakulását a \ref{fig:lidar_loss}.~ábra mutatja, a
+validációs hiba egyik modellnél sem kezdett tartósan nőni.
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{pictures/sensors/lidar/lidar_inputs.png}
@@ -688,21 +742,31 @@ formában állítja vissza az adatokat
   \label{fig:lidar_inputs}
 \end{figure}
 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{pictures/sensors/lidar/lidar_loss.pdf}
+  \caption{A LiDAR-autoenkóderek tanító és validációs hibája epochonként; az eltérő
+    hibafüggvények miatt modellenként külön tengelyen}
+  \label{fig:lidar_loss}
+\end{figure}
+
+\FloatBarrier
 \subsubsection{BEV-alapú autoenkóder}
 
-Első megoldásként egy relatíve népszerű megoldást választottam, mégpedig
-a pontfelhőt felülnézeti (BEV) rácsra valóvetítését. A jármű
-körüli 102,4$\times$102,4~m-es területet 0,8~m-es cellákra osztottam
-(128$\times$128 cella), majd cellánként három értéket számoltam.Elsőként foglalt-e,
+Első megoldásként a pontfelhőt felülnézeti (\emph{bird's-eye view}, BEV) rácsra vetítését használtam,
+ami a LiDAR-adatok feldolgozásában gyakran alkalmazott eljárás. A jármű
+körüli 102,4$\times$102,4~m-es területet 0,8~m-es cellákra osztottam,
+így 128$\times$128 cella keletkezett, majd cellánként három értéket számoltam.Elsőként foglalt-e,
 majd megnéztem benne lévő legmagasabb és legalacsonyabb pont magasságát. 
-Erre a már 2 dimenziós képre egy konvolúciós autoenkódert építettem, 
+Erre a már kétdimenziós képre egy konvolúciós autoenkódert építettem, 
 amely a képet egy jóval kisebb
-jellemzőtérképbe tömörítette. Mivel a foglaltság 0/1 érték, erre a
-hibafüggvény bináris keresztentrópia. 
+jellemzőtérképbe tömörítette. A foglaltság 0/1 érték, ezért erre bináris keresztentrópiát és
+Dice-veszteséget, a két magassági csatornára pedig csak a foglalt cellákon számolt, maszkolt
+MSE-t használtam. A kötegméret 768, a tanulási ráta $10^{-3}$ volt.
 
 A rekonstrukció (\ref{fig:lidar_rec_bev}.~ábra) szinte hibátlan, a foglalt cellák 98--99\%-át
 helyesen adja vissza. Sajnos ennek a megoldásnak több hátránya is, 
-hogy a rács felbontása rögzített, a 0,8~m-nél kisebb részletek  elvesznek valamint a 
+hogy a rács felbontása rögzített, a 0,8~m-nél kisebb részletek elvesznek, valamint a 
 függőleges 3D szerkezetek nagy része már a bemenetből hiányzik.
 A kódoló kimenete, vagyis a látens reprezentáció egy
 256$\times$8$\times$8-as jellemzőtérkép, ami összesen 16\,384 érték.
@@ -710,17 +774,17 @@ A kódoló kimenete, vagyis a látens reprezentáció egy
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.7\textwidth]{pictures/sensors/lidar/lidar_rec_bev.png}
-  \caption{A BEV-alapú autoenkóder rekonstrukciói (foglalt cella: fekete)}
+  \caption{A BEV-alapú autoenkóder rekonstrukciói; a foglalt cellák feketék}
   \label{fig:lidar_rec_bev}
 \end{figure}
 \newpage
 \subsubsection{Gráf-alapú autoenkóder}
 
 A második megoldás során a pontfelhőt távolságképpé alakítom. Ez annyit tesz, hogy  minden sugárirány egy
-cella, az oszlop lesz a hozzátartozó irányszög, a sor pedig az emelkedési szög. 
+cella, az oszlop lesz a hozzá tartozó irányszög, a sor pedig az emelkedési szög. 
 A cellák értékét pedig a mért távolság adja meg. A CARLA LiDAR-ja szabályos 
-sugárrácsban mér, ez által maga a vetítés kevésbe veszteséges mint a BEV esetén. 
-Az ég felé tekintő felső sorok nem rendelkeznek számomra fontos információval ezért 
+sugárrácsban mér, ezáltal maga a vetítés kevésbé veszteséges, mint a BEV esetén. 
+Az ég felé tekintő felső sorok nem rendelkeznek számomra fontos információval, ezért 
 levágtam. Az így keletkezett kép 44$\times$256 cellás, a távolságokat pedig logaritmikus skálán a $[-1,1]$
 tartományba normáltam. 
 
@@ -728,12 +792,12 @@ A kódoló ötletét a TopoLiDM~\cite{liu2025topolidm} LiDAR-modellből vettem.
 A hálózat a konvolúciós rétegek mellett gráfrétegeket is
 tartalmaz, ezek a rétegek minden jellemzőt a hozzá leginkább hasonló szomszédjaival 
 vetnek össze, így a térben összetartozó részeket akkor is együtt kezelik, ha a képen távol
-esnek egymástól. A kép két szélét körkörös konvolúció köti össze, hiszem 
+esnek egymástól. A kép két szélét körkörös konvolúció köti össze, hiszen 
 a 360°-os körben való szomszédság fontos részlet. 
 
 A kódoló kimenete 16$\times$11$\times$32-es
 jellemzőtérkép. 
-Hibafüggvénynek az L1-et választottam amely átlagos abszolút
+Hibafüggvénynek az L1-et választottam, amely átlagos abszolút
 hibát számolja:
 \begin{equation}
   L_1 = \frac{1}{N} \sum_{i=1}^{N} \left| x_i - \hat{x}_i \right|,
@@ -741,22 +805,24 @@ hibát számolja:
 
 A képletben $x_i$ az eredeti, $\hat{x}_i$ a visszaállított távolság az $i$-edik
 cellában. Az $N$ pedig a cellák száma, az eljárás minden cella eltérését az
-eltérés nagyságával arányosan, egyenlő súllyal veszi figyelembe, így egy-egy
+eltérés nagyságával arányosan veszi figyelembe, így egy-egy
 nagyobb hiba nem nyomja el a többit, valamint a ritka, kiugró mérési hibák sem befolyásolhatják
 a tanulást. 
 A hiba akkor a legkisebb, amikor a modell cellánként a
-legvalószínűbb értéket (a mediánt) becsli. Ez a távolságképen különösen
+legvalószínűbb értéket, vagyis a mediánt becsli. Ez a távolságképen különösen
 fontos, mert egy tárgy széle éles ugrásként jelenik meg. Az üres,
-visszaverődés nélküli cellák ugyanakkora súllyal számítanak, így a modell
-azt is megtanulja, hol végződik egy tárgy. A rekonstrukción
+visszaverődés nélküli cellák kisebb, 0,25-ös súllyal számítanak, mert a kép jelentős részét
+kitevő üres területek különben elnyomnák a valódi távolságok hibáját. Mivel így is
+beleszámítanak, a modell azt is megtanulja, hol végződik egy tárgy. A kötegméret 32, a
+tanulási ráta $4{,}5\cdot10^{-6}$ volt. A rekonstrukción
 (\ref{fig:lidar_rec_graph}.~ábra) a közeli járművek és az út széle jól
 kivehetők, a finom részletek viszont láthatóan kevésbé maradnak hangsúlyosak.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{pictures/sensors/lidar/lidar_rec_graph.png}
-  \caption{A gráf-alapú autoenkóder rekonstrukciói két képkockán
-    (sötétebb = közelebb, fehér = nincs visszaverődés)}
+  \caption{A gráf-alapú autoenkóder rekonstrukciói két képkockán;
+    a sötétebb szín közelebbi pontot jelöl, a fehér cellából nem érkezett visszaverődés}
   \label{fig:lidar_rec_graph}
 \end{figure}
 
@@ -772,58 +838,60 @@ kiválasztott ponttal.
 A pontfelhőt 512 darab, egyenként 32 pontos foltra bontja. Ezek után a foltok középpontjait 
 legtávolabbi-pont mintavételezéssel választja ki. Erre azért van okvetlenül szükség,
 hogy egyenletesen lefedjék a jelenetet. Minden ponthoz a 32 legközelebbi
-szomszédot rendeli. Minden foltot egy kis háló egy 192 elemű vektorrá (tokenné)
+szomszédot rendeli. Minden foltot egy kis háló egy 192 elemű vektorrá, úgynevezett tokenné
 alakít, a foltok helyét pedig külön pozíciókódolás segítségével adja meg. 
 
 Ezen tokeneket egy Transformer kódoló dolgozza fel. Az eljárás során a foltok 60\%-át elrejti,
 és a modellnek a látható foltokból kell visszaállítania a rejtetteket. Ezen modell esetén a hibát 
-Chamfer távolsággal mértem, mely mindkét pontfelhő minden pontjához
+Chamfer-távolsággal mértem, mely mindkét pontfelhő minden pontjához
 megkeresi a másik felhő legközelebbi pontját.  
-Ezeknek a pontoknak a  távolságát átlagolja, ez által nem függ a pontok sorrendjétől. 
+Ezeknek a pontoknak a  távolságát átlagolja, ezáltal nem függ a pontok sorrendjétől.
+A kötegméret 40 volt, a tanulási ráta rövid felfutás után koszinuszos ütemezéssel
+$2\cdot10^{-3}$-ról $2\cdot10^{-5}$-re csökkent.
 A kódoló kimenete, vagyis a látens reprezentáció 512 token, egyenként 192 dimenzióval, ami összesen
 98\,304 érték. 
 
-Ez jelentősen több, magánál a bemenetnél is (24\,576 pont $\times$ 3 koordináta =
-73\,728 érték), vagyis ez a modell nem tömörít. A maszkolt autoenkóder nem szűk
+Ez jelentősen több, mint maga a bemenet, amely 24\,576 pont $\times$ 3 koordináta, azaz
+73\,728 érték, vagyis ez a modell nem tömörít. A maszkolt autoenkóder nem szűk
 keresztmetszettel, hanem a kitakart foltok visszajóslásával tanult így mint kiderült számomra használhatatlan lett.
 A legtávolabbi-pont mintavételezés ráadásul véletlen pontból indul, 
 ezért ugyanaz a képkocka kétszer kódolva is más sorrendű, részben más 
 foltokból álló tokensort ad. 
 
-A rekonstrukción(\ref{fig:lidar_rec_mae}.~ábra) a jelenet nagy vonalai felismerhetők, de a
+A rekonstrukción (\ref{fig:lidar_rec_mae}.~ábra) a jelenet nagy vonalai felismerhetők, de a
 pontok csomókba tömörülnek, és a járművek körvonala elvész.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{pictures/sensors/lidar/lidar_rec_mae.png}
-  \caption{A Point-MAE rekonstrukciói felülnézetből (a háromszög a saját
-    jármű)}
+  \caption{A Point-MAE rekonstrukciói felülnézetből; a háromszög a saját
+    járművet jelöli}
   \label{fig:lidar_rec_mae}
 \end{figure}
 \newpage
 
 \subsubsection{Összehasonlítás és a választott modell}
 
-A megfelelő LiDAR autoenkóder keresése elején 3 modellt készítettem, 
+A megfelelő LiDAR autoenkóder keresése elején három modellt készítettem, 
 de a Point-MAE-t kihagytam az összehasonlításból, mert mint kiderült nem lett megfelelő 
-ahoz amire én használnám. A látense (98\,304 érték) nagyobb, mint maga a
+ahhoz, amire én használnám. A 98\,304 értékből álló látense nagyobb, mint maga a
 bemenet, vagyis nem tömörít. 
 
-Így a következőkben a másik két modellre fokuszálnék. Mindkét megoldás 
+Így a következőkben a másik két modellre fókuszálnék. Mindkét megoldás 
 más-más bemenetet állít vissza, ezért a rekonstrukciós
 hibájuk nem vethető össze.  
 
 Ezen okból másképp fogtam meg azon kérdést, hogy vajon hogyan is válasszam ki a legjobb rekonstrukciót.
-Az alapegondolás onnan indult, hogy az ágens ugye nem a rekonstrukciót kapja meg, 
+Az alapgondolat onnan indult, hogy az ágens ugye nem a rekonstrukciót kapja meg, 
 hanem a kódoló kimenetét, a látens minőségének elemzésére fektettem a hangsúlyt. 
 Legfőbb célom volt kideríteni, hogy melyik eljárás képes a legjobban megőrizni a környezet geometriáját. 
-Összesen 3db mérést végeztem az adathalmazból véletlenszerűen kiválasztott 2000db képkockákon. 
+Összesen három mérést végeztem az adathalmazból véletlenszerűen kiválasztott 2000 képkockán. 
 
 Az eljárások a következők:
 \begin{itemize}
   \item \textbf{Effektív rang} (RankMe~\cite{garrido2023rankme}): a látens
     dimenziók mekkora része hordoz, gyakorlatilag azt mérem 
-    mennyire zajos a látens vektor (1 = teljes kihasználtság).
+    mennyire zajos a látens vektor; az 1-es érték teljes kihasználtságot jelent.
   \item \textbf{k-NN konzisztencia}~\cite{oquab2024dinov2}: a látens térben
     legközelebbi képkockák valóban hasonló jelenetet mutatnak-e; a
     szomszédok pontfelhői hányszor közelebb vannak egymáshoz, mint két
@@ -858,27 +926,27 @@ felett van, tehát egyik látense sem omlott össze néhány dimenzióra.
   \centering
   \includegraphics[width=0.9\textwidth,trim={30pt 151pt 0 0},clip]{pictures/sensors/lidar/lidar_smoothness.pdf}
   \caption{A látens változása két szomszédos képkocka között, 400 egymást
-    követő képkockán (5~Hz); a szaggatott vonal két véletlen képkocka
+    követő, 5~Hz-cel rögzített képkockán; a szaggatott vonal két véletlen képkocka
     látensének átlagos távolsága}
   \label{fig:lidar_smooth}
 \end{figure}
 
-A fenti mérésekből következtetve, a gráf-alapú autoenkódert választottam. Ennek a 
-látense követi a legpontosabban a jármű folyamatos mozgását. Ez a tulajdonság kiemelkedően fotnos  
-az ágens számára mivel az egymást követő lépésekben következetes bemenetet kap. 
-\subsection{Szenzorfuzio}
+A fenti mérésekből következtetve a gráf-alapú autoenkódert választottam. Ennek a 
+látense követi a legpontosabban a jármű folyamatos mozgását. Ez a tulajdonság kiemelkedően fontos  
+az ágens számára, mivel az egymást követő lépésekben következetes bemenetet kap. 
+\subsection{Szenzorfúzió}
 
 A két autoenkóder látense jóval nagyobb, számokban is és nagyságrendileg is, mint az ágens többi bemenete. 
 A LiDAR látens 16$\times$11$\times$32, azaz 5\,632 érték, a kamera látense 128 érték, míg
 a jármű állapotát leíró megfigyelések összesen 38 számszerű értéket tartalmaznak. 
 
-Ha ezeket a Stable-Baselines3 beépített eljárására bíztam, hogy oldja meg a tanulást
-a látensek nagyságrendileg annyira elnyomták a többi jellet hogy nem mentem semmire a tanítás során,
-gyakorlatilag az ágens nem látta mire figyeljen. 
+Amikor ezek összefűzését az SB3 beépített jellemzőkinyerőjére bíztam, a nagy méretű látensek
+elnyomták a többi bemenetet, és az ágens nem tanult meg érdemben vezetni. Ezért a LiDAR-látenst
+külön ágon tömöríteni kellett, mielőtt a többi bemenettel egyesítettem.
 
 Ezen problémától motiválva saját jellemzőkinyerőt (\emph{feature extractor}) készítettem, 
 amely három külön bemeneti ágon
-dolgozza fel a szenzorokból érkező adatokat, majd ezekt a végén ugy rendezi ahogy nekem tetszik.
+dolgozza fel a szenzorokból érkező adatokat, majd ezekt a végén ugy rendezi ahogy nekem tetszik
 (\ref{fig:fusion}.~ábra).
 \newpage
 
@@ -923,8 +991,8 @@ dolgozza fel a szenzorokból érkező adatokat, majd ezekt a végén ugy rendezi
   \label{fig:fusion}
 \end{figure}
 
-\paragraph{LiDAR ág.} A LiDAR szenzor dekódolójából származó látens nem egy sima vektor, 
-hanem egy több dimenziós jellemzőtérkép. Ezt az ágens saját konvolúciós rétegei dolgozzák
+\paragraph{LiDAR ág.} A LiDAR szenzor kódolójából származó látens nem egy sima vektor, 
+hanem egy többdimenziós jellemzőtérkép. Ezt az ágens saját konvolúciós rétegei dolgozzák
 fel, amelyek az ő tanulása folyamán finomhangolodnak azon jellemzőkre amire tényleg szűkségesek a modellnek
 gyakorlatilag együtt tanul a modellel. 
 Három 3$\times$3-as konvolúciós réteg csökkenti a térkép méretét 
@@ -934,24 +1002,24 @@ A kapott 768 értéket egy lineáris réteg 256 dimenzióra vetíti.
 
 \paragraph{Kamera ág.} A kamera látense már vektor, ezért itt elég egyetlen
 lineáris réteg, de a fentiekben is említettem, hogy a LiDAR jellemzők 256 dimenziósra csökkentek
-így ha össze akarom adni a 128 hosszú látensel akkor 256 dimenziósra fel kell skáláznom. Ezt szintén 
-egy Lineáris réteggel oldtam meg.
+így ha össze akarom adni a 128 hosszú látenssel akkor 256 dimenziósra fel kell skáláznom. Ezt szintén 
+egy lineáris réteggel oldtam meg.
 
 \paragraph{Fúzió.} A lényeges rész a fuzios eljárás maga esetemben a két szenzorágat 
 összeadással vezettem össze. Azért ezt a megoldást preferáltam 
 az összefűzéssel ellentétben, mert a jellemzőkinyerő végén a kimenet
-alapértelmezetten konkatenálással áll össze, fölösleges még egy összefüzést itt is alkalmazni. 
+alapértelmezetten konkatenálással áll össze, fölösleges még egy összefűzést itt is alkalmazni. 
 Mivel a két ág azonos, 256 hosszú vektort ad, az összeadáshoz nincs szükség további
-vetítő rétegre, és a valamint az egyesített szenzor jellemző vektor mérete sem nő. Az összeg után egy
+vetítő rétegre, és az egyesített szenzorjellemző-vektor mérete sem nő. Az összeg után egy
 LayerNorm rögzíti a vektor teljes skáláját, mert a gráf-alapú kódoló kimenete
-sem korlátos. Viszont a két szenzor ág egymáshoz viszonyított súlyát nem állítom manuálisan,
-ezt az ágensre bízom honnan tud több információra szert tenni.
+sem korlátos. Viszont a két szenzorág egymáshoz viszonyított súlyát nem állítom manuálisan,
+ezt az ágensre bízom, honnan tud több információra szert tenni.
 
 \paragraph{Állapot ág.} A maradék további megfigyelés került utoljára A jármű sebessége,
 az előző lépés kormány- és gázértéke, a következő waypoint irányszöge, a
 manőver one-hot kódolva, valamint a következő 15 waypoint relatív koordinátái.
 
-Ezeket a jellemzőket a megfigyelési tér határai alapján a $[-1,1]$ tartományba skáláztam
+Ezeket a jellemzőket a megfigyelési tér határai alapján a $[-1,1]$ tartományba skáláztam,
 hogy a nagy értékű jelek ne nyomják el a kicsiket, majd egy lineáris réteg,
 ReLU és LayerNorm 64 dimenzióra képezi le őket.
 
@@ -961,23 +1029,21 @@ kritikushálózatának bemenetére, amelyek két, 500 és 300 neuronos rejtett
 rétegből állnak. Így a szenzorinformáció a bemenet nagyobb részét adja, de
 az állapotjelek is külön, saját ágon jutnak el a döntéshozó hálózatig.
 
-\section{Jutalom függvény}
+\section{Jutalomfüggvény}
 \label{sec:reward}
 
-A feladat komplexitása a munka ezen pontján igencsak megnőttt, mivel a jutalom függvény segítségével kell 
-megmagyaráznom az ágensnek az előzés műveletét. Értem ez alatt, hogy az ágensnek biztonságosan, 
-sávot kell tartania, valamint nála lassabb járműveket
-szabályosan, balról kell megelőznie, természetesen ha erre van lehetősége. 
-A feladat megfelelő körbejárására és felderítésére, 5db különböző jutalom függvényt készítettem amelyek a kesőbbiekben a különböző
-modelleket is jelölik.  
-Az (R1--R3)  függvények részletesebben minden forgalmi helyzetre külön, kézzel általam formált tagot tartalmaznak ahol midne tagnak saját 
-célja van. Az utolsó két esertben egy másféle megközelítést alkalmaztam (R4--R5) amely elhagyja a kézi tagokat, egyetlen 
+Kutatásom fő kérdése, hogy milyen jutalomfüggvénnyel tanítható meg az ágensnek a biztonságos
+sávtartás, valamint a nála lassabb járművek szabályos, balról történő megelőzése, ha erre
+lehetőség van. Ennek vizsgálatára öt különböző jutalomfüggvényt készítettem és hasonlítottam
+össze. Ezeket R1-től R5-ig jelölöm, és a velük tanított modelleket is így nevezem.
+Az R1--R3 függvények részletesebben minden forgalmi helyzetre külön, kézzel általam formált tagot tartalmaznak, ahol minden tagnak saját 
+célja van. Az utolsó két esetben, az R4 és az R5 függvénynél másféle megközelítést alkalmaztam, amely elhagyja a kézi tagokat, egyetlen 
 fizikai mennyiséget jutalmaz.
 
 Ugyanakkor a különböző ágensek tanítása során voltak közös konstans metrikák mint például, az epizódzáró büntetés. A járművel 
-való ütközés esetén $-30$, a többi esetben (az útról való letérés, megállás, a sebességhatár túllépése) $-10$.
+való ütközés esetén $-30$, a többi esetben, vagyis az útról való letérésnél, a megállásnál és a sebességhatár túllépésénél $-10$.
 Már az is büntetés az ágensnek, hogy véget ér az epizód, mert onnantól nem kap több jutalmat,
-a $-10$ ezt még megtoldja. Az ütközést tartom a legsúlyosabb hibának, ezért annak háromszoros
+a $-10$ pedig ehhez további büntetést ad. Az ütközés a legsúlyosabb hiba, ezért annak háromszoros
 a büntetése, így az előzésért járó $+5$ miatt sem éri meg kockáztatni.
 Minden modell esetén közös a kormányrángatásért kiszabott büntetés, amelyet a kormányjel lépésenkénti
 változásának kétszereséből számolok. A kettes szorzót úgy választottam, hogy
@@ -993,44 +1059,44 @@ Az alapjutalom amit kap szabad úton négy, nullától egyig terjedő tényező 
   r = v^{1,9} \cdot c \cdot a \cdot s,
   \label{eq:r1_free}
 \end{equation}
-ahol $v$ a sebesség (50~km/h-nál 1, alatta lineáris), $c$ a sávközép-tényező
-(a sáv közepén 1, 2~m-re tőle 0, közte lineáris), $a$ az irányszög-tényező (az útvonal irányába nézve
-1, arra merőlegesen 0, közte lineáris), $s$ pedig a simasági tényező, amely azért felelős hogy a modell ne végezzen hírtelen fölösleges kormány mozdulatokat
+ahol $v$ a sebességtényező, amely 50~km/h-nál 1, alatta lineárisan csökken. A $c$ a sávközép-tényező,
+amely a sáv közepén 1, attól 2~m-re 0, közte lineáris. Az $a$ az irányszög-tényező, amely az útvonal irányába nézve
+1, arra merőlegesen 0, közte szintén lineáris. Az $s$ pedig a simasági tényező, amely azért felelős, hogy a modell ne végezzen hirtelen fölösleges kormánymozdulatokat,
 amikor a sávjában közlekedik. Az $s$-t úgy számolom, hogy veszem a sávközéptől mért
-távolság szórását az utolsó 30 lépésben (1,5~s): ha a szórás 0, akkor $s = 1$, 0,35~m-nél pedig
-már 0. A 2~m azért jó határ, mert ez kicsit több a fél sávszélességnél (kb. 1,75~m), tehát ott
+távolság szórását az utolsó 30 lépésben, vagyis 1,5~s alatt: ha a szórás 0, akkor $s = 1$, 0,35~m-nél pedig
+már 0. A 2~m azért jó határ, mert ez kicsit több a körülbelül 1,75~m-es fél sávszélességnél, tehát ott
 már a szomszéd sávban van az autó. 0,35~m-es szórásnál pedig már szemmel is látszik, hogy
 cikázik a sávon belül.  
 A tagokat szorzás utolján fuzionálom ennek oka, hogy bármelyik kiesése
-nullázza a jutalmat. Az ágnest így kényszerítem arra, hogy egyszerre kell mindegyiket teljesítenie. 
-Az 1.9 es kivehető oka a követkző, az 1-nél nagyobb kitevő hatása az, hogy a lassú
+nullázza a jutalmat. Az ágenst így kényszerítem arra, hogy egyszerre kell mindegyiket teljesítenie. 
+Az 1,9-es kitevő oka a következő, az 1-nél nagyobb kitevő hatása az, hogy a lassú
 haladás aránytalanul keveset ér: 25~km/h sebességnél $v = 0{,}5$, a sebességtag értéke
 viszont már csak $0{,}5^{1,9} \approx 0{,}27$, nem pedig a fele. Ez erősebben ösztönöz
 a sebesség kihasználására, mint egy lineáris tag tenné, ugyanakkor az előzéskor is hatékonyabb mert vonzobbá 
 teszi mert végsősoron a cél, hogy az ágens elkerülje a lassan forgalmirésztvevőket.
 
-A következő eset, amikor az ágens előtt van egy forgalmi szereplő de nem engedélyezett az előzés.
-A saját sávjában 40~m-en belül lassabb jármű megy előtte(foglalt vagy záróvonallal elválasztott szomszédos sáv), 
-akkor követnie kell nem sazbad baleset történjen. Ilyenkor a sebesség helyett 
-helyett a biztonságos követési távolság megtalálását jutalamzom, hogy az ágens 
-megfelelően kövesse aki előtte van.
-A 40~m 50~km/h-nál nagyjából 3~s, ez több, mint a 2~s-os (kb. 28~m) követési távolság,
+A következő eset, amikor az ágens előtt van egy forgalmi szereplő, de nem engedélyezett az előzés.
+Ha a saját sávjában 40~m-en belül lassabb jármű megy előtte, a szomszédos sáv pedig foglalt vagy záróvonal választja el, 
+akkor követnie kell nem szabad baleset történjen. Ilyenkor a sebesség helyett
+a biztonságos követési távolság megtalálását jutalmazom, hogy az ágens 
+megfelelően kövesse azt, aki előtte van.
+A 40~m 50~km/h-nál nagyjából 3~s, ez több, mint a 2~s-os, körülbelül 28~m-es követési távolság,
 így az ágensnek van ideje eldönteni, hogy követ vagy előz.
 
 \begin{equation}
   r_{\text{követés}} = 0{,}8 \, g(h) \, m \cdot c \cdot a \cdot s + p_{\text{TTC}},
   \label{eq:r1_follow}
 \end{equation}
-ahol $h$ a követési időköz (a távolság és a saját sebesség hányadosa az 
-előtte haladóhoz képest), $g$ pedig egy lognormális alakú függvény, 
+ahol $h$ a követési időköz, vagyis az előtte haladótól mért távolság és a saját sebesség
+hányadosa, $g$ pedig egy lognormális alakú függvény, 
 amelynek maximuma 2~s-nál van. A $0{,}8$-as szorzót azért
-alkalmazom, hogy a tökéletes követés kevesebbet érjen a szabad haladásnáL. A sáv
+alkalmazom, hogy a tökéletes követés kevesebbet érjen a szabad haladásnál. A sáv
 közepén, 2~s-os időközzel, az előtte haladóval azonos sebességgel követve a
 lépésjutalom $0{,}8$, míg szabad úton 50~km/h-val $1{,}0$. Így az akkor is
 megéri előzni ha egyébként hibátlanul követ, ezzel kiküszöbölve, hogy szabad 
-út esetén merjen előzni az ágnes.
+út esetén merjen előzni az ágens.
 
-Az $m$ az ágens és az előtte levő jármű sebesség hányadosa ami fentről 1re van korlátozva:
+Az $m$ az ágens és az előtte lévő jármű sebességének hányadosa, amely felülről 1-re van korlátozva:
 \begin{equation}
   m = \min\!\left(\frac{v_{\text{ego}} + 1}{v_{\text{lead}} + 1},\; 1\right).
   \label{eq:r1_match}
@@ -1041,30 +1107,30 @@ távolság és a \emph{saját} sebesség hányadosa, ezért lassítással is nö
 ágens lefékezne és lemaradna, $h$ 2~s fölé nőne, a jutalma mégsem csökkenne. 
 Az $m$ ezt hivatott javítani  a lassabb haladás arányosan bünteti, az előtte haladó
 sebességét elérve, hogy kövesse amíg kell utána már ne érje meg követni. A két tényező együtt azt várja
-el, hogy az ügynök tartsa a kétmásodperces követési időt, és közben haladjon ugyanolyan
+el, hogy az ágens tartsa a kétmásodperces követési időt, és közben haladjon ugyanolyan
 gyorsan, mint az előtte lévő jármű. 
-A számlálóban és a nevezőben szereplő +1es 
+A számlálóban és a nevezőben szereplő +1-es 
 eltolás technikai okból kell, nélküle álló jármű esetén nullával kellene osztani.
 
 A kétmásodperces optimum és a $g$ lognormális alakját a szakirodalomból vettem. A $h$
-időköz csak pozitív lehet, eloszlása pedig jobbra ferde,mivel ayz autóvezetők nagyrészt inkább közelebb haladnak 
-az előttük haladóhhoz mint lemaradjanak.
-Az empirikus forgalmi mérések kimutatják ezt amit a lognormális eloszlás írj le a legjobban~\cite{mei1993lognormal},
+időköz csak pozitív lehet, eloszlása pedig jobbra ferde, mivel az autóvezetők nagyrészt inkább közelebb haladnak 
+az előttük haladóhoz, mint lemaradjanak.
+Az empirikus forgalmi mérések kimutatják ezt amit a lognormális eloszlás írja le a legjobban~\cite{mei1993lognormal},
 a $g$-ben szereplő $\sigma = 0{,}4365$ szórás pedig az NGSIM adathalmazon, 1341 valós
 követési eseményre illesztett eloszlás becsült paramétere~\cite{zhu2020velocity}. A
 jutalom így a tényleges emberi vezetői viselkedéshez igazodik.
 
-A $p_{\text{TTC}}$ (Time to collision) büntetés azt a helyzetet kezeli, amit a $g$ nem lát. A pillanatnyi
+A $p_{\text{TTC}}$ (\emph{time to collision}, TTC) büntetés azt a helyzetet kezeli, amit a $g$ nem lát. A pillanatnyi
 követési időköz lehet ideális úgy is, hogy az ego jármű közben gyorsan közeledik az előtte
 haladóhoz, tehát ütközés veszélye áll fenn. 
 A büntetés az ütközésig hátralévő idő alapján jár,
 7~s alatt lép életbe $0{,}3 \cdot \ln(t/7)$ alakban, és 1,5~s-nál éri el a $-0{,}46$-os
-maximumát. Ha az ügynök nem közeledik az előtte haladóhoz, ez az idő végtelen, és
+maximumát. Ha az ágens nem közeledik az előtte haladóhoz, ez az idő végtelen, és
 büntetés sem jár. Ha az ágens 50~km/h-val megy egy 25~km/h-s autó mögött,
-a 7~s kb. 48~m, tehát a büntetés már akkor elindul, amikor meglátja az előtte lévőt (40~m).
+a 7~s kb. 48~m, tehát a büntetés már akkor elindul, amikor 40~m-ről meglátja az előtte lévőt.
 A logaritmus miatt minél kisebb a TTC, annál gyorsabban nő a büntetés, ezért 1,5~s-nál
 levágom, különben nulla közelében végtelen lenne. A 0,3-as súlyt úgy állítottam be, hogy a
-legnagyobb büntetés ($-0{,}46$) kb. a fele legyen a jó követésért járó $0{,}8$-nak, így a
+legnagyobb, $-0{,}46$-os büntetés kb. a fele legyen a jó követésért járó $0{,}8$-nak, így a
 követési jutalom marad a fontosabb.
 
 
@@ -1075,14 +1141,14 @@ Előzési manőver végrehajtása közben adott lépésenkénti jutalom
 \end{equation}
 ahol $l$ a célsáv közepétől mért távolságot bünteti, $k$ pedig az elhúzódó manővert:
 15~s után, illetve az elhaladást követően sávonként 3~s után négy másodperc alatt
-1-ről 0,3-ra esik. A 15~s-ot szándékosan hagytam bőre: 25~km/h-s sebességkülönbségnél egy
+1-ről 0,3-ra esik. A 15~s-ot szándékosan hagytam bőven: 25~km/h-s sebességkülönbségnél egy
 előzés kihúzódással és visszasorolással együtt nagyjából 8~s, így egy rendes előzést ez még nem
 büntet. Az elhaladás után sávonként 3~s elég arra, hogy nyugodtan visszasoroljon, a 4~s alatti
 fokozatos csökkenés pedig azért van, hogy a jutalom ne essen le egyszerre. A $k$ azért nem megy
 0,3 alá, mert néha a forgalom miatt tényleg nem tud rögtön visszamenni, ilyenkor nem akarom
 büntetni, csak kevesebbet kap, mint a saját sávjában.
 A képletben szereplő 0,3-as alaptag biztosítja, hogy a lassú előzés is jobban
-megérje, mint a lassabb jármű mögötti kullogás. A szabályosan befejezett előzésért
+megérje, mint a lassabb jármű mögötti beragadás. A szabályosan befejezett előzésért
 járművenként egyszer $+5$ bónusz jár. Ez jóval kevesebb a $-30$-as ütközési
 büntetésnél, így egy kockázatos előzés miatt nem éri meg. Azért jár csak egyszer
 járművenként, hogy az ágens ne tudja ki-be sorolgatással gyűjtögetni.
@@ -1090,17 +1156,17 @@ járművenként, hogy az ágens ne tudja ki-be sorolgatással gyűjtögetni.
 Külön tag bünteti azt, ha az ágens előzhetne, de nem teszi: ha 25~m-en belül halad az
 előtte lévő mögött, és nem gyorsabb nála legalább 5~km/h-val, lépésenként
 \begin{equation}
-  r_{\text{kullogás}} = -0{,}1 \cdot \bigl(1 + 0{,}4\,(1 - v) + 0{,}4 \cdot \min(t_{\text{k}}/3,\ 1)\bigr)
+  r_{\text{beragadás}} = -0{,}1 \cdot \bigl(1 + 0{,}4\,(1 - v) + 0{,}4 \cdot \min(t_{\text{b}}/3,\ 1)\bigr)
   \label{eq:r1_lag}
 \end{equation}
-büntetést kap, ahol $t_{\text{k}}$ az egyhuzamban kullogással töltött idő másodpercben.
-A büntetés így $-0{,}10$ (teljes sebességnél, a kullogás elején) és $-0{,}18$ (álló helyzetben,
-legalább 3~s kullogás után) között van: minél lassabb az ágens és minél tovább ragad be, annál
+büntetést kap, ahol $t_{\text{b}}$ az egyhuzamban beragadva töltött idő másodpercben.
+A büntetés így teljes sebességnél, a beragadás elején $-0{,}10$, álló helyzetben,
+legalább 3~s beragadás után pedig $-0{,}18$, tehát minél lassabb az ágens és minél tovább ragad be, annál
 nagyobb. Az együtthatókat kézzel hangoltam be. A $-0{,}1$ kicsi a szabad haladásért járó
 legfeljebb $1{,}0$-hoz képest, így nem a büntetés irányítja az ágenst, csak nem hagyja, hogy
 beragadjon a lassabb autó mögé. A lassúság és a beragadás ideje külön-külön legfeljebb
 40\%-kal növeli a büntetést. Az időtag 3~s alatt éri el a maximumát, így egy rövid lassítás
-alig számít, a hosszú kullogás viszont már igen. Az 5~km/h-s határral azt választom szét, hogy
+alig számít, a hosszú beragadás viszont már igen. Az 5~km/h-s határral azt választom szét, hogy
 az ágens tényleg felzárkózik az előtte lévőre, vagy csak beállt mögé, 25~m-en belül pedig már
 nem közeledik hozzá, hanem mögötte megy.
 Ez az egyetlen eset, amikor
@@ -1108,8 +1174,8 @@ a lépésjutalom nem szorzódik a sávtartási tényezőkkel: ellenkező esetben
 sávtartás csökkentené a büntetés mértékét.
 
 Ha az ágens rossz sávba megy, vagyis jobbra húzódik ki, vagy előzés nélkül átmegy a bal sávba,
-lépésenként $-0{,}5$ büntetést kap. Ez sokkal több, mint a kullogás legnagyobb büntetése
-($-0{,}18$), tehát inkább kullogjon, mint hogy szabálytalanul menjen. A jelenetet viszont nem
+lépésenként $-0{,}5$ büntetést kap. Ez sokkal több, mint a beragadás legnagyobb, $-0{,}18$-os
+büntetése, tehát inkább maradjon a lassabb jármű mögött, mint hogy szabálytalanul előzzön. A jelenetet viszont nem
 zárom le, hogy meg tudja tanulni, hogyan jöjjön vissza a saját sávjába.
 
 
@@ -1119,17 +1185,17 @@ zárom le, hogy meg tudja tanulni, hogyan jöjjön vissza a saját sávjába.
 
 Következőkben itt a második függvény hangolásom, R1-ben a $p_{\text{TTC}}$ 
 büntetés csak akkor járt, ha az előzés nem volt lehetséges.
-A TTC jutalom definiciót megprobáltam átültetni, hogy előzési manőver során
+A TTC jutalom definícióját megpróbáltam átültetni, hogy előzési manőver során
 is alkalmazható legyen. Az R2 egyetlen változtatása,
-hogy ugyanezt a büntetést (7~s küszöb, 0,3 súly) az előzhető állapotra is kiterjesztem.
+hogy ugyanezt a büntetést ugyanazzal a 7~s-os küszöbbel és 0,3-es súllyal az előzhető állapotra is kiterjesztem.
 A büntetés a kihúzódás első méterén fokozatosan szűnik meg, így ha már megkezdi a
-manővert jutalamzom.
+manővert, jutalmazom.
 %-----------------------------------------------------------------------------------------------------------------------------------------------------
 
 \subsection{R3: hangolás bátrabb előzésre}
 \label{subsec:reward3}
 
-Harmadik jutalom függvényem azt hivatott javítani ami az előzőben problémává vált.
+Harmadik jutalomfüggvényem azt hivatott javítani, ami az előzőben problémává vált.
 Az ágens nem mert előzni vagy csak nagyon későn, az R2-vel tanított modell 
 gyakorlatilag nem mert előzni. 
 
@@ -1146,7 +1212,7 @@ büntetlen volt, sőt pozitív jutalmat adott.
     \toprule
     Helyzet & R2 & R3 \\
     \midrule
-    Kullogás 25~km/h-val, 25~m-en belül & $-0{,}12$ & $-0{,}12$ \\
+    Beragadás 25~km/h-val, 25~m-en belül & $-0{,}12$ & $-0{,}12$ \\
     Lemaradás 25--40~m-rel, 25~km/h-val & $+0{,}27$ & $-0{,}12$ \\
     Ráfutás 50~km/h-val, 30~m-re        & $0{,}86$ & $1{,}00$ \\
     Ráfutás 50~km/h-val, 15~m-re        & $0{,}65$ & $0{,}80$ \\
@@ -1159,19 +1225,19 @@ büntetlen volt, sőt pozitív jutalmat adott.
 Miközben az előzés a legjobb esetben is csak
 0,90-et ért, kevesebbet, mint a saját sávban elérhető 1,00. 
 
-Ezeket elnézve a Következő 4 ponton változtat az R3:
+Ezeket elnézve a következő négy ponton változtat az R3:
 
 \begin{enumerate}
   \item Az előzhető helyzetben járó ütközésidő-büntetés küszöbe 7~s-ról 3~s-ra csökken,
         súlya viszont 0,3-ról 0,6-ra nő. Így csak a tényleges késlekedést bünteti, a
         gyors ráfutást nem.
   \item Az előzés lépésjutalma $(0{,}3 + 0{,}6\,v^{1,9})$ helyett
-        $(0{,}4 + 0{,}7\,v^{1,9})$, vagyis 50~km/h-nál 0,90 helyett 1,10. Így problámon a 
-        kihuzódást előzés helyzetre jobban jutalamzni
-  \item A lemaradás büntetése mnem csak 25~m-en belül jár, hanem 40~m-en már ez a teljes
+        $(0{,}4 + 0{,}7\,v^{1,9})$, vagyis 50~km/h-nál 0,90 helyett 1,10. Így próbáltam a 
+        kihúzódást előzés helyzetre jobban jutalmazni.
+  \item A lemaradás büntetése nemcsak 25~m-en belül jár, hanem 40~m-en már ez a teljes
         érzékelési tartomány.
-  \item A $+5$ bónusz két részre bontottam így megkapja de máson lesz a hangsúly.
-        A $+2$--t az elhaladáskor és $+3$ a szabályos
+  \item A $+5$ bónuszt két részre bontottam így megkapja de máson lesz a hangsúly.
+        A $+2$-t az elhaladáskor és $+3$ a szabályos
         visszasoroláskor. A 0,98-as diszkonttényező mellett az eredeti, csak a manőver
         végén érkező bónusz a kihúzódás pillanatában mindössze 0,66-ot ért; a
         kettébontás ezt körülbelül 1,13-ra növeli.
@@ -1214,8 +1280,8 @@ kioltják egymást.
 \subsection{R5: potenciálalapú jutalomformálás}
 \label{subsec:reward5}
 
-Az ötödik függvény az elzőre épül csak kiegészíti egy darab plus taggal 
-Az ötletet, Ng, Harada és Russell 1999-es
+Az ötödik függvény az előzőre épül, csak kiegészíti egy darab plusz taggal 
+Az ötletet Ng, Harada és Russell 1999-es
 cikkéből vettem~\cite{ng1999}. Ez a cikk azt vizsgálja,
 hogy lehet az ágensnek plusz jutalmat adni úgy, hogy közben ne tanuljon rossz
 viselkedést. Ez alatt értem, hogy a kézi segítő tagok amik az előző 3 függvényben vannak 
@@ -1230,16 +1296,16 @@ Azt bizonyítják, hogy ha a plusz jutalom
 \end{equation}
 alakú, ahol $s$ az aktuális, $s'$ a következő állapot, $\gamma$ a diszkonttényező, a $\Phi$
 potenciál pedig egy szám, amit minden állapothoz hozzárendelek, és azt méri, mennyire jó
-helyzetben van az ágens (nálam azt, hogy hol tart az előzésben), akkor az ágens ugyanazt a
+helyzetben van az ágens, nálam azt, hogy hol tart az előzésben, akkor az ágens ugyanazt a
 viselkedést tanulja meg a legjobbnak, mint e tag nélkül. A $\Phi$ úgy viselkedik, mint egy szint: ha nő, az
 ágens jutalmat kap, ha csökken, ugyanannyit elveszít. Ha visszaér oda, ahonnan indult,
 összesen nem nyert semmit. 
 Így ezen tag nem viheti rossz irányba a tanulást, csak annyit csinál, hogy a
-jutalom hamarabb megérkezik és csak akkor amikor a helyzet ugy hozza.
+jutalom hamarabb megérkezik és csak akkor amikor a helyzet úgy hozza.
 
 A módszer implementálására szükségem volt, mert az előző függvényben a $+5$ csak az előzés végén jár, nagyjából 5~s-mal
 a kihúzódás után. A 0,98-as diszkonttényező mellett ez a kihúzódás pillanatában már csak kb.
-0,66-ot ér, vagyis az ágens alig érzi a kihuzódást így nem merte annyira alkalmazni sem.
+0,66-ot ér, vagyis az ágens alig érzi a kihúzódást így nem merte annyira alkalmazni sem.
 
 A potenciált úgy választottam, hogy előzés közben
 \begin{equation}
@@ -1249,8 +1315,8 @@ A potenciált úgy választottam, hogy előzés közben
 \end{equation}
 legyen, előzésen kívül pedig nulla. A $d_0$ a megelőzendő autó távolsága a kihúzódáskor,
 a $d$ az aktuális távolsága, így a $\varphi$ azt mutatja, hol tart az elhaladásban: a
-kihúzódáskor 0, és akkor lesz 1, amikor a megelőzött autó már 5~m-rel mögötte van (ezért
-van a nevezőben $+5$~m). A potenciál így kihúzódáskor 2, az elhaladás végén 5, ami
+kihúzódáskor 0, és akkor lesz 1, amikor a megelőzött autó már 5~m-rel mögötte van, ezért
+szerepel a nevezőben $+5$~m. A potenciál így kihúzódáskor 2, az elhaladás végén 5, ami
 pont a $+5$ bónusz. 
 
 Az R4-hez képest tehát nem a cél változik, hanem az, hogy az ágens mikor kapja meg a
@@ -1262,29 +1328,26 @@ jutalmat. Ettől elvárásaim alapján gyorsabban és határozottabban tanul meg
 \subsection{A kiértékelés módszertana}
 \label{subsec:eval_method}
 
-A gépi tanuló megoldások kiértékelése sosem egyetlen futás eredménye ez így én 
-sem egyetlen kiértékelés
-alapján itéltem meg a modellek jóságát. Adott modell viselkedése 
-ugyanazon az útvonalon futásoként eltérő eredményeket produkálhat. Mindig más a 
-viselkedés mivel az egyes kiértékelések között, mindig máshova 
-helyeztem a forgalom többi résztvevői. 
-Tehát egyetlen futás egyáltalán nem jellemzi a modellt, a méréseket
-5-ször megismételtem ugyanazokon az útszakaszokon.
+A modellek teljesítményét statisztikai alapon értékeltem, egyetlen futás kimenetele nem
+jellemzi megbízhatóan a modellt. A modell kiértékelése sztochasztikus, a forgalom résztvevőinek
+kezdőhelyzete bejárásonként véletlenszerű, így ugyanaz a modell ugyanazon az útvonalon is
+eltérő helyzetekbe kerül, ez által eltérő eredmények születhetnek. Ezért minden mérést ötször
+megismételtem ugyanazokon az útszakaszokon.
 
 Tanítás során minden elemet azonosan hagytam, minden esetben a jutalomfüggvényt változtattam.
-A jellemzőkinyerő, az SAC hiperparaméterek ($\gamma = 0{,}98$), 20~Hz-es szimuláció,
+A jellemzőkinyerő, az SAC hiperparaméterek, köztük a $\gamma = 0{,}98$, 20~Hz-es szimuláció,
 ugyanazok az epizódzáró szabályok, minden modell esetében. 
 Minden esetben a modellek pontosan 1 millió lépésen át tanultak a 100-as
-kezdőértékkel. Ezekkel a beállításokkal minden esetben kb 12 óra volt a tanítás. 
+kezdőértékkel. Ezekkel a beállításokkal minden esetben kb. 12 óra volt a tanítás. 
 A kiértékelés során a tanítás végén mentett súlyokat mérem össze egymással, 
 determinisztikus akciók sorozatán. 
 
 A kiértékelő útszakaszok a beépített térkép tíz előre rögzített szakasza. 
-A szakaszokat probáltam úgy válogatni, hogy varianciájúk reprezentativ legyen. Öt szakasz 
+A szakaszokat próbáltam úgy válogatni, hogy varianciájuk reprezentatív legyen. Öt szakasz 
 autópályát tartalmaz, öt pedig
-városi körülnyezetből indul  vezet fel az autópályára (\ref{fig:routes}.~ábra). 
+városi környezetből indul, és vezet fel az autópályára (\ref{fig:routes}.~ábra). 
 A legrövidebb 1,05, a leghosszabb 6,09~km. 
-Minden modellt ezen a tíz útvonalat ötször értékeltem ki, így összesen 250
+Minden modellt ezen a tíz útvonalon ötször értékeltem ki, így összesen 250
 bejárás alapján értékeltem a modelleket. 
 A véletlengenerátor ami  forgalom résztvevőit szabályozza, a kezdőértékeit magam állítottam be, 
 így adott körben minden modell pontosan ugyanazt a forgalmat kapja. Ez által 
@@ -1311,7 +1374,7 @@ ugyanazokon a helyzeteken mérődnek össze a modellek.
 A kiértékelési folyamat a tanítással ellentétben nem áll le az első hibánál. 
 Ha az autó letér az útról, 5~s-ig áll, vagy 60~km/h fölé gyorsul,
 felírom a hibát,  majd visszahelyezem az útra és megy tovább a jelenet.
-A megállás akkor nem számít hibának ha a saját sávjában van előtte jármű
+A megállás akkor nem számít hibának, ha a saját sávjában van előtte jármű,
 ilyenkor a várakozás a helyes viselkedés.
 
 A járművel való ütközést is felírom, de az nem jár visszahelyezéssel. 
@@ -1321,40 +1384,40 @@ Tíz visszahelyezés után az adott jelenet leáll, ezért a  nem egyforma hossz
 az egyes eseményeket. 
  
 
-A modellek lépeseik során kapott jutalmát nem hasznosítottam az összehasonlításhoz, 
+A modellek lépéseik során kapott jutalmát nem hasznosítottam az összehasonlításhoz, 
 mert minden modell más
-jutalomfüggvénnyel tanult. Ez által a csak jutalom alapú összehasonlítások 
-nem lennének reprezentativak. Helyette egyéb módon mérem össze a hasznosságukat, olyan 
+jutalomfüggvénnyel tanult. Ezáltal a csak jutalom alapú összehasonlítások 
+nem lennének reprezentatívak. Helyette egyéb módon mérem össze a hasznosságukat, olyan 
 mérőszámokat nézek, amelyek jutalom függvényel nem hoztatok összefüggésbe hanem a modell fizikai
 viselkedését vizsgálják. Ezek minden modellnél ugyanúgy számolódnak, tehát tényleg vezetési
-képességeiekt tudom összemérni.
+képességeiket tudom összemérni.
 
 Az eredményeket modellenkénti kiértékelését két lépésben átlagoltam. 
 Első lépésben minden útvonalra külön kiszámolok egy értéket az öt 
-bejárásából. Az öt bejárás alatt történt összes eseményt
-(például előzést vagy ütközést) elosztottam az öt bejárás alatt megtett összes
+bejárásából. Az öt bejárás alatt történt összes eseményt,
+például az előzéseket vagy az ütközéseket, elosztottam az öt bejárás alatt megtett összes
 kilométerrel. Ezek által minden útvonalhoz az adott mérőszám egy kilométerre vetített értékét
 kapom. 
 Második lépésben az útvonalértéknek veszem az egyszerű számtani átlagát.
 
-A módszertanra azért volt szükségem mivel az útvonalak hossza nagyon eltér (1,05 és 6,09~km
-között). 
+A módszertanra azért volt szükségem, mivel az útvonalak hossza nagyon eltér, 1,05 és 6,09~km
+között változik. 
 Ha az összes bejárás eseményeinek egyben venném a számtani átlagát az összes kilométerrel, a
 hosszú útvonalak sokkal nagyobb súllyal számítanának. A hatkilométeres útvonal közel
-hatszor annyit számítana mint az egy egykilométeres szakasz.
-Így a két lépéses átlagolással minden útvonal ugyanannyit számít, a hosszától
+hatszor annyit számítana, mint egy egykilométeres szakasz.
+Így a kétlépéses átlagolással minden útvonal ugyanannyit számít, a hosszától
 függetlenül.
 
 \subsection{Eredmények}
 \label{subsec:eval_results}
 
-A modelljeim az alábbi négy szempont szerint hasonlítottam össze, az adatokat a fent említett 
+A modelljeimet az alábbi négy szempont szerint hasonlítottam össze, az adatokat a fent említett 
 és bemutatásra került 10 pályaszakaszon mértem:
 \begin{itemize}
   \item \textbf{Sebesség és menetidő:} milyen gyorsan haladt a modell, és mennyi idő alatt
   ért célba.
-  \item \textbf{Előzések:} hány jármű mellett haladt el, ebből hány volt szabályos (az
-  előzési állapotgép szerint), és a megkezdett előzések hány százaléka sikerült.
+  \item \textbf{Előzések:} hány jármű mellett haladt el, ebből hány volt szabályos az
+  előzési állapotgép szerint, és a megkezdett előzések hány százaléka sikerült.
   \item \textbf{Kormányzás és sávtartás:} a kormányjel lépésenkénti átlagos változása, és az
   idő hány százalékában volt az autó a sáv közepétől 0,5~m-en belül.
   \item \textbf{Ütközések és visszahelyezések:} hány járművet ütött el, és hányszor kellett
@@ -1362,7 +1425,7 @@ A modelljeim az alábbi négy szempont szerint hasonlítottam össze, az adatoka
 \end{itemize}
 
 A táblázatokban és az ábrákon mind az öt modell egymás mellett szerepel,
-útvonaltípusonként bontva (autópálya, városból autópályára).
+autópályás és városból autópályára vezető útvonalakra bontva.
 Adott típusonkénti 25 bejárását
 összesítve.
 
@@ -1374,7 +1437,7 @@ Adott típusonkénti 25 bejárását
 \begin{table}[htbp]
   \centering
   \caption{Átlagsebesség és menetidő útvonaltípusonként. A menetidő az útvonalak célba
-  érési idejének összege (útvonalanként a célba ért bejárások átlaga), az utolsó
+  érési idejének összege, útvonalanként a célba ért bejárások átlagával. Az utolsó
   oszlop a célba ért bejárások száma az 50-ből.}
   \label{tab:speed}
   \begin{tabular}{lrrrrrrr}
@@ -1405,10 +1468,10 @@ A sebességért felelős \ref{tab:speed}.~táblázat valamint a \ref{fig:eval_sp
 modellre bontva mutatja be az
 átlagsebességek közötti különbségeket valamint, hogy mennyi idő alatt 
 tették meg a pályaszakaszokat. 
-A 250 bejárásból összesen 248 db célba is ért, a maradék 2 azon esetek amikor többszöri probálkozás
-után (10db volt megengedett) a modell nem tudota befejezni egyáltalán az adott szakaszt.
+A 250 bejárásból összesen 248 célba is ért, a maradék 2 azon esetek amikor többszöri, legfeljebb 10 megengedett próbálkozás
+után a modell nem tudta befejezni egyáltalán az adott szakaszt.
 
-Kiindulásom az R1 függvény volt ez szolgált alapúl, amely 39,6~km/h-s átlagsebességgel
+Kiindulásom az R1 függvény volt, ez szolgált alapul, amely 39,6~km/h-s átlagsebességgel
 haladt végig a tíz útvonalon.
 Összesen az 50 bejárását 3121~s alatt teljesítette, valamint 49 alkalommal érte el a célt.
 
@@ -1418,7 +1481,7 @@ TTC-büntetés, az R2-ben viszont ugyanúgy 7~s-os küszöbbel és 0,3-es súlly
 $-0{,}46$-ot 1,5~s-nál.
 Ennek oka mégpedig az, hogy az ágens előzés során ne közelítse veszélyesen meg az előtte haladót. 
 Ennek hatására érezhetően lelassult, az átlagsebessége 39,6-ról 35,5~km/h-ra csökkent.
-Értelemszerűen  a menetidőn is érezhető lett a kissebb átlagsebesség 3121-ről 3543~s-ra
+Értelemszerűen  a menetidőn is érezhető lett a kisebb átlagsebesség 3121-ről 3543~s-ra
 nőtt.
 Oka, hogy 25~km/h-s sebességkülönbség mellett a 7~s-os küszöb körülbelül 48~m-t
 jelent, így a büntetés már az előtte haladó jármű észlelésekor életbe lépett, és a modell az
@@ -1427,18 +1490,18 @@ előzés helyett inkább lassított és a jármű mögött maradt.
 A következőben az R3-ban az előzést próbáltam vonzóbbá tenni. 
 Előzhető helyzetben a TTC-küszöböt 7-ről 3~s-ra csökkentettem, hogy a büntetés 
 csak valóban közeli helyzetben hasson, a súlyát viszont 0,3-ról 0,6-ra emeltem, 
-hogy ott erősebben jelezzem az ágnesnek a helyzetet. 
+hogy ott erősebben jelezzem az ágensnek a helyzetet. 
 Az előzés lépésjutalmát megnöveltem, 50~km/h-nál 0,90 helyett 1,10 járt, a tervem az volt, hogy az 
 előzés többet érjen a követésnél.
-A lemaradás büntetését za előző 25~m helyett 40~m-re kiterjesztettem, ettől azt vártam, hogy a 
+A lemaradás büntetését az előző 25~m helyett 40~m-re kiterjesztettem, ettől azt vártam, hogy a 
 modell ne maradjon le messze a lassabb jármű mögött. 
 A várt hatással ellentétben a modell tovább lassult. 
 Átlagsebessége 31,7~km/h-ra esett, menetideje 3941~s-ra nőtt.
 A legnagyobb jelentősebben az autópályán volt érzékelhető, ugyanis itt 
 sebesség 35,0~km/h-ról 29,5~km/h-ra csökkent. 
-Az ágens gyakrabban állt meg ok nélkül az ez okozta visszathelyezések  
+Az ágens gyakrabban állt meg ok nélkül az ez okozta visszahelyezések  
 száma 3-ról 14-re nőtt
-(\ref{tab:safety}.~táblázat), a jelenség okozja a megduplázott TTC büntetés és a felezett idő.
+(\ref{tab:safety}.~táblázat), a jelenség oka a megduplázott TTC büntetés és a felezett idő.
 
 Az R4 esetében ami ugye a haladás alapú modell, Ha az ágens teszem fek 25~km/h-s forgalmi
 szereplő mögött haladt lépésenként 0,5 jár az R3 $-0{,}12$-je helyett, de ugye ez alatt értem a helyzeteket
@@ -1446,9 +1509,9 @@ amikor kihagyta az előzést,. Ezek mellett amikor szabadott elkerülést végre
 akkor 50~km/h nál az 1,0-t kapott az R31,10-e helyett. 
 A TTC-büntetés kikerült, az ütközést csak a $-30$-as terminális büntetés
 tanítja. 
-Összeségében ezen a területen R4 hozta a legnagyobb javulást. Az előző R3-hoz képest
+Összességében ezen a területen R4 hozta a legnagyobb javulást. Az előző R3-hoz képest
 a sebesség 31,7-ről 39,4~km/h-ra nőtt,
-ami gyakorlatilag az R1 szintje (39,6~km/h), a menetidő pedig 3941-ről 3174~s-ra csökkent,
+ami gyakorlatilag az R1 39,6~km/h-s szintje, a menetidő pedig 3941-ről 3174~s-ra csökkent,
 ami az R1 3121~s-ához áll közel. Az R2-vel és az
 R3-mal ellentétben a modell már nem maradt a lassabb jármű mögött, hanem külön ösztönzés
 nélkül is előzött. A célba érések száma az R1-hez hasonlóan 49 lett.
@@ -1463,17 +1526,17 @@ legjobb, és mind az 50 bejárás célba ért.
 \paragraph{Célba nem ért bejárások.} 
 
 Következőkben nézzük miért is nem teljesítették a modellek az egyes szakaszokat. 
-Az ágensek vezetési képességének a kihivást jelentették a városból autópályára 
+Az ágensek vezetési képességének a kihívást jelentették a városból autópályára 
 vezető útszakaszok.
 A 2 sikertelen bejárás a városból induló 2. és 4. számú pályákon történt.
 
 Az R1 a 2. útvonal 2. körében 0,54~km után akadt el. Mind a 10 visszahelyezés ugyanazon a
-ponton történt. Az ágens egy kanyarban akadt el a kormány 0,5--0,7-es kitérésben volt. 
-Itt valamiért felgyült a modell hibája és nem volt képes kezeni a szituációt.
-A másik kirivó eset a kiértékelések során az R4 modell okozta mégpedig 
+ponton történt. Az ágens egy kanyarban akadt el, a kormány 0,5--0,7-es kitérésben volt. 
+Itt valamiért felgyűlt a modell hibája, és nem volt képes kezelni a szituációt.
+A másik kirívó eset a kiértékelések során az R4 modell okozta, mégpedig 
 a 4. pálya 4. körében akadt el. Ezen esetben a 10 letérésből kettő 1,52~km-nél, 
 nyolc a 3,16--3,35~km-es szakaszon.
-Itt található az autópálya felvezető, S alakú felhajtó. Itt a
+Itt található az autópálya-felvezető, S alakú felhajtó. Itt a
 modell egy előtte 2--3~m-re haladó jármű mögött újra és újra 2~m fokozatosan kisodródott a
 sáv közepéből, ami letérésnek számít, és visszahelyezés után néhány tíz méterrel később ugyanez
 megismétlődött. Ezen a szakaszon a többi modell legfeljebb egyszer tért le, majd célba ért.
@@ -1481,20 +1544,20 @@ megismétlődött. Ezen a szakaszon a többi modell legfeljebb egyszer tért le,
 %----------------------------------------------------------------------------------------------------------------------------------------------
 \subsubsection{Előzések sikerességének vizsgálata}
 
-Ebben a részben vizsgálom az ágensek egyik legfontosabb karakterisztikájét, azt hogy hogyan 
-is képesek elkerülni a forgalm többi résztvevőit.
+Ebben a részben vizsgálom az ágensek egyik legfontosabb karakterisztikáját, azt, hogy hogyan 
+is képesek elkerülni a forgalom többi résztvevőit.
 Ezeket a manővereket két szinten mértem ki. 
 Először is az elhaladás minőségének szintjén minden jármű, amely mellett a modell
-elhaladt, vagy szabályos, vagy szabálytalan, értem ez alatt, hogy szépen huzodott mellé nem ment 
-tul közel az elkerülendő járművekhez, visszahuzodáskor nem zár rá a járműre. 
+elhaladt, vagy szabályos, vagy szabálytalan, értem ez alatt, hogy szépen húzódott mellé, nem ment 
+túl közel az elkerülendő járművekhez, visszahúzódáskor nem zár rá a járműre. 
 Ezeknek arányát adja meg a szabályos elhaladások százaléka. 
 Másodlagosan arra voltam kíváncsi, hogy a megkezdett előzések hány százaléka zárult
-szabályosan, ütközés nélkül. Előfordultak esetek amikor az ágens belekezdett egy előzési manőverbe 
+szabályosan, ütközés nélkül. Előfordultak esetek, amikor az ágens belekezdett egy előzési manőverbe 
 de végül feladta, és visszasorolt a saját sávjába.
 
 Az elhaladások számát és szabályosságát a \ref{tab:overtakes}.~táblázat mutatja, 
-Az előzési kísérletek sikerességét pedig a \ref{tab:overtake_success}.~táblázat foglalja össze.
-Mindkét táblázat útvonaltípusonként szerepelnek az értékek, az adott típus mind a 25
+az előzési kísérletek sikerességét pedig a \ref{tab:overtake_success}.~táblázat foglalja össze.
+Mindkét táblázatban útvonaltípusonként szerepelnek az értékek, az adott típus mind a 25
 bejárását összesítve.
 
 \begin{table}[!htb]
@@ -1519,7 +1582,7 @@ bejárását összesítve.
 
 \begin{table}[!htb]
   \centering
-  \caption{A sikeres (szabályosan, ütközés nélkül zárult) előzési kísérletek aránya
+  \caption{A sikeres, vagyis szabályosan és ütközés nélkül zárult előzési kísérletek aránya
            útvonaltípusonként.}
   \label{tab:overtake_success}
   \begin{tabular}{lrrr}
@@ -1538,8 +1601,8 @@ bejárását összesítve.
 \end{table}
 
 A \ref{tab:overtakes}.~táblázatból az látszik, már rögtön elsőre, hogy csak autópályán minden
-ágens szabályosabban előzőtt (95--98\%), mint a városból induló útvonalakon (80--88\%). 
-Első ágensem a kiindulási modell (R1) összesen 1009 jármű mellett haladt el,
+ágens szabályosabban előzött (95--98\%), mint a városból induló útvonalakon (80--88\%). 
+Első ágensem, a kiindulási R1 modell összesen 1009 jármű mellett haladt el,
  ebből 948 volt szabályos elhaladás és
 61 szabálytalan, ami 94,0\%-os szabályos arányt jelent, ez az összes modell közül a
 legjobb, a megkezdett előzéseinek pedig 74,6\%-a sikerült
@@ -1547,38 +1610,38 @@ legjobb, a megkezdett előzéseinek pedig 74,6\%-a sikerült
 
 Az R2 modell az előzhető helyzetben járó TTC-büntetés 0-ról legfeljebb $-0{,}46$-ra nőtt a 
 kiegészítés okán ez R1-ben nem járt itt viszont R2-ben már 7~s-os küszöbbel és 0,3-es
-súllyal adatam a modellnek. Ennek eredményeként az elhaladások száma 1009-ről 827-re csökkent (772
+súllyal adtam a modellnek. Ennek eredményeként az elhaladások száma 1009-ről 827-re csökkent (772
 szabályos, 55 szabálytalan), a szabályos arány 94,0-ről 93,3\%-ra, a sikeres kísérleteké
 74,6-ról 60,4\%-ra esett, autópályán 78,3-ról 63,2\%-ra, a városból induló útvonalakon
-70,2-ről 56,2\%-ra.Itt jól látszik, hogy az ágens nem mert annyira előzni.
+70,2-ről 56,2\%-ra. Itt jól látszik, hogy az ágens nem mert annyira előzni.
 Ezt a visszaesést hivatott orvosolni az R3 függvény ágense. Ebben a TTC-küszöb 7-ről 3~s-ra csökkent, a súlya 0,3-ról 0,6-ra, az előzés
 lépésjutalma 50~km/h-nál 0,90-ről 1,10-re nőtt, a lemaradás büntetése 25 helyett 40~m-ig
 tartott, a $+5$-ös bónusz pedig $+2$ és $+3$ részre vált. Ennek ellenére az elhaladások
 száma 827-ről 556-ra esett (505 szabályos, 51 szabálytalan), a szabályos arány
 93,3-ról 90,8\%-ra, a sikeres kísérleteké pedig 60,4-ről 45,8\%-ra csökkent. Ennek oka az, hogy 
-mivel a büntetés megduplázodott a tavolsag felénél, így a modell még annyiszor se mert 
+mivel a büntetés megduplázódott a távolság felénél, így a modell még annyiszor se mert 
 kiállni előzni. 
 
 Ezen a ponton a nagyobb áttörést az R4-től vártam vagyis a haladás utáni jutalomtól.
 Egy 25~km/h-s jármű mögött lépésenként 0,5 az R3 $-0{,}12$-je helyett, előzés közben
 50~km/h-val 1,0 az 1,10 helyett, a TTC-büntetés pedig kikerült. Ezekkel a beállításokkal
-az ágnes újra sokat előzött, valamint az elhaladások száma 556-ról 1018-ra, a 
+az ágens újra sokat előzött, valamint az elhaladások száma 556-ról 1018-ra, a 
 sikeres kísérletek aránya 45,8-ról 72,3\%-ra nőtt. 
 
 
-Itt az 1018 előzésből márcsak 99db volt szabálytalan ennek köszönhetően
+Itt az 1018 előzésből már csak 99 volt szabálytalan ennek köszönhetően
 az arány 90,8-ról 90,3\%-ra kissé csökkent, a városból induló útvonalakon 
 pedig 80,2\% lett, ami ott a legalacsonyabb. 
-Ennekoka meglátásom szerint, hogy R4-ben nincs követési jutalom, ami a lassabb jármű mögött
+Ennek oka meglátásom szerint, hogy R4-ben nincs követési jutalom, ami a lassabb jármű mögött
 tartaná az ágenst.
-Amikor nem szabad előzni, hiába van ott a folytonos vonal az ágens akkor is 
-belemegy az előzési manőverbe és megkísérli elkerülni az előtt haladót. 
+Amikor nem szabad előzni, hiába van ott a folytonos vonal, az ágens akkor is 
+belemegy az előzési manőverbe és megkísérli elkerülni az előtte haladót. 
 
 Az utolsó vagyis az R5 esetén kihúzódás pillanatában azonnal $+2$ jár, a 
 manőver végén érkező $+5$ bónusz 0,66-os diszkontált értéke helyett. 
 Ezeknek eredménye, hogy összesen 1017 elhaladásból 934 volt szabályos és
 83 szabálytalan, a szabályos arány 90,3-ról 91,8\%-ra növekedett. 
-Ezen modellnél látható ahogy a sikeres kísérletek aránya 72,3-ról 75,0\%-ra nőtt, 
+Ezen modellnél látható, hogy a sikeres kísérletek aránya 72,3-ról 75,0\%-ra nőtt, 
 ez a legmagasabb érték, bár az R1 74,6\%-a szinte ugyanennyi. 
 A kiértékelések során jobbról történő elhaladást, tehát ha az ágens saját helyén maradt
 és a bal sávban volt egy nála lassabb jármű nem számoltam szabálytalannak.
@@ -1642,15 +1705,15 @@ Az alábbi \ref{tab:steer}.~táblázat és  \ref{fig:eval_steer}.~ábra
 mutatja ezek változását 
 
 Az R1 modell esetében a sávtartásért két szorzó felelt ezek a szabad haladás valamint a követés
-jutalmában voltak beágyazva. A sávközép-tényező ($c$, a sáv közepén 1, 2~m-re tőle 0) valamint
-a simasági tényező ($s$, a sávközéptől mért távolság 1,5~s alatti szórása alapján 0~m-nél 
-1, 0,35~m-nél 0).
-Emellett minden modellben közös a kormányrángatás büntetése (a kormányjel lépésenkénti
-változásának kétszerese) és a rossz sávért járó $-0{,}5$. Az R1 így kormányzott a
+jutalmában voltak beágyazva. Ezek a $c$ sávközép-tényező, amely a sáv közepén 1, attól 2~m-re 0, valamint
+az $s$ simasági tényező, amely a sávközéptől mért távolság 1,5~s alatti szórása alapján 0~m-nél
+1, 0,35~m-nél 0.
+Emellett minden modellben közös a kormányrángatás büntetése, amely a kormányjel lépésenkénti
+változásának kétszerese, és a rossz sávért járó $-0{,}5$. Az R1 így kormányzott a
 legsimábban (0,028), és a sávot is ez tartotta a legjobban (86,4\%). Az R2-ben és az
 R3-ban a sávtartási tagokhoz nem nyúltam, csak a TTC- és az előzési tagokat változtattam,
 a sávtartás mégis 73,7, majd 59,8\%-ra romlott, az R2-ben a kormányváltozás 0,037-re nőtt.
-Ezt a megkezdett de be nem fejezett elkerülési kísérletek okozzák, mindegyik egy plusz 
+Ezt a megkezdett, de be nem fejezett elkerülési kísérletek okozzák, mindegyik egy plusz 
 kormánymozdulatot ad oda és
 vissza. 
 Az R4-ben a $c$ és az $s$ szorzót elhagytam, helyettük minden sávban csak a célsáv
@@ -1721,38 +1784,38 @@ visszahelyezni.
 
 \section{Összegzés}
 
-Munkám célja egy önevezető ágens fejlesztése a CARLA szimulátorban amely csak a kamera
+Munkám célja egy önvezető ágens fejlesztése a CARLA szimulátorban, amely csak a kamera
 és a LiDAR adatok alapján vezet valamint képes 
 biztonságosan elkerülni a nála lassabb forgalmi résztvevőket. 
-Az ágens típuának a Soft Actor-Critic algoritmust választottam. 
-Tanítás során nem a nyers szenzoradatokat hanem előre betanított autóenkóderekkel tömörített
+Az ágens típusának a Soft Actor-Critic algoritmust választottam. 
+Tanítás során nem a nyers szenzoradatokat, hanem előre betanított autoenkóderekkel tömörített
 információt adtam a modellnek. A kameraképet egy
 konvolúciós enkóder, a LiDAR pontfelhőjéből kinyert adatokat egy gráfalapú 
 enkóder segítségével helyeztem a látens térbe. Ezen adatokat egy összeadás alapú 
-fúzió után hozzáfüzőm az autó többi jellemzőjéhez.
+fúzió után hozzáfűzöm az autó többi jellemzőjéhez.
 
 A munka nagyobbik felét a jutalomfüggvény megfelelő definiálása volt. Ennek okán öt változatot is 
 készítettem, különböző paraméterezésekkel majd megvalósításokkal. A modellek tanításait azonos 
 beállításokkal végeztem egyetlen különbség a jutalom függvény volt csak. 
-Az első modell (R1) a sávtartást és a szabályos előzést jutalmazza külön definiált tagokkal. 
+Az első modell, az R1 a sávtartást és a szabályos előzést jutalmazza külön definiált tagokkal. 
 Az R2-ben és az R3-ban ezt próbáltam tovább hangolni ezeket a tagokat a jobb eredmény elérése 
 érdekében, első körben a TTC-büntetés kiterjesztésével, majd az előzési tagok erősítésével
 akartam maximalizálni a modell viselkedését. 
-A 4ik modellnél új megközelítést alkalmaztam itt csak a haladás után adtam jutalmat, az R5 pedig ezt egészíti
+A negyedik modellnél új megközelítést alkalmaztam itt csak a haladás után adtam jutalmat, az R5 pedig ezt egészíti
 ki egy potenciálalapú előzési jutalommal.
 
-A kiértékelést 10db előre definiált útvonalon végeztem 
+A kiértékelést tíz előre definiált útvonalon végeztem 
 mindegyiken ötször, összesen 250 bejárást végeztem le.
 Mérőszámoknak olyanokat választottam, melyek függetlenek a jutalomtól. 
 
 A kézi hangolás nem egészen hozták a tőlük elvárt eredményeket. 
 Az R2 és az R3 ágensek lelassultak, kevesebbszer és gyengébb minőségben voltak képesek az 
-elkerülésre, Az harmadik modell esetén hiába erősítettem az előzésre, az pont az ellenkezőjét
+elkerülésre. A harmadik modell esetén hiába erősítettem az előzésre, az pont az ellenkezőjét
 váltotta ki a tanulás során. 
 A haladásalapú R4 az új megközelítés segítségével különösebb ösztönzés nélkül is visszahozta az
 eredeti R1 sebesség valamint előzési teljesítményt is.
 
-Összességében egyértelmű legjobb modellt nem lehet kimondani mivel, a két legjobb modell más-más
+Összességében egyértelmű legjobb modellt nem lehet kimondani, mivel a két legjobb modell más-más
 dologban jobb. 
 Az R5 volt a leggyorsabb (40,1~km/h, 3056~s), és mind az 50 bejárás során
 célba ért. Biztonság szempontjából is ez teljesített a legjobban, ugyanis ütközés aránya a
@@ -1764,23 +1827,23 @@ jobban tartotta a sávnak a közepét (86,4\% a 70,3\% helyett).
 Az előzési kísérletek sikerességében a
 kettő gyakorlatilag egyforma (74,6 és 75,0\%). 
 
-Az eredményekből fény derül arra hogyan lehet érdemes egy ágenst mozgó járművek elkerülésére tanítani. 
+Az eredményekből fény derül arra, hogyan lehet érdemes egy ágenst mozgó járművek elkerülésére tanítani. 
 Nem érdemes minden helyzetre külön kézi tagot írni, egyrészt ezek a tagok könnyedén kiolthatják egymást
-így az ágens nem azt tanulja meg, amit szeretnénk hanem a szabály lekerülését. 
+így az ágens nem azt tanulja meg, amit szeretnénk, hanem a szabály megkerülését. 
 Nem bizonyult hatékonynak az ötlet miszerint előzés közben büntetem a
 közeledést a második modell esetén világos, hogy ettől az ágens nem fog hatékonyabban előzni. 
 Jobban működik, ha a jutalom egyszerűen a haladást díjazza, így a lassabb autó mögött maradás magától
 kevesebbet ér, és az ágens rájön, hogy előzni megéri. 
 Az előzés megkezdését pedig érdemes
-rögtön jutalmazni, ez látszik az R5 modellen is ahol a potenciálalapú tag életbelépett, 
+rögtön jutalmazni, ez látszik az R5 modellen is ahol a potenciálalapú tag életbe lépett, 
 az eljárás nem változtat azon, hogy mi a legjobb stratégia, csak hamarabb jelez az ágensnek. 
-Következő tovább fejlesztési lehetőség az lenne, ha az R5 függvénybe visszakerülne sávtartás büntetése, 
-így az ágens ugyanolyan gyorsan és sikeresen előzne de szebben tartaná a sávokat. 
-Mindenképp az ötödik függvény tövább fejlesztésének irányában indulok
+Következő továbbfejlesztési lehetőség az lenne, ha az R5 függvénybe visszakerülne sávtartás büntetése, 
+így az ágens ugyanolyan gyorsan és sikeresen előzne, de szebben tartaná a sávokat. 
+Mindenképp az ötödik függvény továbbfejlesztésének irányában indulok.
 
 \section{Köszönetnyilvánítás}
 
-Ezutón szeretném megköszönni témavezetőmnek, Mészáros Lászlónak, a szakmai iránymutatást, 
+Ezúton szeretném megköszönni témavezetőmnek, Mészáros Lászlónak, a szakmai iránymutatást, 
 segítséget valamint a sok hasznos kritikát, ezek segítettek abban, hogy a dolgozat 
 a megfelelő irányba fejlődjön.
 
@@ -1805,7 +1868,7 @@ intelligencia alapú eszközt használtam.
 \textbf{MI eszköz neve és verziója} & \textbf{Pontosan mire használtam} \\[4pt]
 Claude Opus 5.5 & - Általános szövegrészek generálására \\
                 & - Egyszerűbb kódblokkok gyorsabb elkészítésére \\
-                & - Szakirodalom áttanulányozására és értelmezésére \\
+                & - Szakirodalom áttanulmányozására és értelmezésére \\
 \end{tabular}
 
 \medskip

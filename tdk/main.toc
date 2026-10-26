@@ -1,41 +1,42 @@
 \select@language {magyar} \contentsline {section}{\numberline {1}Bevezetés}{4}{section.1}%
 \select@language {magyar} \contentsline {section}{\numberline {2}Szimulációs környezet}{5}{section.2}%
 \select@language {magyar} \contentsline {section}{\numberline {3}Programozás és algoritmus}{7}{section.3}%
-\select@language {magyar} \contentsline {subsection}{\numberline {3.1}Megerősítéses tanulás}{7}{subsection.3.1}%
+\select@language {magyar} \contentsline {subsection}{\numberline {3.1}Megerősítéses tanulás}{8}{subsection.3.1}%
 \select@language {magyar} \contentsline {subsection}{\numberline {3.2}Python programozási nyelv}{9}{subsection.3.2}%
 \select@language {magyar} \contentsline {subsection}{\numberline {3.3}Soft Actor-Critic és a Stable-Baselines3}{10}{subsection.3.3}%
-\select@language {magyar} \contentsline {section}{\numberline {4}Szenzoradatok előfeldozása, Autóenkóderek}{11}{section.4}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.1}Kamera}{12}{subsection.4.1}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {4.1.1}Konvolúciós autoenkóder}{13}{subsubsection.4.1.1}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {4.1.2}Reziduális autoenkóder}{14}{subsubsection.4.1.2}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {4.1.3}VGG-alapú autoenkóder}{14}{subsubsection.4.1.3}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {4.1.4}Összehasonlítás és a választott modell}{15}{subsubsection.4.1.4}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.2}LiDAR}{16}{subsection.4.2}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.1}BEV-alapú autoenkóder}{17}{subsubsection.4.2.1}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.2}Gráf-alapú autoenkóder}{20}{subsubsection.4.2.2}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.3}Point-MAE}{21}{subsubsection.4.2.3}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.4}Összehasonlítás és a választott modell}{22}{subsubsection.4.2.4}%
-\select@language {magyar} \contentsline {subsection}{\numberline {4.3}Szenzorfuzio}{23}{subsection.4.3}%
-\select@language {magyar} \contentsline {paragraph}{LiDAR ág.}{24}{paragraph*.1}%
-\select@language {magyar} \contentsline {paragraph}{Kamera ág.}{24}{paragraph*.2}%
-\select@language {magyar} \contentsline {paragraph}{Fúzió.}{25}{paragraph*.3}%
-\select@language {magyar} \contentsline {paragraph}{Állapot ág.}{25}{paragraph*.4}%
-\select@language {magyar} \contentsline {section}{\numberline {5}Jutalom függvény}{25}{section.5}%
-\select@language {magyar} \contentsline {subsection}{\numberline {5.1}R1: sávtartás és szabályos előzés}{26}{subsection.5.1}%
-\select@language {magyar} \contentsline {subsection}{\numberline {5.2}R2: ütközésidő-büntetés előzhető helyzetben}{28}{subsection.5.2}%
-\select@language {magyar} \contentsline {subsection}{\numberline {5.3}R3: hangolás bátrabb előzésre}{28}{subsection.5.3}%
-\select@language {magyar} \contentsline {subsection}{\numberline {5.4}R4: haladásalapú jutalom}{29}{subsection.5.4}%
-\select@language {magyar} \contentsline {subsection}{\numberline {5.5}R5: potenciálalapú jutalomformálás}{30}{subsection.5.5}%
-\select@language {magyar} \contentsline {section}{\numberline {6}Elkészült modellek összehasonlítása}{31}{section.6}%
-\select@language {magyar} \contentsline {subsection}{\numberline {6.1}A kiértékelés módszertana}{31}{subsection.6.1}%
-\select@language {magyar} \contentsline {subsection}{\numberline {6.2}Eredmények}{33}{subsection.6.2}%
-\select@language {magyar} \contentsline {subsection}{\numberline {6.3}Modellek kiértékelése a szempontok alapján}{33}{subsection.6.3}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.1}Sebesség és menetidő}{33}{subsubsection.6.3.1}%
-\select@language {magyar} \contentsline {paragraph}{Célba nem ért bejárások.}{35}{paragraph*.5}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.2}Előzések sikerességének vizsgálata}{35}{subsubsection.6.3.2}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.3}Kormányzás és sávtartás}{38}{subsubsection.6.3.3}%
-\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.4}Ütközések és visszahelyezések}{39}{subsubsection.6.3.4}%
-\select@language {magyar} \contentsline {section}{\numberline {7}Összegzés}{40}{section.7}%
-\select@language {magyar} \contentsline {section}{\numberline {8}Köszönetnyilvánítás}{41}{section.8}%
-\select@language {magyar} \contentsline {section}{Nyilatkozat mesterséges intelligencia eszközök használatáról}{42}{section.8}%
-\select@language {magyar} \contentsline {section}{Hivatkozások}{43}{section.8}%
+\select@language {magyar} \contentsline {section}{\numberline {4}Szenzoradatok előfeldolgozása, autoenkóderek}{11}{section.4}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.1}Adatok}{12}{subsection.4.1}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.2}Kamera-autoenkóderek}{13}{subsection.4.2}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.1}Konvolúciós autoenkóder}{14}{subsubsection.4.2.1}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.2}Reziduális autoenkóder}{15}{subsubsection.4.2.2}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.3}VGG-alapú autoenkóder}{15}{subsubsection.4.2.3}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {4.2.4}Összehasonlítás és a választott modell}{16}{subsubsection.4.2.4}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.3}LiDAR-autoenkóderek}{18}{subsection.4.3}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {4.3.1}BEV-alapú autoenkóder}{20}{subsubsection.4.3.1}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {4.3.2}Gráf-alapú autoenkóder}{21}{subsubsection.4.3.2}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {4.3.3}Point-MAE}{22}{subsubsection.4.3.3}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {4.3.4}Összehasonlítás és a választott modell}{23}{subsubsection.4.3.4}%
+\select@language {magyar} \contentsline {subsection}{\numberline {4.4}Szenzorfúzió}{24}{subsection.4.4}%
+\select@language {magyar} \contentsline {paragraph}{LiDAR ág.}{25}{paragraph*.1}%
+\select@language {magyar} \contentsline {paragraph}{Kamera ág.}{25}{paragraph*.2}%
+\select@language {magyar} \contentsline {paragraph}{Fúzió.}{26}{paragraph*.3}%
+\select@language {magyar} \contentsline {paragraph}{Állapot ág.}{26}{paragraph*.4}%
+\select@language {magyar} \contentsline {section}{\numberline {5}Jutalomfüggvény}{26}{section.5}%
+\select@language {magyar} \contentsline {subsection}{\numberline {5.1}R1: sávtartás és szabályos előzés}{27}{subsection.5.1}%
+\select@language {magyar} \contentsline {subsection}{\numberline {5.2}R2: ütközésidő-büntetés előzhető helyzetben}{29}{subsection.5.2}%
+\select@language {magyar} \contentsline {subsection}{\numberline {5.3}R3: hangolás bátrabb előzésre}{29}{subsection.5.3}%
+\select@language {magyar} \contentsline {subsection}{\numberline {5.4}R4: haladásalapú jutalom}{30}{subsection.5.4}%
+\select@language {magyar} \contentsline {subsection}{\numberline {5.5}R5: potenciálalapú jutalomformálás}{31}{subsection.5.5}%
+\select@language {magyar} \contentsline {section}{\numberline {6}Elkészült modellek összehasonlítása}{32}{section.6}%
+\select@language {magyar} \contentsline {subsection}{\numberline {6.1}A kiértékelés módszertana}{32}{subsection.6.1}%
+\select@language {magyar} \contentsline {subsection}{\numberline {6.2}Eredmények}{34}{subsection.6.2}%
+\select@language {magyar} \contentsline {subsection}{\numberline {6.3}Modellek kiértékelése a szempontok alapján}{34}{subsection.6.3}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.1}Sebesség és menetidő}{34}{subsubsection.6.3.1}%
+\select@language {magyar} \contentsline {paragraph}{Célba nem ért bejárások.}{36}{paragraph*.5}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.2}Előzések sikerességének vizsgálata}{36}{subsubsection.6.3.2}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.3}Kormányzás és sávtartás}{39}{subsubsection.6.3.3}%
+\select@language {magyar} \contentsline {subsubsection}{\numberline {6.3.4}Ütközések és visszahelyezések}{40}{subsubsection.6.3.4}%
+\select@language {magyar} \contentsline {section}{\numberline {7}Összegzés}{41}{section.7}%
+\select@language {magyar} \contentsline {section}{\numberline {8}Köszönetnyilvánítás}{42}{section.8}%
+\select@language {magyar} \contentsline {section}{Nyilatkozat mesterséges intelligencia eszközök használatáról}{43}{section.8}%
+\select@language {magyar} \contentsline {section}{Hivatkozások}{44}{section.8}%

@@ -220,6 +220,50 @@
       \field{pages}{1\bibrangedash 16}
       \range{pages}{16}
     \endentry
+    \entry{terapaptommakol2022obstacle}{article}{}
+      \name{author}{4}{}{%
+        {{hash=d5ded1c7bca23ee82ce5bd242fbb9abd}{%
+           family={Terapaptommakol},
+           familyi={T\bibinitperiod},
+           given={Wasinee},
+           giveni={W\bibinitperiod}}}%
+        {{hash=33908c440be09fcbf54e454268380f7d}{%
+           family={Phaoharuhansa},
+           familyi={P\bibinitperiod},
+           given={Danai},
+           giveni={D\bibinitperiod}}}%
+        {{hash=aa0a56cfcb96e2b1d0b773d8d177ab3a}{%
+           family={Koowattanasuchat},
+           familyi={K\bibinitperiod},
+           given={Pramote},
+           giveni={P\bibinitperiod}}}%
+        {{hash=6b0780ad606a5f396dc66f0d7247b4bc}{%
+           family={Rajruangrabin},
+           familyi={R\bibinitperiod},
+           given={Jartuwat},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{e8eed1b6c13a0934a0724b232e0a9065}
+      \strng{fullhash}{f105aaf2c2c01cd1a8ce598d83c7ff45}
+      \strng{bibnamehash}{e8eed1b6c13a0934a0724b232e0a9065}
+      \strng{authorbibnamehash}{e8eed1b6c13a0934a0724b232e0a9065}
+      \strng{authornamehash}{e8eed1b6c13a0934a0724b232e0a9065}
+      \strng{authorfullhash}{f105aaf2c2c01cd1a8ce598d83c7ff45}
+      \field{sortinit}{5}
+      \field{sortinithash}{20e9b4b0b173788c5dace24730f47d8c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{World Electric Vehicle Journal}
+      \field{number}{12}
+      \field{title}{Design of Obstacle Avoidance for Autonomous Vehicle Using Deep {Q}-Network and {CARLA} Simulator}
+      \field{volume}{13}
+      \field{year}{2022}
+      \field{pages}{239}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/wevj13120239
+      \endverb
+    \endentry
     \entry{carlaweb}{online}{}
       \name{author}{1}{}{%
         {{hash=3c3526c1335dca7f6527cc7dc96a9a90}{%
@@ -233,8 +277,8 @@
       \strng{authornamehash}{3c3526c1335dca7f6527cc7dc96a9a90}
       \strng{authorfullhash}{3c3526c1335dca7f6527cc7dc96a9a90}
       \field{extraname}{1}
-      \field{sortinit}{7}
-      \field{sortinithash}{108d0be1b1bee9773a1173443802c0a3}
+      \field{sortinit}{6}
+      \field{sortinithash}{b33bc299efb3c36abec520a4c896a66d}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{title}{{CARLA}: Open-source Simulator for Autonomous Driving Research}
@@ -262,8 +306,8 @@
       \strng{authornamehash}{3c3526c1335dca7f6527cc7dc96a9a90}
       \strng{authorfullhash}{3c3526c1335dca7f6527cc7dc96a9a90}
       \field{extraname}{2}
-      \field{sortinit}{9}
-      \field{sortinithash}{0a5ebc79d83c96b6579069544c73c7d4}
+      \field{sortinit}{8}
+      \field{sortinithash}{a231b008ebf0ecbe0b4d96dcc159445f}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{title}{{CARLA} Simulator Documentation (0.9.16)}
@@ -455,48 +499,6 @@
       \verb 10.1038/nature14236
       \endverb
     \endentry
-    \entry{schulman2017ppo}{article}{}
-      \name{author}{5}{}{%
-        {{hash=3e09bd2a25d237ebdaed560a07c0451e}{%
-           family={Schulman},
-           familyi={S\bibinitperiod},
-           given={John},
-           giveni={J\bibinitperiod}}}%
-        {{hash=674ede0b9cd02a2bf5fc662972efb9f0}{%
-           family={Wolski},
-           familyi={W\bibinitperiod},
-           given={Filip},
-           giveni={F\bibinitperiod}}}%
-        {{hash=4164e43d8cf919f5e3f8d80f5ea23f36}{%
-           family={Dhariwal},
-           familyi={D\bibinitperiod},
-           given={Prafulla},
-           giveni={P\bibinitperiod}}}%
-        {{hash=a812c46caad94fc8701be37871f303ba}{%
-           family={Radford},
-           familyi={R\bibinitperiod},
-           given={Alec},
-           giveni={A\bibinitperiod}}}%
-        {{hash=be38507da6ab98e7ac01ac2c6b7e13eb}{%
-           family={Klimov},
-           familyi={K\bibinitperiod},
-           given={Oleg},
-           giveni={O\bibinitperiod}}}%
-      }
-      \strng{namehash}{8d6613ae59595910252a86a61babf6c8}
-      \strng{fullhash}{a6c6ed5a5aeb74e536f16291276ae392}
-      \strng{bibnamehash}{8d6613ae59595910252a86a61babf6c8}
-      \strng{authorbibnamehash}{8d6613ae59595910252a86a61babf6c8}
-      \strng{authornamehash}{8d6613ae59595910252a86a61babf6c8}
-      \strng{authorfullhash}{a6c6ed5a5aeb74e536f16291276ae392}
-      \field{sortinit}{1}
-      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{arXiv preprint arXiv:1707.06347}
-      \field{title}{Proximal Policy Optimization Algorithms}
-      \field{year}{2017}
-    \endentry
     \entry{lillicrap2016ddpg}{inproceedings}{}
       \name{author}{8}{}{%
         {{hash=2a321a868e44d49baf52b5e2d816fb71}{%
@@ -584,8 +586,8 @@
       \strng{authornamehash}{b8c131de85c5000ff50df59a4d062227}
       \strng{authorfullhash}{951e86110020d3107317b3e819f3d92d}
       \field{extraname}{1}
-      \field{sortinit}{2}
-      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{booktitle}{Proceedings of the 35th International Conference on Machine Learning (ICML)}
@@ -608,8 +610,8 @@
       \strng{authorbibnamehash}{c7b5508dc5e59a2846d22617276cc27c}
       \strng{authornamehash}{c7b5508dc5e59a2846d22617276cc27c}
       \strng{authorfullhash}{c7b5508dc5e59a2846d22617276cc27c}
-      \field{sortinit}{2}
-      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{title}{The {Python} Programming Language}
@@ -1005,6 +1007,88 @@
       \field{title}{Gymnasium: A Standard Interface for Reinforcement Learning Environments}
       \field{year}{2024}
     \endentry
+    \entry{bojarski2016end}{article}{}
+      \name{author}{13}{}{%
+        {{hash=3d886da2c15b909d551bde9c25e9e936}{%
+           family={Bojarski},
+           familyi={B\bibinitperiod},
+           given={Mariusz},
+           giveni={M\bibinitperiod}}}%
+        {{hash=5924f2132f17b736aed2c1110d686d59}{%
+           family={Del\bibnamedelima Testa},
+           familyi={D\bibinitperiod\bibinitdelim T\bibinitperiod},
+           given={Davide},
+           giveni={D\bibinitperiod}}}%
+        {{hash=e6e0144fab5753d7bb35de8b7e821c39}{%
+           family={Dworakowski},
+           familyi={D\bibinitperiod},
+           given={Daniel},
+           giveni={D\bibinitperiod}}}%
+        {{hash=0ccdffe97bc694f5ebb25dbdc592d191}{%
+           family={Firner},
+           familyi={F\bibinitperiod},
+           given={Bernhard},
+           giveni={B\bibinitperiod}}}%
+        {{hash=5e7e052316ce0c21ae845d54fb705c7f}{%
+           family={Flepp},
+           familyi={F\bibinitperiod},
+           given={Beat},
+           giveni={B\bibinitperiod}}}%
+        {{hash=70a9a4d7087f170b184ae88c487a5e3d}{%
+           family={Goyal},
+           familyi={G\bibinitperiod},
+           given={Prasoon},
+           giveni={P\bibinitperiod}}}%
+        {{hash=7c31ca2e27cf716eb355090b20ab6455}{%
+           family={Jackel},
+           familyi={J\bibinitperiod},
+           given={Lawrence\bibnamedelima D.},
+           giveni={L\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+        {{hash=32a45a34575d6a24003589ddc0f85cce}{%
+           family={Monfort},
+           familyi={M\bibinitperiod},
+           given={Mathew},
+           giveni={M\bibinitperiod}}}%
+        {{hash=0ea06e49d7f86ec53300bcefa737fb7a}{%
+           family={Muller},
+           familyi={M\bibinitperiod},
+           given={Urs},
+           giveni={U\bibinitperiod}}}%
+        {{hash=4c5e7ffa00fb7c011d6ed27dfc0b9027}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Jiakai},
+           giveni={J\bibinitperiod}}}%
+        {{hash=4f3bb1d3c7fa2a05241e353723deaf63}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Xin},
+           giveni={X\bibinitperiod}}}%
+        {{hash=98f96baba6eeac010f80cf94f73989a0}{%
+           family={Zhao},
+           familyi={Z\bibinitperiod},
+           given={Jake},
+           giveni={J\bibinitperiod}}}%
+        {{hash=6b2ca91b4cfbf04f79ff06fd810018c9}{%
+           family={Zieba},
+           familyi={Z\bibinitperiod},
+           given={Karol},
+           giveni={K\bibinitperiod}}}%
+      }
+      \strng{namehash}{0d8dd6ea4e6b98bcfec4c1767b14a7bd}
+      \strng{fullhash}{ea9c562bb6b0b080bc8006b1efd5576c}
+      \strng{bibnamehash}{0d8dd6ea4e6b98bcfec4c1767b14a7bd}
+      \strng{authorbibnamehash}{0d8dd6ea4e6b98bcfec4c1767b14a7bd}
+      \strng{authornamehash}{0d8dd6ea4e6b98bcfec4c1767b14a7bd}
+      \strng{authorfullhash}{ea9c562bb6b0b080bc8006b1efd5576c}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{arXiv preprint arXiv:1604.07316}
+      \field{title}{End to End Learning for Self-Driving Cars}
+      \field{year}{2016}
+    \endentry
     \entry{he2016resnet}{inproceedings}{}
       \name{author}{4}{}{%
         {{hash=6b4b60e909e78633945f3f9c9dc83e01}{%
@@ -1066,8 +1150,8 @@
       \strng{authorbibnamehash}{25d2f3c4577a6632d37f0126cc781232}
       \strng{authornamehash}{25d2f3c4577a6632d37f0126cc781232}
       \strng{authorfullhash}{25d2f3c4577a6632d37f0126cc781232}
-      \field{sortinit}{2}
-      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{booktitle}{3rd International Conference on Learning Representations (ICLR)}
@@ -1380,7 +1464,6 @@
       \range{pages}{10}
     \endentry
   \enddatalist
-  \missing{terapaptommakol2022obstacle}
 \endrefsection
 \endinput
 

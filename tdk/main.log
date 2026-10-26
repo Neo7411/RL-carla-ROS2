@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.6.24)  24 OCT 2026 13:35
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.6.24)  25 OCT 2026 16:12
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -225,6 +225,8 @@ File: pdftex.def 2020/10/05 v1.2a Graphics/color driver for pdftex
 ))
 \Gin@req@height=\dimen163
 \Gin@req@width=\dimen164
+) (/usr/share/texlive/texmf-dist/tex/latex/placeins/placeins.sty
+Package: placeins 2005/04/18  v 2.2
 ) (/usr/share/texlive/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty (/usr/share/texlive/texmf-dist/tex/latex/pgf/basiclayer/pgf.sty (/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgfrcs.sty (/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfutil-common.tex
 \pgfutil@everybye=\toks27
 \pgfutil@tempdima=\dimen165
@@ -788,7 +790,8 @@ with kernel methods
 \c@bookmark@seq@number=\count451
  (/usr/share/texlive/texmf-dist/tex/latex/rerunfilecheck/rerunfilecheck.sty
 Package: rerunfilecheck 2019/12/05 v1.9 Rerun checks for auxiliary files (HO)
- (/usr/share/texlive/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty
+
+(/usr/share/texlive/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty
 Package: uniquecounter 2019/12/15 v1.4 Provide unlimited unique counter (HO)
 )
 Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 286.
@@ -802,41 +805,40 @@ Package csquotes Info: Redefining alias 'default' -> 'magyar'.
  (./main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 58.
-LaTeX Font Info:    ... okay on input line 58.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 58.
-LaTeX Font Info:    ... okay on input line 58.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 58.
-LaTeX Font Info:    ... okay on input line 58.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 58.
-LaTeX Font Info:    ... okay on input line 58.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 58.
-LaTeX Font Info:    ... okay on input line 58.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 58.
-LaTeX Font Info:    ... okay on input line 58.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 58.
-LaTeX Font Info:    ... okay on input line 58.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 58.
-LaTeX Font Info:    ... okay on input line 58.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 58.
-LaTeX Font Info:    ... okay on input line 58.
-LaTeX Info: Redefining \microtypecontext on input line 58.
-Package microtype Info: Applying patch `item' on input line 58.
-Package microtype Info: Applying patch `toc' on input line 58.
-Package microtype Info: Applying patch `eqnum' on input line 58.
-Package microtype Info: Applying patch `footnote' on input line 58.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 59.
+LaTeX Font Info:    ... okay on input line 59.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 59.
+LaTeX Font Info:    ... okay on input line 59.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 59.
+LaTeX Font Info:    ... okay on input line 59.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 59.
+LaTeX Font Info:    ... okay on input line 59.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 59.
+LaTeX Font Info:    ... okay on input line 59.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 59.
+LaTeX Font Info:    ... okay on input line 59.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 59.
+LaTeX Font Info:    ... okay on input line 59.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 59.
+LaTeX Font Info:    ... okay on input line 59.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 59.
+LaTeX Font Info:    ... okay on input line 59.
+LaTeX Info: Redefining \microtypecontext on input line 59.
+Package microtype Info: Applying patch `item' on input line 59.
+Package microtype Info: Applying patch `toc' on input line 59.
+Package microtype Info: Applying patch `eqnum' on input line 59.
+Package microtype Info: Applying patch `footnote' on input line 59.
 Package microtype Info: Generating PDF output.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using default protrusion set `alltext'.
 Package microtype Info: Automatic font expansion enabled (level 2),
 (microtype)             stretch: 20, shrink: 20, step: 1, non-selected.
 Package microtype Info: Using default expansion set `alltext-nott'.
-LaTeX Info: Redefining \showhyphens on input line 58.
+LaTeX Info: Redefining \showhyphens on input line 59.
 Package microtype Info: No adjustment of tracking.
 Package microtype Info: No adjustment of interword spacing.
 Package microtype Info: No adjustment of character kerning.
-
-(/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-ptm.cfg
+ (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-ptm.cfg
 File: mt-ptm.cfg 2006/04/20 v1.7 microtype config. file: Times (RS)
 )
 *geometry* driver: auto-detecting
@@ -904,18 +906,10 @@ Package biblatex Info: Automatic encoding selection.
 
 Package biblatex Info: Trying to load bibliographic data...
 Package biblatex Info: ... file 'main.bbl' found.
- (./main.bbl
-
-Package biblatex Warning: The following entry could not be found
-(biblatex)                in the database:
-(biblatex)                terapaptommakol2022obstacle
-(biblatex)                Please verify the spelling and rerun
-(biblatex)                LaTeX afterwards.
-
-)
-Package biblatex Info: Reference section=0 on input line 58.
-Package biblatex Info: Reference segment=0 on input line 58.
-Package hyperref Info: Link coloring OFF on input line 58.
+ (./main.bbl)
+Package biblatex Info: Reference section=0 on input line 59.
+Package biblatex Info: Reference segment=0 on input line 59.
+Package hyperref Info: Link coloring OFF on input line 59.
  (/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2021-04-02 v2.47 Cross-referencing by name of section
  (/usr/share/texlive/texmf-dist/tex/latex/refcount/refcount.sty
@@ -925,9 +919,9 @@ Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 )
 \c@section@level=\count458
 )
-LaTeX Info: Redefining \ref on input line 58.
-LaTeX Info: Redefining \pageref on input line 58.
-LaTeX Info: Redefining \nameref on input line 58.
+LaTeX Info: Redefining \ref on input line 59.
+LaTeX Info: Redefining \pageref on input line 59.
+LaTeX Info: Redefining \nameref on input line 59.
  (./main.out) (./main.out)
 \@outlinefile=\write5
 \openout5 = `main.out'.
@@ -981,17 +975,13 @@ LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7> not available
 \tf@toc=\write6
 \openout6 = `main.toc'.
 
- [3] [4]
-
-LaTeX Warning: Citation 'terapaptommakol2022obstacle' on page 5 undefined on input line 183.
-
-<pictures/carla_sim.jpeg, id=216, 596.2275pt x 337.26pt>
+ [3] [4] [5]
+<pictures/carla_sim.jpeg, id=230, 596.2275pt x 337.26pt>
 File: pictures/carla_sim.jpeg Graphic file (type jpg)
 <use pictures/carla_sim.jpeg>
-Package pdftex.def Info: pictures/carla_sim.jpeg  used on input line 208.
+Package pdftex.def Info: pictures/carla_sim.jpeg  used on input line 218.
 (pdftex.def)             Requested size: 386.96027pt x 218.88704pt.
-[5]
-LaTeX Font Info:    Trying to load font information for T1+cmtt on input line 228.
+LaTeX Font Info:    Trying to load font information for T1+cmtt on input line 240.
  (/usr/share/texlive/texmf-dist/tex/latex/base/t1cmtt.fd
 File: t1cmtt.fd 2019/12/16 v2.5j Standard LaTeX font definitions
 )
@@ -999,142 +989,155 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `cmtt' (encoding: T1).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
-<pictures/town04.jpeg, id=227, 681.54625pt x 672.5125pt>
+ [6 <./pictures/carla_sim.jpeg>]
+<pictures/town04.jpeg, id=240, 681.54625pt x 672.5125pt>
 File: pictures/town04.jpeg Graphic file (type jpg)
 <use pictures/town04.jpeg>
-Package pdftex.def Info: pictures/town04.jpeg  used on input line 236.
+Package pdftex.def Info: pictures/town04.jpeg  used on input line 248.
 (pdftex.def)             Requested size: 273.14923pt x 269.53383pt.
- [6 <./pictures/carla_sim.jpeg>] [7 <./pictures/town04.jpeg>]
-LaTeX Font Info:    Trying to load font information for TS1+qtm on input line 316.
+ [7 <./pictures/town04.jpeg>] [8]
+LaTeX Font Info:    Trying to load font information for TS1+qtm on input line 333.
  (/usr/share/texmf/tex/latex/tex-gyre/ts1qtm.fd
 File: ts1qtm.fd 2009/09/25 v1.2 font definition file for TS1/qtm
-) [8] [9] [10] [11] [12]
-<pictures/sensors/camera/camera_examples.png, id=307, 975.645pt x 493.845pt>
+) [9] [10] [11] [12]
+<pictures/sensors/camera/camera_examples.png, id=315, 975.645pt x 493.845pt>
 File: pictures/sensors/camera/camera_examples.png Graphic file (type png)
 <use pictures/sensors/camera/camera_examples.png>
-Package pdftex.def Info: pictures/sensors/camera/camera_examples.png  used on input line 507.
+Package pdftex.def Info: pictures/sensors/camera/camera_examples.png  used on input line 556.
 (pdftex.def)             Requested size: 409.71692pt x 207.39087pt.
-<pictures/sensors/camera/camera_rec_conv.png, id=309, 657.9855pt x 153.4095pt>
+ [13 <./pictures/sensors/camera/camera_examples.png (PNG copy)>]
+<pictures/sensors/camera/camera_loss.pdf, id=324, 455.30101pt x 245.718pt>
+File: pictures/sensors/camera/camera_loss.pdf Graphic file (type pdf)
+<use pictures/sensors/camera/camera_loss.pdf>
+Package pdftex.def Info: pictures/sensors/camera/camera_loss.pdf  used on input line 574.
+(pdftex.def)             Requested size: 409.71692pt x 221.1254pt.
+ [14 <./pictures/sensors/camera/camera_loss.pdf>]
+<pictures/sensors/camera/camera_rec_conv.png, id=373, 657.9855pt x 153.4095pt>
 File: pictures/sensors/camera/camera_rec_conv.png Graphic file (type png)
 <use pictures/sensors/camera/camera_rec_conv.png>
-Package pdftex.def Info: pictures/sensors/camera/camera_rec_conv.png  used on input line 545.
+Package pdftex.def Info: pictures/sensors/camera/camera_rec_conv.png  used on input line 601.
 (pdftex.def)             Requested size: 455.24411pt x 106.14056pt.
- [13 <./pictures/sensors/camera/camera_examples.png (PNG copy)>]
-<pictures/sensors/camera/camera_rec_resnet.png, id=319, 657.9855pt x 153.4095pt>
+<pictures/sensors/camera/camera_rec_resnet.png, id=377, 657.9855pt x 153.4095pt>
 File: pictures/sensors/camera/camera_rec_resnet.png Graphic file (type png)
 <use pictures/sensors/camera/camera_rec_resnet.png>
-Package pdftex.def Info: pictures/sensors/camera/camera_rec_resnet.png  used on input line 566.
+Package pdftex.def Info: pictures/sensors/camera/camera_rec_resnet.png  used on input line 622.
 (pdftex.def)             Requested size: 455.24411pt x 106.14056pt.
- [14 <./pictures/sensors/camera/camera_rec_conv.png> <./pictures/sensors/camera/camera_rec_resnet.png>]
-<pictures/sensors/camera/camera_rec_vgg.png, id=332, 657.9855pt x 153.4095pt>
+ [15 <./pictures/sensors/camera/camera_rec_conv.png> <./pictures/sensors/camera/camera_rec_resnet.png>]
+<pictures/sensors/camera/camera_rec_vgg.png, id=390, 657.9855pt x 153.4095pt>
 File: pictures/sensors/camera/camera_rec_vgg.png Graphic file (type png)
 <use pictures/sensors/camera/camera_rec_vgg.png>
-Package pdftex.def Info: pictures/sensors/camera/camera_rec_vgg.png  used on input line 586.
+Package pdftex.def Info: pictures/sensors/camera/camera_rec_vgg.png  used on input line 642.
 (pdftex.def)             Requested size: 455.24411pt x 106.14056pt.
- [15 <./pictures/sensors/camera/camera_rec_vgg.png>]
-<pictures/sensors/camera/camera_error_maps.png, id=345, 710.5455pt x 237.834pt>
+ [16 <./pictures/sensors/camera/camera_rec_vgg.png>]
+<pictures/sensors/camera/camera_error_maps.png, id=403, 710.5455pt x 237.834pt>
 File: pictures/sensors/camera/camera_error_maps.png Graphic file (type png)
 <use pictures/sensors/camera/camera_error_maps.png>
-Package pdftex.def Info: pictures/sensors/camera/camera_error_maps.png  used on input line 632.
+Package pdftex.def Info: pictures/sensors/camera/camera_error_maps.png  used on input line 688.
 (pdftex.def)             Requested size: 455.24411pt x 152.38016pt.
-<pictures/sensors/camera/camera_psnr_hist.pdf, id=346, 530.01578pt x 233.26271pt>
+<pictures/sensors/camera/camera_psnr_hist.pdf, id=404, 530.01578pt x 233.26271pt>
 File: pictures/sensors/camera/camera_psnr_hist.pdf Graphic file (type pdf)
 <use pictures/sensors/camera/camera_psnr_hist.pdf>
-Package pdftex.def Info: pictures/sensors/camera/camera_psnr_hist.pdf  used on input line 640.
+Package pdftex.def Info: pictures/sensors/camera/camera_psnr_hist.pdf  used on input line 696.
 (pdftex.def)             Requested size: 409.71692pt x 180.32114pt.
- [16 <./pictures/sensors/camera/camera_error_maps.png> <./pictures/sensors/camera/camera_psnr_hist.pdf>]
-<pictures/sensors/lidar/lidar_inputs.png, id=406, 637.29pt x 446.4315pt>
+ [17 <./pictures/sensors/camera/camera_error_maps.png> <./pictures/sensors/camera/camera_psnr_hist.pdf>]
+<pictures/sensors/lidar/lidar_inputs.png, id=465, 637.29pt x 446.4315pt>
 File: pictures/sensors/lidar/lidar_inputs.png Graphic file (type png)
 <use pictures/sensors/lidar/lidar_inputs.png>
-Package pdftex.def Info: pictures/sensors/lidar/lidar_inputs.png  used on input line 684.
+Package pdftex.def Info: pictures/sensors/lidar/lidar_inputs.png  used on input line 738.
 (pdftex.def)             Requested size: 455.24411pt x 318.90318pt.
-<pictures/sensors/lidar/lidar_rec_bev.png, id=408, 409.968pt x 430.6635pt>
+<pictures/sensors/lidar/lidar_loss.pdf, id=466, 455.30101pt x 187.902pt>
+File: pictures/sensors/lidar/lidar_loss.pdf Graphic file (type pdf)
+<use pictures/sensors/lidar/lidar_loss.pdf>
+Package pdftex.def Info: pictures/sensors/lidar/lidar_loss.pdf  used on input line 747.
+(pdftex.def)             Requested size: 455.24411pt x 187.88432pt.
+ [18] [19 <./pictures/sensors/lidar/lidar_inputs.png> <./pictures/sensors/lidar/lidar_loss.pdf>]
+<pictures/sensors/lidar/lidar_rec_bev.png, id=534, 409.968pt x 430.6635pt>
 File: pictures/sensors/lidar/lidar_rec_bev.png Graphic file (type png)
 <use pictures/sensors/lidar/lidar_rec_bev.png>
-Package pdftex.def Info: pictures/sensors/lidar/lidar_rec_bev.png  used on input line 712.
+Package pdftex.def Info: pictures/sensors/lidar/lidar_rec_bev.png  used on input line 776.
 (pdftex.def)             Requested size: 318.66948pt x 334.77933pt.
- [17] [18 <./pictures/sensors/lidar/lidar_inputs.png>] [19 <./pictures/sensors/lidar/lidar_rec_bev.png>]
-<pictures/sensors/lidar/lidar_rec_graph.png, id=428, 695.4345pt x 270.3555pt>
+ [20 <./pictures/sensors/lidar/lidar_rec_bev.png>]
+<pictures/sensors/lidar/lidar_rec_graph.png, id=543, 695.4345pt x 270.3555pt>
 File: pictures/sensors/lidar/lidar_rec_graph.png Graphic file (type png)
 <use pictures/sensors/lidar/lidar_rec_graph.png>
-Package pdftex.def Info: pictures/sensors/lidar/lidar_rec_graph.png  used on input line 757.
+Package pdftex.def Info: pictures/sensors/lidar/lidar_rec_graph.png  used on input line 823.
 (pdftex.def)             Requested size: 455.24411pt x 176.98306pt.
- [20]
-<pictures/sensors/lidar/lidar_rec_mae.png, id=438, 686.2365pt x 192.1725pt>
+ [21]
+<pictures/sensors/lidar/lidar_rec_mae.png, id=553, 686.2365pt x 192.1725pt>
 File: pictures/sensors/lidar/lidar_rec_mae.png Graphic file (type png)
 <use pictures/sensors/lidar/lidar_rec_mae.png>
-Package pdftex.def Info: pictures/sensors/lidar/lidar_rec_mae.png  used on input line 798.
+Package pdftex.def Info: pictures/sensors/lidar/lidar_rec_mae.png  used on input line 866.
 (pdftex.def)             Requested size: 455.24411pt x 127.48813pt.
- [21 <./pictures/sensors/lidar/lidar_rec_graph.png>]
-<pictures/sensors/lidar/lidar_smoothness.pdf, id=449, 571.78621pt x 377.1794pt>
+ [22 <./pictures/sensors/lidar/lidar_rec_graph.png>]
+<pictures/sensors/lidar/lidar_smoothness.pdf, id=564, 571.78621pt x 377.1794pt>
 File: pictures/sensors/lidar/lidar_smoothness.pdf Graphic file (type pdf)
 <use pictures/sensors/lidar/lidar_smoothness.pdf>
-Package pdftex.def Info: pictures/sensors/lidar/lidar_smoothness.pdf  used on input line 859.
+Package pdftex.def Info: pictures/sensors/lidar/lidar_smoothness.pdf  used on input line 927.
 (pdftex.def)             Requested size: 409.71692pt x 171.04222pt.
- [22 <./pictures/sensors/lidar/lidar_rec_mae.png>] [23 <./pictures/sensors/lidar/lidar_smoothness.pdf>]
+ [23 <./pictures/sensors/lidar/lidar_rec_mae.png>] [24 <./pictures/sensors/lidar/lidar_smoothness.pdf>]
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <10.95> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 897.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 965.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <8> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 897.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 965.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <6> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 897.
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 965.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <14.4> not available
-(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 909.
- [24] [25] [26] [27] [28] [29] [30]
-<pictures/eval/routes_highway.pdf, id=573, 490.47241pt x 484.209pt>
+(Font)              Font shape `OT1/ptm/b/n' tried instead on input line 977.
+ [25] [26] [27] [28] [29] [30] [31]
+<pictures/eval/routes_highway.pdf, id=689, 490.47241pt x 484.209pt>
 File: pictures/eval/routes_highway.pdf Graphic file (type pdf)
 <use pictures/eval/routes_highway.pdf>
-Package pdftex.def Info: pictures/eval/routes_highway.pdf  used on input line 1297.
+Package pdftex.def Info: pictures/eval/routes_highway.pdf  used on input line 1360.
 (pdftex.def)             Requested size: 218.51521pt x 215.71983pt.
-<pictures/eval/routes_city_to_highway.pdf, id=574, 490.47241pt x 484.209pt>
+<pictures/eval/routes_city_to_highway.pdf, id=690, 490.47241pt x 484.209pt>
 File: pictures/eval/routes_city_to_highway.pdf Graphic file (type pdf)
 <use pictures/eval/routes_city_to_highway.pdf>
-Package pdftex.def Info: pictures/eval/routes_city_to_highway.pdf  used on input line 1302.
+Package pdftex.def Info: pictures/eval/routes_city_to_highway.pdf  used on input line 1365.
 (pdftex.def)             Requested size: 218.51521pt x 215.71983pt.
- [31] [32 <./pictures/eval/routes_highway.pdf> <./pictures/eval/routes_city_to_highway.pdf>]
-<pictures/eval/eval_speed.pdf, id=590, 479.7925pt x 172.645pt>
+ [32] [33 <./pictures/eval/routes_highway.pdf> <./pictures/eval/routes_city_to_highway.pdf>]
+<pictures/eval/eval_speed.pdf, id=705, 479.7925pt x 172.645pt>
 File: pictures/eval/eval_speed.pdf Graphic file (type pdf)
 <use pictures/eval/eval_speed.pdf>
-Package pdftex.def Info: pictures/eval/eval_speed.pdf  used on input line 1398.
+Package pdftex.def Info: pictures/eval/eval_speed.pdf  used on input line 1461.
 (pdftex.def)             Requested size: 455.24411pt x 163.81422pt.
- [33] [34 <./pictures/eval/eval_speed.pdf>] [35] [36]
-<pictures/eval/outcomes.pdf, id=632, 322.20375pt x 177.66376pt>
+ [34] [35 <./pictures/eval/eval_speed.pdf>] [36] [37]
+<pictures/eval/outcomes.pdf, id=749, 322.20375pt x 177.66376pt>
 File: pictures/eval/outcomes.pdf Graphic file (type pdf)
 <use pictures/eval/outcomes.pdf>
-Package pdftex.def Info: pictures/eval/outcomes.pdf  used on input line 1593.
+Package pdftex.def Info: pictures/eval/outcomes.pdf  used on input line 1656.
 (pdftex.def)             Requested size: 318.66948pt x 175.72229pt.
- [37 <./pictures/eval/outcomes.pdf>]
-<pictures/eval/eval_steer.pdf, id=652, 481.8pt x 172.645pt>
+ [38 <./pictures/eval/outcomes.pdf>]
+<pictures/eval/eval_steer.pdf, id=768, 481.8pt x 172.645pt>
 File: pictures/eval/eval_steer.pdf Graphic file (type pdf)
 <use pictures/eval/eval_steer.pdf>
-Package pdftex.def Info: pictures/eval/eval_steer.pdf  used on input line 1634.
+Package pdftex.def Info: pictures/eval/eval_steer.pdf  used on input line 1697.
 (pdftex.def)             Requested size: 455.24411pt x 163.13457pt.
- [38 <./pictures/eval/eval_steer.pdf>]
-<pictures/eval/eval_safety.pdf, id=674, 481.8pt x 169.63374pt>
+ [39 <./pictures/eval/eval_steer.pdf>]
+<pictures/eval/eval_safety.pdf, id=789, 481.8pt x 169.63374pt>
 File: pictures/eval/eval_safety.pdf Graphic file (type pdf)
 <use pictures/eval/eval_safety.pdf>
-Package pdftex.def Info: pictures/eval/eval_safety.pdf  used on input line 1686.
+Package pdftex.def Info: pictures/eval/eval_safety.pdf  used on input line 1749.
 (pdftex.def)             Requested size: 455.24411pt x 160.28918pt.
- [39 <./pictures/eval/eval_safety.pdf>] [40] [41] [42] [43] [44] [45] (./main.aux)
+ [40 <./pictures/eval/eval_safety.pdf>] [41] [42] [43] [44] [45] [46] (./main.aux)
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 2B9E8F424D2FFF11386F7E522E60A376;7049.
+(rerunfilecheck)             Checksum: 1665F051518D7BE2ECC2B655DE5D3093;7293.
 Package logreq Info: Writing requests to 'main.run.xml'.
 \openout1 = `main.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 33941 strings out of 478287
- 641984 string characters out of 5849289
- 1366578 words of memory out of 5000000
- 51239 multiletter control sequences out of 15000+600000
- 552554 words of font info for 229 fonts, out of 8000000 for 9000
+ 33989 strings out of 478287
+ 643594 string characters out of 5849289
+ 1367137 words of memory out of 5000000
+ 51284 multiletter control sequences out of 15000+600000
+ 552122 words of font info for 225 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  84i,12n,89p,1043b,2085s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texmf/fonts/enc/dvips/tex-gyre/q-ec-sc.enc}{/usr/share/texmf/fonts/enc/dvips/tex-gyre/q-ts1.enc}{/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}{/usr/share/texmf/fonts/enc/dvips/cm-super/cm-super-t1.enc}{/usr/share/texmf/fonts/enc/dvips/tex-gyre/q-ec.enc}</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texmf/fonts/type1/public/tex-gyre/qtmb.pfb></usr/share/texmf/fonts/type1/public/tex-gyre/qtmr.pfb></usr/share/texmf/fonts/type1/public/tex-gyre/qtmri.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/rsfs/rsfs10.pfb></usr/share/texmf/fonts/type1/public/cm-super/sftt1200.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/symbol/usyr.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/symbol/usyr.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (45 pages, 2428883 bytes).
+Output written on main.pdf (46 pages, 2466210 bytes).
 PDF statistics:
- 840 PDF objects out of 1000 (max. 8388607)
- 623 compressed objects within 7 object streams
- 155 named destinations out of 1000 (max. 500000)
- 38290 words of extra memory for PDF output out of 42996 (max. 10000000)
+ 957 PDF objects out of 1000 (max. 8388607)
+ 651 compressed objects within 7 object streams
+ 160 named destinations out of 1000 (max. 500000)
+ 38308 words of extra memory for PDF output out of 42996 (max. 10000000)
 
