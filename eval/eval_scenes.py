@@ -11,6 +11,7 @@ EVAL_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(EVAL_DIR))   # a repo gyokere (config, carla_env, utils)
 
 import carla
+import cv2
 import numpy as np
 import torch
 from stable_baselines3 import SAC
@@ -67,6 +68,9 @@ def main():
     # porton (a traffic manager a port + 6000-en), es sajat CSV-be ir.
     parser.add_argument("--port", type=int, default=CONFIG["env"]["port"])
     parser.add_argument("--out", default=None, help="eredmeny CSV (alapbol results/eval_<ido>.csv)")
+    # Prezentaciohoz: minden scene-rol mp4 a HUD-os nezetbol (eval/videos/<modell>_<scene>_rep<N>.mp4).
+    parser.add_argument("--video", action="store_true",
+                        help="videofelvetel minden scene-rol (bekapcsolja a renderelest, lassabb)")
     args = parser.parse_args()
 
     with open(args.scenes) as f:
@@ -114,7 +118,7 @@ def main():
             action_smoothing=env_cfg["action_smoothing"],
             action_space_type=env_cfg["action_space_type"],
             activate_spectator=env_cfg["activate_spectator"],
-            activate_render=env_cfg["activate_render"],
+            activate_render=env_cfg["activate_render"] or args.video,
             activate_lidar=True,
             traffic_vehicles=traffic["max_vehicles"],
             traffic_start_m=traffic["start_m"],
@@ -196,6 +200,15 @@ def main():
                     obs, _ = env.reset()
                     hits.clear()
 
+                    # Scene-enkent egy mp4 a HUD-os nezetbol, a szimulacio fps-evel.
+                    video = None
+                    if args.video:
+                        videos_dir = os.path.join(EVAL_DIR, "videos")
+                        os.makedirs(videos_dir, exist_ok=True)
+                        video_path = os.path.join(videos_dir, f"{model_name}_{sc['name']}_rep{rep + 1}.mp4")
+                        video = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"mp4v"),
+                                                env.fps, tuple(env_cfg["viewer_res"]))
+
                     max_steps = int(len(route) / (params["min_avg_kmh"] / 3.6) * env.fps)
                     ego_ext = env.vehicle.bounding_box.extent
                     leads, pass_gap = set(), {}   # valaha elottem a savomban / oldaltavolsag mellette
@@ -227,6 +240,10 @@ def main():
                             env.extra_info.append(f"Scene {i + 1}/{len(scenes)}: {sc['name']}")
                         obs, reward, terminated, truncated, _ = env.step(action)
                         steps += 1
+
+                        if video is not None:
+                            # A render RGB-t ad, a VideoWriter BGR-t var.
+                            video.write(cv2.cvtColor(env.render("rgb_array"), cv2.COLOR_RGB2BGR))
 
                         # Sav kozepe: a legkozelebbi sav kozepvonalatol (elozes kozben a masik savetol).
                         tr = env.vehicle.get_transform()
@@ -500,6 +517,10 @@ def main():
                         # es a hibak szama (resets) kulon szam, nem egy osszegben.
                         reward_no_penalty=round(env.total_reward - sum(f["penalty"] for f in fails), 1),
                     )
+                    if video is not None:
+                        video.release()
+                        print(f"[INFO] Video: {video_path}", flush=True)
+
                     # A mappat / fejlecet iraskor hozzuk letre: ha futas kozben eltunik, ujra lesz.
                     os.makedirs(results_dir, exist_ok=True)
                     new_file = not os.path.exists(results_csv)
