@@ -1,9 +1,9 @@
-PWD /home/labor/CARLA/DAVID_TDK/RL-carla-ROS2/tdk
+PWD /home/xavier11/CARLA/RL/RL-carla-ROS2/tdk
 INPUT /etc/texmf/web2c/texmf.cnf
 INPUT /usr/share/texmf/web2c/texmf.cnf
 INPUT /usr/share/texlive/texmf-dist/web2c/texmf.cnf
-INPUT /home/labor/.texlive2021/texmf-var/web2c/pdftex/pdflatex.fmt
-INPUT /home/labor/CARLA/DAVID_TDK/RL-carla-ROS2/tdk/main.tex
+INPUT /var/lib/texmf/web2c/pdftex/pdflatex.fmt
+INPUT /home/xavier11/CARLA/RL/RL-carla-ROS2/tdk/main.tex
 OUTPUT main.log
 INPUT /usr/share/texlive/texmf-dist/tex/latex/base/article.cls
 INPUT /usr/share/texlive/texmf-dist/tex/latex/base/article.cls
@@ -1053,11 +1053,11 @@ INPUT /usr/share/texmf/fonts/tfm/public/tex-gyre/ec-qtmr.tfm
 INPUT /usr/share/texmf/fonts/tfm/public/tex-gyre/ec-qtmr.tfm
 INPUT /usr/share/texmf/fonts/tfm/public/tex-gyre/ec-qtmb.tfm
 INPUT /usr/share/texmf/fonts/tfm/public/tex-gyre/ec-qtmr-sc.tfm
-INPUT /home/labor/.texlive2021/texmf-var/fonts/map/pdftex/updmap/pdftex.map
+INPUT /usr/share/texmf/fonts/tfm/public/tex-gyre/ec-qtmb.tfm
+INPUT /var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map
 INPUT ./main.toc
 INPUT main.toc
 INPUT main.toc
-INPUT /usr/share/texmf/fonts/tfm/public/tex-gyre/ec-qtmb.tfm
 INPUT /usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1ztmcm.fd
 INPUT /usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1ztmcm.fd
 INPUT /usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1ztmcm.fd
@@ -1317,6 +1317,7 @@ INPUT /usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb
 INPUT /usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb
 INPUT /usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb
 INPUT /usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb
+INPUT /usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb
 INPUT /usr/share/texmf/fonts/type1/public/tex-gyre/qtmb.pfb
 INPUT /usr/share/texmf/fonts/type1/public/tex-gyre/qtmr.pfb
 INPUT /usr/share/texmf/fonts/type1/public/tex-gyre/qtmri.pfb
