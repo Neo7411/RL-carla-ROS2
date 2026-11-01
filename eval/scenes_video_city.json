@@ -1,0 +1,44 @@
+{
+  "town": "Town04",
+  "params": {
+    "min_avg_kmh": 10.0,
+    "lane_center_tol_m": 0.5,
+    "stuck_min_s": 5.0,
+    "stop_on_collision": false
+  },
+  "traffic": {
+    "max_vehicles": 1,
+    "start_m": 66.0,
+    "gap_m": [
+      15.0,
+      30.0
+    ],
+    "speed_kmh": [
+      10.0,
+      10.0
+    ]
+  },
+  "highway": [],
+  "city_to_highway": [
+    {
+      "name": "jelenet_3",
+      "length_m": 153,
+      "traffic": true,
+      "seed": 2,
+      "oncoming": 5,
+      "oncoming_until": 42,
+      "points": [
+        [
+          201.53,
+          -300.19,
+          0.02
+        ],
+        [
+          199.98,
+          -149.06,
+          0.02
+        ]
+      ]
+    }
+  ]
+}

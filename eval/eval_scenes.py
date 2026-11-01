@@ -117,7 +117,8 @@ def main():
             fps=env_cfg["fps"],
             action_smoothing=env_cfg["action_smoothing"],
             action_space_type=env_cfg["action_space_type"],
-            activate_spectator=env_cfg["activate_spectator"],
+            # A videohoz a kulso kamera is kell, kulonben csak a HUD latszik fekete hatteren.
+            activate_spectator=env_cfg["activate_spectator"] or args.video,
             activate_render=env_cfg["activate_render"] or args.video,
             activate_lidar=True,
             traffic_vehicles=traffic["max_vehicles"],
@@ -132,6 +133,10 @@ def main():
         # tanitas is eldobja a savvaltasos route-okat). Csak ebben a folyamatban hat.
         env._grp._graph.remove_edges_from([(u, v) for u, v, d in env._grp._graph.edges(data=True)
                                            if d["type"].name.startswith("CHANGELANE")])
+
+        # A videon ne latsszon a route kek pontsora az uton.
+        if args.video:
+            env._draw_path = lambda camera, image: image
 
         # Utkozes: az env-e lezarna az epizodot, ez csak feljegyzi (ki, hol,
         # hanyadik route-meternel, hanyadik lepesben). Az ut ("Road") nem szamit.
@@ -199,6 +204,34 @@ def main():
                         env.tm.set_random_device_seed(seed)
                     obs, _ = env.reset()
                     hits.clear()
+
+                    # Varosi videos jelenet: szembeforgalom a scene "oncoming" mezojeben
+                    # megadott szamu autoval, a route szembesavjaban 12 m-enkent, a route
+                    # "oncoming_until" meterig (alapbol vegig), keresztezodesen kivul. Igy
+                    # az elozes helyen a szembesav szabad, nem keresztezi senki utjat. A
+                    # szembejovok nem allnak meg lampanal / STOP-tablanal (kulonben
+                    # feltorlodnak), es a keresztezodesben egyenesen mennek (nem fordulnak
+                    # az ego ele). Seedelt tipus es sebesseg, mint a route forgalmanal. A
+                    # traffic_ids-be kerul: az env igy latja (surroundings), es a
+                    # kovetkezo reset torli.
+                    if sc.get("oncoming", 0) and env.tm is not None:
+                        spots = [(w, w.get_left_lane()) for w, _ in route[20:sc.get("oncoming_until", len(route)):12]
+                                 if not w.is_junction]
+                        spots = [o.transform for w, o in spots
+                                 if o is not None and o.lane_type == carla.LaneType.Driving
+                                 and o.lane_id * w.lane_id < 0][:sc["oncoming"]]
+                        batch = [carla.command.SpawnActor(env._traffic_bps[np.random.randint(len(env._traffic_bps))],
+                                                          carla.Transform(t.location + carla.Location(z=0.5), t.rotation))
+                                 .then(carla.command.SetAutopilot(carla.command.FutureActor, True, env.tm.get_port()))
+                                 for t in spots]
+                        oncoming = [r.actor_id for r in env.client.apply_batch_sync(batch, True) if not r.error]
+                        for actor in env.world.get_actors(oncoming):
+                            env.tm.set_desired_speed(actor, float(np.random.uniform(*env.traffic_speed_kmh)))
+                            env.tm.auto_lane_change(actor, False)
+                            env.tm.ignore_lights_percentage(actor, 100)
+                            env.tm.ignore_signs_percentage(actor, 100)
+                            env.tm.set_route(actor, ["Straight"] * 10)
+                        env.traffic_ids += oncoming
 
                     # Scene-enkent egy mp4 a HUD-os nezetbol, a szimulacio fps-evel.
                     video = None
